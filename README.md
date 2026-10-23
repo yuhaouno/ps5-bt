@@ -6,12 +6,14 @@ through the built-in radio while DualSense stays wireless.
 
 **Status: Phase 0 repository bootstrap.** Project policy, research, architecture
 and platform boundaries are documented. The portable Rust workspace and platform
-contracts are implemented; Bluetooth/audio protocol implementations remain planned.
+contracts and a minimal HCI diagnostic decoder are implemented. The full
+Bluetooth/audio stack remains planned.
 
 | Area | Status |
 | --- | --- |
 | Project mission, scope and Git discipline | Implemented |
 | Portable no_std transport, clock and PCM contracts | Implemented |
+| HCI event framing and local-version diagnostic decoder | Implemented; synthetic tests only |
 | Rust Bluetooth/audio stack and thin C platform adapter | Planned |
 | PS5 ELF build, console models/firmware, controller families and headphones | Unknown / untested |
 | SBC, other codecs, captured audio, latency and reconnect | Planned; no support claimed |
@@ -59,3 +61,7 @@ review must be resolved before live controller queries.
 
 Changes are recorded in [CHANGELOG.md](CHANGELOG.md); milestones require
 evidence rather than planned release dates.
+
+The HCI decoder has synthetic packet fixtures, truncation/error tests and
+exhaustive event-length checks. See the [protocol implementation plan](docs/PROTOCOL.md).
+It is not a live HCI dispatcher or evidence of controller support.
