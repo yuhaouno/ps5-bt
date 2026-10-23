@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Close the first software development wave at the HW-1 diagnostic artifact;
+  independently rebuild it offline from packaged source with identical ELF
+  bytes. Physical validation is pending; HW-2 and working audio are unverified.
+
 - Add allocation-free SDP PDU/continuation framing and bounded typed data-element
   parsing; full service discovery and connection policy remain future work.
 

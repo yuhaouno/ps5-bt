@@ -5,9 +5,11 @@ assigned paths. No PS5 hardware evidence exists. MVP is not operational.
 
 ## Current milestone and baseline
 
-Next target: an inspectable PS5 ELF containing Rust, then HW-1 runtime evidence
-and HW-2 actual controller information. Tone and captured audio follow those
-hardware gates; portable work may continue independently.
+Current software wave is complete at the HW-1 artifact. A real inspected PS5
+ELF containing Rust and corresponding-source package are available. **The exact
+next action is HW-1 physical validation.** No physical PS5 is currently
+available; no further development or HW-2 work starts in this wave. Tone,
+capture and all controller operations remain unverified. See WAVE-1-REPORT.md.
 
 Baseline commit: `7f4b9cb`. Existing history preserved; integration branch:
 `feat/mvp-bringup`. Plain `make check` fails in this shell because cargo is not
@@ -17,9 +19,10 @@ freestanding archive. `make ps5-link` stops at the runtime-review gate. There
 was no final-link/runtime or known working hardware path at baseline. The
 reviewed minimal startup now links a genuine diagnostic ELF; execution is untested.
 
-User test environment: PS5 Slim, system firmware 13.40, an available Classic
-A2DP headset (model not yet recorded), and ability to load diagnostic ELF files
-and return logs. This is a bring-up target, not verified compatibility. Pin the
+Intended user test environment: PS5 Slim, system firmware 13.40, and a Classic
+A2DP headset (model not yet recorded). The user currently has no physical PS5
+access; diagnostic loading/log collection is deferred until access returns.
+This is a bring-up target, not verified compatibility. Pin the
 latest verified loader/runtime releases before giving loading instructions.
 Detect vendor/revision, HCI/LMP versions, features and buffer limits at runtime;
 do not ask the user to infer them from the console model.
@@ -97,6 +100,8 @@ Neither researched loader provides a direct dlsym callback in the first argument
 it is a getpid syscall stub. Loader-supported relative relocations and BSS/return
 requirements must be checked for the actual ELF.
 
-Next integration target: compile/review the optional single native presence query,
-then hand over the baseline ELF for entry/log/return evidence. Controller transport
-remains blocked on ownership. Continue independent desktop work while awaiting logs.
+No active implementation assignments remain. All completed workers were reviewed
+and integrated; the clean-source rebuild review passed. The optional query ELF
+remains unexecuted. Controller transport is blocked on ownership evidence. Next
+action is only HW-1 baseline entry/log/return and DualSense validation once the
+user has physical access. Do not start HW-2 or speculative work to fill the wait.

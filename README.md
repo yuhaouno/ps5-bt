@@ -15,6 +15,13 @@ parsers, a Rust/C seam, and an adapter that explicitly returns
 existing payload. The final public name is undecided; repository and package
 collision checks must precede naming. All Cargo packages are `publish = false`.
 
+**This development wave is complete at the software side of HW-1.** Physical
+PS5 access is currently unavailable. The exact next step is to load the baseline
+diagnostic ELF on physical hardware and verify logs, clean return and wireless
+DualSense operation using [HW-1](docs/HARDWARE-TEST.md). PS5 Slim / firmware 13.40
+is the intended first validation target, not verified support. HW-2 has not
+started. See the [wave closeout report](docs/WAVE-1-REPORT.md).
+
 ## Compatibility and measurements
 
 | Area | Status | Evidence |

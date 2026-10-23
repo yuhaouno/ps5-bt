@@ -5,6 +5,12 @@ linked ELF, execution on a PS5, and stable audio are different achievements.
 The current dependency graph, worker ownership and blockers are tracked in
 [MVP-STATE.md](docs/MVP-STATE.md).
 
+Current wave: software-side HW-1 artifact complete; physical PS5 access is
+unavailable. **Next action: HW-1 physical validation**, following
+[HARDWARE-TEST.md](docs/HARDWARE-TEST.md). Do not start HW-2 or infer hardware
+success from desktop tests. Slim / firmware 13.40 remains the unverified first
+target. See [wave evidence](docs/WAVE-1-REPORT.md).
+
 | Milestone | Deliverable | Exit evidence | Current state |
 | --- | --- | --- | --- |
 | M0 — research/bootstrap | source/license inventory, architecture, bounded ABI, desktop tests, freestanding Rust archive | reproducible host checks and artifact inspection; explicit unknowns | bootstrap implemented; validation below |

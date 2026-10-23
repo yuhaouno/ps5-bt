@@ -4,6 +4,11 @@ No hardware run has occurred. The current C shim deliberately returns
 Unsupported. Do not replace that result with synthetic controller metadata in a
 payload. Desktop fake packets have separate test-only source files.
 
+Development wave closeout (2026-10-23): physical PS5 access is currently
+unavailable. **The next action is HW-1 physical validation using the baseline
+ELF below. HW-2 has not started.** The optional query ELF is software-tested
+only and is not part of this first physical test.
+
 ## Ready diagnostic: HW-1 entry, logging and return
 
 First target: **PS5 Slim, firmware 13.40, unverified**. The default `make`
