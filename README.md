@@ -20,7 +20,10 @@ PS5 access is currently unavailable. The exact next step is to load the baseline
 diagnostic ELF on physical hardware and verify logs, clean return and wireless
 DualSense operation using [HW-1](docs/HARDWARE-TEST.md). PS5 Slim / firmware 13.40
 is the intended first validation target, not verified support. HW-2 has not
-started. See the [wave closeout report](docs/WAVE-1-REPORT.md).
+started. A second macOS arm64 machine reproduced the baseline ELF from a clean
+clone of `feat/mvp-bringup` with the documented toolchain and no repository
+changes. That reproduction is not PS5 execution. See the
+[wave closeout report](docs/WAVE-1-REPORT.md).
 
 ## Compatibility and measurements
 

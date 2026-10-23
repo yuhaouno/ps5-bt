@@ -33,8 +33,9 @@ Passed: 34 Rust tests, formatting, workspace check, Clippy with warnings denied,
 15 C/Rust seam scenarios, strict C descriptor/query/main-hook tests, ASan/UBSan,
 freestanding archive inspection, startup failure tests, source/toolchain failure
 tests, 12 malformed ELF cases per variant, and source-package integrity/content/
-determinism tests. Remote Linux/macOS CI execution and cross-host byte identity
-are not claimed.
+determinism tests. Remote Linux and macOS CI execution was not observed.
+A later clean-machine reproduction on a second macOS arm64 host is recorded
+below. Other hosts and OS versions are not claimed.
 
 The baseline artifact is 54,168 bytes, ET_DYN x86-64, with three 16 KiB-aligned
 RX/R/RW loads, 22 symbol-free RELATIVE relocations, and no imports, dependency
@@ -50,9 +51,41 @@ local Git snapshot, and rebuilt in a fresh project/target directory with
 `CARGO_NET_OFFLINE=true` and only the bundled SDK tree. The ELF and Rust archive
 were byte-identical to the originals using the same installed toolchain. The
 manifest changed only its local Git commit. Repeated source packaging was also
-byte-identical for identical inputs. This verifies the available local rebuild
-path, not a pristine OS installation, cross-host reproducibility or hardware.
-Final manifests/source packages are regenerated after this documentation commit.
+byte-identical for identical inputs. This verifies the packaged-source rebuild
+path on that toolchain, not a pristine OS installation or hardware. The separate
+clean-machine result follows. Manifests and source packages for the closeout
+were regenerated from the committed tree that produced the hash above.
+
+## Clean-machine reproduction, 2026-10-23
+
+A second macOS arm64 development machine independently cloned
+`origin/feat/mvp-bringup` at `89bdce0`, installed the documented pinned
+toolchain, and let the builder fetch the three SDK sources from their pinned
+immutable URLs. No project source or build-tooling change was required.
+
+Host: macOS 27.0.1, Darwin arm64. Rust 1.90.0. LLVM 18.1.8 from the documented
+Homebrew `llvm@18` installation. Python 3.14.7. The host C compiler for
+synthetic tests remained Apple Clang.
+
+The Wave 1 checks passed: `make check`, `make check-c-sanitize`, synthetic
+startup tests, ELF structural inspection with 12 malformed-ELF cases, and
+source-package checks. The baseline ELF SHA-256 matched the hash above:
+
+```text
+a4a42640ec604e69aec535f5ddb015e8eafd1ebe6efe8a7386de7a7e2cb01cb0
+```
+
+A second `make` on that machine was byte-identical. Repeated source packaging
+of the same clean inputs was byte-identical. This is a second machine of the
+same OS and architecture. It is not a Linux result, a result for other OS
+versions, or PS5 execution. This documentation commit was not part of the
+reproduced tree.
+
+Host checks and the PS5 builder assume Cargo's default `target/` directory.
+An inherited non-default `CARGO_TARGET_DIR` places the archive elsewhere, and
+the current host check then fails looking for
+`target/<host>/debug/libps5_runtime.a`. Leaving `CARGO_TARGET_DIR` unset, as
+the documented environment does, works.
 
 ## Unverified behavior and active risks
 

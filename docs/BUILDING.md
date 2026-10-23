@@ -107,13 +107,21 @@ Ubuntu and macOS host CI are configured; configuration is not proof remote
 jobs ran. Desktop tests do not execute the real syscall bridge or loader and
 must not be reported as hardware tests.
 
+These checks and the PS5 builder read Rust archives from Cargo's default
+`target/` directory. An inherited non-default `CARGO_TARGET_DIR` puts the
+archive somewhere else, and the current host check fails when
+`target/<host>/debug/libps5_runtime.a` is absent. The documented environment
+leaves `CARGO_TARGET_DIR` unset, and that default works.
+
 ## Reproducibility and distribution
 
 The source/target/flags, Rust and LLVM versions, and selected SDK file hashes
 are pinned. Consult the manifest from the final source state for artifact
-hashes; no byte-identical cross-host ELF result or hardware execution is claimed.
-Publish source state, actual tool versions/hashes, command, map and artifact
-hashes with any future release.
+hashes. A second macOS 27.0.1 arm64 machine reproduced the `89bdce0` baseline
+ELF hash with this documented toolchain; see [WAVE-1-REPORT.md](WAVE-1-REPORT.md).
+Byte-identical results on other hosts or OS versions are not claimed, and no
+hardware execution is claimed. Publish source state, actual tool versions/hashes,
+command, map and artifact hashes with any future release.
 
 All three selected SDK files retain John Törnblom's copyright and
 GPL-3.0-or-later notices without modification. No SDK patches are applied.

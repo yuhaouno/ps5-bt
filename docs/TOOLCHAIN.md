@@ -101,6 +101,28 @@ project script described in RUNTIME-REVIEW.md.
 
 Artifact hashes depend on the committed source state. Consult the manifest from
 the final rebuild, rather than copying a development hash into release claims.
-Repeated identical-input builds are compared locally; no byte-identical
-cross-host result is claimed. Host tests and ELF structural validity establish
-neither firmware compatibility nor usable controller/audio support.
+Repeated identical-input builds are compared locally. Host tests and ELF
+structural validity establish neither firmware compatibility nor usable
+controller/audio support.
+
+## Clean-machine reproduction, 2026-10-23
+
+A second macOS arm64 development machine cloned `origin/feat/mvp-bringup` at
+`89bdce0` and used the documented setup: Rust 1.90.0 from
+[rust-toolchain.toml](../rust-toolchain.toml), `brew install llvm@18`, and
+`LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config`. The builder fetched
+the three pinned SDK sources. The host was macOS 27.0.1, Darwin arm64, with
+Python 3.14.7 and LLVM 18.1.8. No repository changes were required.
+
+`make check`, `make check-c-sanitize`, the baseline `make`, ELF inspection, and
+source packaging passed. The ELF SHA-256 matched
+`a4a42640ec604e69aec535f5ddb015e8eafd1ebe6efe8a7386de7a7e2cb01cb0`. A second
+build was byte-identical. Repeated source packaging of the same clean inputs
+was byte-identical. This is one additional macOS arm64 result, not a Linux
+result, another OS version, or PS5 execution. Details are in
+[WAVE-1-REPORT.md](WAVE-1-REPORT.md).
+
+An inherited non-default `CARGO_TARGET_DIR` breaks the host check, which
+expects Cargo's default `target/` directory. The documented environment does
+not set that variable, and that default works. Byte identity on other hosts
+is not claimed.

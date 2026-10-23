@@ -8,8 +8,11 @@ assigned paths. No PS5 hardware evidence exists. MVP is not operational.
 Current software wave is complete at the HW-1 artifact. A real inspected PS5
 ELF containing Rust and corresponding-source package are available. **The exact
 next action is HW-1 physical validation.** No physical PS5 is currently
-available; no further development or HW-2 work starts in this wave. Tone,
-capture and all controller operations remain unverified. See WAVE-1-REPORT.md.
+available; no further development or HW-2 work starts in this wave. A second
+macOS 27.0.1 arm64 machine cloned `origin/feat/mvp-bringup` at `89bdce0` and
+reproduced the baseline ELF hash with the documented toolchain. No repository
+change was required. Tone, capture and all controller operations remain
+unverified. See WAVE-1-REPORT.md.
 
 Baseline commit: `7f4b9cb`. Existing history preserved; integration branch:
 `feat/mvp-bringup`. Plain `make check` fails in this shell because cargo is not

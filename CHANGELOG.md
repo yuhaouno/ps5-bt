@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Record a second macOS 27.0.1 arm64 reproduction of the HW-1 baseline ELF from
+  a clean clone of `feat/mvp-bringup`. The documented toolchain produced the
+  published SHA-256 with no repository changes. Physical validation and HW-2
+  remain undone.
+
 - Close the first software development wave at the HW-1 diagnostic artifact;
   independently rebuild it offline from packaged source with identical ELF
   bytes. Physical validation is pending; HW-2 and working audio are unverified.

@@ -60,7 +60,9 @@ commit differs from the original build commit; the included original manifest
 remains the record for the associated ELF. A rebuilt ELF receives its own
 manifest. Install the documented external tools and Rust target before an offline
 rebuild. The project has no third-party Cargo registry dependencies. Tools are
-not included, and byte-identical ELF output across hosts is not claimed.
+not included. A second macOS arm64 machine reproduced the baseline ELF hash
+recorded in [WAVE-1-REPORT.md](WAVE-1-REPORT.md); byte-identical output on other
+hosts is not claimed.
 
 Tar member ordering, ownership, timestamps and gzip timestamp/name are normalized;
 repeating packaging for identical committed source, SDK bytes and manifest must
