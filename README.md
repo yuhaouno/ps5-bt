@@ -9,6 +9,8 @@ and platform boundaries are documented. The portable Rust workspace and platform
 contracts and a minimal HCI diagnostic decoder are implemented. The full
 Bluetooth/audio stack remains planned. The C ABI and safe PS5 wrapper now exist,
 with an adapter that explicitly returns Unsupported and never opens hardware.
+A C-callable Rust runtime now exercises the boundary on the desktop and builds
+as a freestanding x86-64 archive. No PS5 ELF link or hardware execution is verified.
 
 | Area | Status |
 | --- | --- |
@@ -16,6 +18,7 @@ with an adapter that explicitly returns Unsupported and never opens hardware.
 | Portable no_std transport, clock and PCM contracts | Implemented |
 | HCI event framing and local-version diagnostic decoder | Implemented; synthetic tests only |
 | Versioned C ABI, safe wrapper and unsupported platform stub | Implemented; no live backend |
+| Rust/C diagnostic bootstrap and freestanding archive | Implemented; host/synthetic validation only |
 | Full Bluetooth/audio stack and capture | Planned |
 | PS5 ELF build, console models/firmware, controller families and headphones | Unknown / untested |
 | SBC, other codecs, captured audio, latency and reconnect | Planned; no support claimed |
@@ -78,3 +81,16 @@ cc -std=c11 -Wall -Wextra -Werror -Iplatform/ps5/include \
 
 The test verifies the unsupported/error contract; it does not establish PS5 ABI
 execution or hardware access.
+
+Runtime bootstrap checks (host C11 compiler and Python 3.11+ required):
+
+```sh
+python3 tools/host_check.py
+cargo build -p ps5-runtime --release --target x86_64-unknown-none --locked
+python3 tools/inspect_archive.py target/x86_64-unknown-none/release/libps5_runtime.a
+```
+
+The 15 host seam scenarios distinguish Unsupported, synthetic success, malformed
+responses, backend errors and cleanup failure. The adapter has no controller
+access. `x86_64-unknown-none` uses PIC/small code model and panic abort; final PS5
+link/runtime and native traffic ownership remain separate gates.

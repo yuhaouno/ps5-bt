@@ -4,6 +4,7 @@ members = [
     "crates/bt-hci",
     "crates/ps5-sys",
     "crates/ps5-platform",
+    "crates/ps5-runtime",
 ]
 resolver = "3"
 

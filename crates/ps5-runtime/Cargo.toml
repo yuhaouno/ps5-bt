@@ -1,0 +1,19 @@
+[package]
+name = "ps5-runtime"
+description = "C-callable diagnostic bootstrap, with no live PS5 backend"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["rlib", "staticlib"]
+
+[dependencies]
+bt-core = { path = "../bt-core" }
+bt-hci = { path = "../bt-hci" }
+ps5-platform = { path = "../ps5-platform" }
+
+[lints]
+workspace = true

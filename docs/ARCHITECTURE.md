@@ -1,8 +1,8 @@
 # Architecture
 
 Status: accepted bootstrap decisions; hardware design remains experimental.
-Implementation status: portable contracts and the C/Rust platform boundary are
-implemented; the runtime/link bootstrap follows in a separate commit.
+Implementation status: portable contracts, HCI diagnostics, the C/Rust boundary
+and a freestanding Rust archive are implemented. Final PS5 linking is untested.
 Research snapshot: 2026-10-23. See [RESEARCH.md](RESEARCH.md) for evidence and
 [UPSTREAM.md](UPSTREAM.md) for immutable source revisions.
 
