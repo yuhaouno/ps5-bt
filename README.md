@@ -49,7 +49,7 @@ make rust-archive   # no_std x86-64 ELF archive; no SDK or console needed
 ```
 
 See [build instructions](docs/BUILDING.md), [testing](docs/TESTING.md), the
-[research report](docs/RESEARCH.md).
+[research report](docs/RESEARCH.md), and the [bootstrap report](docs/BOOTSTRAP-REPORT.md).
 No third-party Rust packages are required.
 Host checks and target compilation do not establish PS5 compatibility.
 
