@@ -25,7 +25,7 @@ project does not implement jailbreaks, privilege escalation, DRM/license bypasse
 piracy, Sony binaries, firmware, keys or game content. Missing permissions must
 be reported as blockers.
 
-The roadmap is research -> Rust/C controller diagnostics -> transport/capture ->
+The [roadmap](ROADMAP.md) is research -> Rust/C controller diagnostics -> transport/capture ->
 SBC test tone -> PS5 PCM -> stability -> latency/quality -> later codecs and
 adaptation. No working audio or PS5 compatibility is claimed. No build target is
 introduced in this documentation-only stage.
@@ -49,3 +49,6 @@ Design: [architecture](docs/ARCHITECTURE.md), [proposed ABI](docs/ABI.md),
 [hardware test gates](docs/HARDWARE-TEST.md), [compatibility evidence](docs/COMPATIBILITY.md),
 and [security/scope policy](SECURITY.md). Shared HCI ownership and SDK startup
 review must be resolved before live controller queries.
+
+Changes are recorded in [CHANGELOG.md](CHANGELOG.md); milestones require
+evidence rather than planned release dates.
