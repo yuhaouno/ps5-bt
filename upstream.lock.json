@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "research_date": "2026-10-23",
+  "sdk": {
+    "repository": "https://github.com/ps5-payload-dev/sdk",
+    "commit": "a7685ce8e97ce1f8a4f38253a41d54241c9124f1",
+    "tag": "v0.45",
+    "archive_url": "https://github.com/ps5-payload-dev/sdk/releases/download/v0.45/ps5-payload-sdk.zip",
+    "sha256": "5fac64093d0e3e69f2584ce7935f24f703f622d9681f1495c85b9f00d1291a2c",
+    "relationship": "candidate external build/link dependency; runtime review pending"
+  },
+  "references": [
+    {
+      "repository": "https://github.com/FGGstore/FGG-PlayPods",
+      "commit": "d726e1c32568048aae66f3218c0540adc357e408",
+      "license": "GPL-3.0; later-version grant not established",
+      "relationship": "behavioral reference only"
+    },
+    {
+      "repository": "https://github.com/X-F1REBALL-X/HearBridge-PS5",
+      "commit": "cd5b7fce1b8226d8850cdd306437550098c6a62b",
+      "license": "GPL-3.0-or-later",
+      "relationship": "behavioral reference only"
+    }
+  ],
+  "local_patches": [],
+  "vendored_implementations": []
+}

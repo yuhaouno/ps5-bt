@@ -4,8 +4,8 @@ A Rust-first Bluetooth Audio stack for PlayStation 5 homebrew, designed for low
 latency, audio quality and portability. The goal is ordinary Bluetooth headphones
 through the built-in radio while DualSense stays wireless.
 
-**Status: Phase 0 repository bootstrap.** This commit establishes project policy;
-implementation and technical research will land in separate checked commits.
+**Status: Phase 0 repository bootstrap.** Project policy and upstream research
+are documented; implementation remains planned.
 
 | Area | Status |
 | --- | --- |
@@ -28,7 +28,7 @@ be reported as blockers.
 The roadmap is research -> Rust/C controller diagnostics -> transport/capture ->
 SBC test tone -> PS5 PCM -> stability -> latency/quality -> later codecs and
 adaptation. No working audio or PS5 compatibility is claimed. No build target is
-introduced in this documentation-only commit.
+introduced in this documentation-only stage.
 
 FGG-PlayPods, HearBridge PS5 and community Payload SDKs are research references;
 this independent project is not their fork or Rust translation. No upstream
@@ -40,3 +40,7 @@ Contributions should be small, tested, documented and committed in reviewable
 units; see [repository rules](AGENTS.md). English is canonical. Translated status
 guides will be linked when introduced. The public name remains undecided pending
 repository/package collision checks. No release tag is justified yet.
+
+Research: [technical findings](docs/RESEARCH.md), [upstream revisions and
+license inventory](docs/UPSTREAM.md). The SDK is a candidate build dependency;
+upstream Bluetooth/audio implementations are behavioral references only.
