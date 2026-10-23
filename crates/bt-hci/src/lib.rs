@@ -1,7 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Minimal diagnostic decoder. See docs/PROTOCOL.md for specification references.
+//! Allocation-free HCI framing. See docs/HCI-L2CAP.md for scope and references.
 #![no_std]
 #![forbid(unsafe_code)]
+
+mod acl;
+mod command;
+mod completion;
+
+pub use acl::{AclPacket, BroadcastFlag, ConnectionHandle, PacketBoundary};
+pub use command::{Command, Opcode};
+pub use completion::{
+    BufferSize, CommandComplete, CommandStatus, CompletedPackets, Completion,
+    LocalExtendedFeatures, LocalSupportedCommands, LocalSupportedFeatures,
+};
 
 /// HCI Read Local Version Information (no H4 indicator).
 pub const READ_LOCAL_VERSION: [u8; 3] = [0x01, 0x10, 0x00];
@@ -12,6 +23,8 @@ pub enum ParseError {
     UnexpectedEvent,
     UnexpectedOpcode,
     ControllerStatus(u8),
+    InvalidHandle,
+    InvalidFlags,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

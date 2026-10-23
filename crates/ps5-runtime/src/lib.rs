@@ -59,6 +59,8 @@ fn diagnostic(transport: &mut Transport) -> Result<(), Error> {
             bt_hci::ParseError::Length => log(b"parse_error=length\n"),
             bt_hci::ParseError::UnexpectedEvent => log(b"parse_error=unexpected_event\n"),
             bt_hci::ParseError::UnexpectedOpcode => log(b"parse_error=unexpected_opcode\n"),
+            bt_hci::ParseError::InvalidHandle => log(b"parse_error=invalid_handle\n"),
+            bt_hci::ParseError::InvalidFlags => log(b"parse_error=invalid_flags\n"),
         }
         Error::IntegrityLost
     })?;

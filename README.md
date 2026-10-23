@@ -19,7 +19,7 @@ collision checks must precede naming. All Cargo packages are `publish = false`.
 
 | Area | Status | Evidence |
 | --- | --- | --- |
-| Portable contracts and HCI diagnostic decoder | Implemented | host parser tests |
+| Portable contracts, HCI command/ACL framing and capability event decoders | Implemented | host packet/malformed-input tests |
 | C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
 | Live PS5 transport and capture | Unsupported | adapter explicitly returns Unsupported |
@@ -52,6 +52,10 @@ See [build instructions](docs/BUILDING.md), [testing](docs/TESTING.md), the
 [research report](docs/RESEARCH.md), and the [bootstrap report](docs/BOOTSTRAP-REPORT.md).
 No third-party Rust packages are required.
 Host checks and target compilation do not establish PS5 compatibility.
+The first hardware bring-up target is PS5 Slim on firmware 13.40; support is
+unverified. Controller vendor, revision and capabilities will be detected rather
+than inferred from that model. See the [live MVP task board](docs/MVP-STATE.md)
+and [portable framing contract](docs/HCI-L2CAP.md).
 
 There is no installable payload or end-user pairing procedure yet. The first
 major milestone is Rust in a PS5 ELF logging actual Bluetooth controller

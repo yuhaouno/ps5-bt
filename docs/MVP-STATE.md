@@ -16,6 +16,13 @@ parser tests, 15 C/Rust scenarios, Clippy/check/fmt, and a 398-object x86-64
 freestanding archive. `make ps5-link` stops at the runtime-review gate. There
 is no approved final-link/runtime or known working hardware path yet.
 
+User test environment: PS5 Slim, system firmware 13.40, an available Classic
+A2DP headset (model not yet recorded), and ability to load diagnostic ELF files
+and return logs. This is a bring-up target, not verified compatibility. Pin the
+latest verified loader/runtime releases before giving loading instructions.
+Detect vendor/revision, HCI/LMP versions, features and buffer limits at runtime;
+do not ask the user to infer them from the console model.
+
 ## Shared interfaces and integration rules
 
 - Retain `bt_core::BluetoothTransport`: complete header-bearing command/ACL
@@ -40,9 +47,10 @@ is no approved final-link/runtime or known working hardware path yet.
 | ID | State | Owner | Task / dependency / evidence |
 | --- | --- | --- | --- |
 | B0 | DONE | lead | inspect repository and repeat documented baseline |
-| A1 | READY | platform research worker | verify pinned/current upstream, startup/permissions, native HCI routing, C adaptation and license options; docs/UPSTREAM.md and docs/PS5_PLATFORM.md only |
-| B1 | READY | build worker | inspect SDK startup and tool availability; reproducible final link or exact missing dependency; owns build script/link recipe and toolchain/runtime review docs |
-| D1 | READY | protocol worker | safe HCI command/event/ACL types and bounded L2CAP framing/reassembly with malformed-input tests; owns bt-hci and bt-l2cap |
+| A1 | READY | platform_research (running) | verify pinned/current upstream and latest loader releases, startup/permissions, native HCI routing, C adaptation and license options; docs/UPSTREAM.md and docs/PS5_PLATFORM.md only |
+| B1 | READY | build_toolchain (running) | inspect SDK startup and tool availability; reproducible final link or exact missing dependency; owns build script/link recipe and toolchain/runtime review docs |
+| D1a | DONE | hci_l2cap + lead review | safe HCI command/event/ACL and capability/completion types; malformed-input tests; no credit accounting or live transport |
+| D1b | READY | hci_l2cap (running) | bounded L2CAP framing/reassembly in caller storage, tied to explicit handle/epoch; owns bt-l2cap |
 | C1 | WAITING | platform adapter worker | read-only USB descriptor probe and capability/backend selection after A1/B1 decisions; no active endpoint takeover |
 | C2 | BLOCKER | lead + platform worker | native HCI command/event/ACL ownership and enforceable credits; upstream read competition is not routing |
 | H1 | HARDWARE | user + lead | HW-1 ELF load, Rust entry and clean return after reviewed startup |

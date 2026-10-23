@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add allocation-free typed HCI command/ACL framing, controller capability and
+  completion event decoding, and malformed-input/maximum-length regressions.
+- Begin the dependency-aware MVP bring-up program with PS5 Slim firmware 13.40
+  as an unverified hardware test target.
+
 - Establish the independent project mission, English README and Git discipline.
 - Record architecture, scope boundaries, pinned upstream research and licensing.
 - Define evidence-based development milestones and hardware test gates.
