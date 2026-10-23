@@ -52,7 +52,8 @@ do not ask the user to infer them from the console model.
 | D1a | DONE | hci_l2cap + lead review | safe HCI command/event/ACL and capability/completion types; malformed-input tests; no credit accounting or live transport |
 | D1b | DONE | hci_l2cap + lead review | bounded L2CAP framing/reassembly in caller storage, tied to explicit handle/epoch; no signaling/channel establishment |
 | A2 | READY | native_hci_research (running) | investigate additional public native broker/query/separate-function evidence; no active USB-reader workaround |
-| C1 | READY | platform_descriptors (running) | bounded configuration descriptor parser/hostile tests first; optional read-only probe after B1 resolver contract; no active endpoint takeover |
+| C1a | DONE | platform_descriptors + lead review | bounded descriptor parser/report, hostile host tests and ASan/UBSan; no live USB access |
+| C1b | WAITING | platform worker | actual read-only descriptor probe after verified runtime operations/SDK headers; no endpoint takeover |
 | C2 | BLOCKER | lead + platform worker | native HCI command/event/ACL ownership and enforceable credits; upstream read competition is not routing |
 | H1 | HARDWARE | user + lead | HW-1 ELF load, Rust entry and clean return after reviewed startup |
 | H2 | HARDWARE | user + lead | HW-2 descriptor/HCI data and DualSense before/during/after; requires C1/C2 |

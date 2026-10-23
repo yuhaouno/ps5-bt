@@ -16,14 +16,17 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
   failed controller command and shutdown failure. Cleanup is checked once.
 - C stub conformance: no fake session on unsupported init, zero receive outputs,
   null output rejection and explicit unsupported operations.
+- USB metadata parsing and atomic bounded reports: truncations, resource limits,
+  duplicate endpoints/alternates and deterministic mutations. Run
+  `make usb-descriptors-test` or `make check-c-sanitize` for ASan/UBSan.
 - Formatting, cargo check, Clippy warnings denied, and freestanding archive compilation;
   inspect every object as little-endian ELF64 x86-64 relocatable code.
 
 None proves C can safely access hardware. The Rust wrapper depends on C obeying
 pointer/capacity/lifetime rules; validation after FFI cannot undo an invalid
-write. Introduce AddressSanitizer/UndefinedBehaviorSanitizer jobs when a real C
-adapter adds buffer handling, and Rust Miri where useful for pure Rust code.
-No sanitizer or fuzz campaign is claimed by the initial host checks.
+write. C descriptor tests run under AddressSanitizer/UndefinedBehaviorSanitizer
+in CI. Add Rust Miri where useful for pure Rust code. Deterministic mutations
+are regression coverage, not a coverage-guided fuzz campaign or ownership proof.
 
 ## Portable expansion
 

@@ -17,4 +17,4 @@ jobs:
       - name: Load pinned Rust toolchain
         run: rustup show active-toolchain
       - name: Host tests, C boundary and no_std archive
-        run: make check
+        run: make check check-c-sanitize

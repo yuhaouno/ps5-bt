@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add bounded USB descriptor parsing and deterministic metadata reports with
+  host regression tests and C sanitizers; no live USB operation is enabled.
+
 - Add L2CAP basic framing and allocation-free ACL reassembly with explicit
   connection epochs, caller-owned storage and rejection-state invariants.
 
