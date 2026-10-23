@@ -50,7 +50,8 @@ do not ask the user to infer them from the console model.
 | A1 | DONE | platform_research + lead review | exact SDK/loader pins, startup/syscall contract, metadata-only probe and capture boundaries, native routing blocker and per-file license review; see PS5_PLATFORM.md |
 | B1 | READY | build_toolchain (running) | inspect SDK startup and tool availability; reproducible final link or exact missing dependency; owns build script/link recipe and toolchain/runtime review docs |
 | D1a | DONE | hci_l2cap + lead review | safe HCI command/event/ACL and capability/completion types; malformed-input tests; no credit accounting or live transport |
-| D1b | READY | hci_l2cap (running) | bounded L2CAP framing/reassembly in caller storage, tied to explicit handle/epoch; owns bt-l2cap |
+| D1b | DONE | hci_l2cap + lead review | bounded L2CAP framing/reassembly in caller storage, tied to explicit handle/epoch; no signaling/channel establishment |
+| A2 | READY | native_hci_research (running) | investigate additional public native broker/query/separate-function evidence; no active USB-reader workaround |
 | C1 | READY | platform_descriptors (running) | bounded configuration descriptor parser/hostile tests first; optional read-only probe after B1 resolver contract; no active endpoint takeover |
 | C2 | BLOCKER | lead + platform worker | native HCI command/event/ACL ownership and enforceable credits; upstream read competition is not routing |
 | H1 | HARDWARE | user + lead | HW-1 ELF load, Rust entry and clean return after reviewed startup |
@@ -76,7 +77,7 @@ startup mutates credentials/syscall permissions; its suitability must be resolve
 without implementing a bypass. Existing transport code competes with the native
 stack for USB input. Console/loader/runtime/headset environment is unknown.
 
-Last lead verification: 12 HCI tests, 15 ABI scenarios, fmt/check/Clippy and the
+Last lead verification: 21 HCI/L2CAP tests, 15 ABI scenarios, fmt/check/Clippy and the
 freestanding archive passed from an isolated staged snapshot. HCI framing was
 integrated in `418071c`; no command dispatcher/credit ledger was added.
 

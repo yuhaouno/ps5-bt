@@ -14,6 +14,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bt-l2cap"
+version = "0.0.1"
+dependencies = [
+ "bt-core",
+ "bt-hci",
+]
+
+[[package]]
 name = "ps5-platform"
 version = "0.0.1"
 dependencies = [

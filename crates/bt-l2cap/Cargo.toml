@@ -1,0 +1,15 @@
+[package]
+name = "bt-l2cap"
+description = "Bounded L2CAP basic framing and received ACL recombination"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+bt-core = { path = "../bt-core" }
+bt-hci = { path = "../bt-hci" }
+
+[lints]
+workspace = true

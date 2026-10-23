@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add L2CAP basic framing and allocation-free ACL reassembly with explicit
+  connection epochs, caller-owned storage and rejection-state invariants.
+
 - Add allocation-free typed HCI command/ACL framing, controller capability and
   completion event decoding, and malformed-input/maximum-length regressions.
 - Begin the dependency-aware MVP bring-up program with PS5 Slim firmware 13.40

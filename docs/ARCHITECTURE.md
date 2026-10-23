@@ -49,13 +49,14 @@ can implement the same traits without depending on any PS5 crate.
 | Crate | Initial responsibility | Dependency direction |
 | --- | --- | --- |
 | `bt-core` | `no_std` errors, packet kinds, transport/clock/PCM contracts | no dependencies |
-| `bt-hci` | `no_std` event framing and local-version diagnostic decoding | no platform dependency |
+| `bt-hci` | `no_std` typed command/event/ACL framing and capability decoding | `bt-core`; no platform dependency |
+| `bt-l2cap` | `no_std` basic framing and bounded handle/epoch ACL reassembly | `bt-core`, `bt-hci`; no channel negotiation |
 | `ps5-sys` | `no_std` declarations matching our own C header | no SDK struct bindings |
 | `ps5-platform` | `no_std` safe C adapter wrapper, exclusive session ownership | `bt-core`, `ps5-sys` |
 | `ps5-runtime` | diagnostic entry, C-callable Rust static library | platform wrapper and HCI |
 
 All packages are unpublished, temporary identifiers, not reserved public names.
-Keep L2CAP, SDP, AVDTP, A2DP, audio, and codecs as documented future modules; split
+Keep L2CAP signaling, SDP, AVDTP, A2DP, audio, and codecs as documented future modules; split
 them when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
 `no_std` on the freestanding target. Portable crates remain `no_std` everywhere.

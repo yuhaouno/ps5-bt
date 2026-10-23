@@ -2,6 +2,7 @@
 members = [
     "crates/bt-core",
     "crates/bt-hci",
+    "crates/bt-l2cap",
     "crates/ps5-sys",
     "crates/ps5-platform",
     "crates/ps5-runtime",

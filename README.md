@@ -20,6 +20,7 @@ collision checks must precede naming. All Cargo packages are `publish = false`.
 | Area | Status | Evidence |
 | --- | --- | --- |
 | Portable contracts, HCI command/ACL framing and capability event decoders | Implemented | host packet/malformed-input tests |
+| L2CAP basic framing and bounded ACL reassembly | Implemented | synthetic handle/epoch/bounds tests; no channel negotiation |
 | C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
 | Live PS5 transport and capture | Unsupported | adapter explicitly returns Unsupported |
@@ -77,8 +78,8 @@ Application / payload
 
 Rust owns the architecture. Proven platform adaptation may remain C. See
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
-The initial five crates are `bt-core`, `bt-hci`, `ps5-sys`, `ps5-platform`, and
-`ps5-runtime`; future protocol crates will be created when needed.
+The workspace contains `bt-core`, `bt-hci`, `bt-l2cap`, `ps5-sys`, `ps5-platform`,
+and `ps5-runtime`. L2CAP signaling and further protocol crates remain future work.
 
 ## Roadmap and contribution
 
