@@ -5,11 +5,13 @@ latency, audio quality and portability. The goal is ordinary Bluetooth headphone
 through the built-in radio while DualSense stays wireless.
 
 **Status: Phase 0 repository bootstrap.** Project policy, research, architecture
-and platform boundaries are documented; implementation remains planned.
+and platform boundaries are documented. The portable Rust workspace and platform
+contracts are implemented; Bluetooth/audio protocol implementations remain planned.
 
 | Area | Status |
 | --- | --- |
 | Project mission, scope and Git discipline | Implemented |
+| Portable no_std transport, clock and PCM contracts | Implemented |
 | Rust Bluetooth/audio stack and thin C platform adapter | Planned |
 | PS5 ELF build, console models/firmware, controller families and headphones | Unknown / untested |
 | SBC, other codecs, captured audio, latency and reconnect | Planned; no support claimed |
@@ -27,8 +29,13 @@ be reported as blockers.
 
 The [roadmap](ROADMAP.md) is research -> Rust/C controller diagnostics -> transport/capture ->
 SBC test tone -> PS5 PCM -> stability -> latency/quality -> later codecs and
-adaptation. No working audio or PS5 compatibility is claimed. No build target is
-introduced in this documentation-only stage.
+adaptation. No working audio or PS5 compatibility is claimed.
+
+The [pinned Rust toolchain](rust-toolchain.toml) builds the portable `bt-core`
+crate without registry dependencies. Run `cargo fmt --all -- --check`,
+`cargo check --workspace --all-targets --locked`, `cargo test --workspace --locked`,
+and `cargo clippy --workspace --all-targets --locked -- -D warnings`. These
+contracts are not a live hardware implementation.
 
 FGG-PlayPods, HearBridge PS5 and community Payload SDKs are research references;
 this independent project is not their fork or Rust translation. No upstream
