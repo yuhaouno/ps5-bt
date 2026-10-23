@@ -16,13 +16,14 @@ existing payload. The final public name is undecided; repository and package
 collision checks must precede naming. All Cargo packages are `publish = false`.
 
 **This development wave is complete at the software side of HW-1.** Physical
-PS5 access is currently unavailable. The exact next step is to load the baseline
-diagnostic ELF on physical hardware and verify logs, clean return and wireless
-DualSense operation using [HW-1](docs/HARDWARE-TEST.md). PS5 Slim / firmware 13.40
-is the intended first validation target, not verified support. HW-2 has not
-started. A second macOS arm64 machine reproduced the baseline ELF from a clean
-clone of `feat/mvp-bringup` with the documented toolchain and no repository
-changes. That reproduction is not PS5 execution. See the
+PS5 access is available again, so the exact next step is to load the instrumented
+diagnostic ELF and verify its visible start/finish notifications, persistent log,
+clean return and wireless DualSense operation using
+[HW-1](docs/HARDWARE-TEST.md). PS5 Slim / firmware 13.40 is the intended first
+validation target, not verified support. HW-2 has not started. A second macOS
+arm64 machine reproduced the earlier baseline ELF from a clean clone of
+`feat/mvp-bringup` with the documented toolchain and no repository changes.
+That reproduction is not PS5 execution. See the
 [wave closeout report](docs/WAVE-1-REPORT.md).
 
 ## Compatibility and measurements
@@ -76,11 +77,14 @@ unverified. Controller vendor, revision and capabilities will be detected rather
 than inferred from that model. See the [live MVP task board](docs/MVP-STATE.md)
 and [portable framing contract](docs/HCI-L2CAP.md).
 
-The ELF currently logs Rust startup and returns `Unsupported`; there is no
-end-user pairing procedure. A reviewed minimal startup excludes the SDK's
-credential/permission-changing CRT. The first console test must establish actual
-entry, logging and clean return before controller diagnostics. Native HCI
-ownership still needs resolution. Builds never deploy to a console.
+The ELF currently shows start/finish notifications, mirrors diagnostics to
+`/data/ps5-bt-hw1.log`, logs Rust startup and returns `Unsupported`; there is no
+end-user pairing procedure. The file is replaced on each run so an incomplete
+run is distinguishable by its missing exit marker. A reviewed minimal startup
+excludes the SDK's credential/permission-changing CRT. The first console test
+must establish actual entry, logging and clean return before controller
+diagnostics. Native HCI ownership still needs resolution. Builds never deploy
+to a console.
 Use the [exact first hardware test instructions](docs/HARDWARE-TEST.md) and
 return the log, loader identity and wireless DualSense result. No headset is
 needed for this stage. The [optional native query](docs/NATIVE-QUERY.md) reports

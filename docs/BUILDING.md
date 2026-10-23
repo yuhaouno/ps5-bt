@@ -59,13 +59,18 @@ reviewable build artifact, not PS5 loader or firmware compatibility.
 ## Runtime scope and execution gate
 
 The fixed [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md) documents runtime
-`minimal-syscall-v1`, selected source behavior and the inspected loader contract.
+`minimal-syscall-v2`, selected source behavior and the inspected loader contract.
 The project-owned entry preserves the caller's stack/frame, clears BSS,
-initializes the selected syscall bridge, resolves existing libkernel `write`
-and `_exit`, then invokes C main -> Rust -> the Unsupported C adapter. Startup
-validates the loader-supplied getpid stub prefix before using the upstream
-adapter. Unsupported arguments, resolution or permissions fail visibly. No
-optional native diagnostic query is wired into this ELF.
+initializes the selected syscall bridge, opens a fresh diagnostic log at
+`/data/ps5-bt-hw1.log`, and resolves existing libkernel `write`, `_exit` and the
+best-effort notification entry point before invoking C main -> Rust -> the
+Unsupported C adapter. Start and finish notifications plus an explicit final
+status distinguish a completed run from a payload that never entered Rust. The
+log file is truncated at the start of each run and duplicates the synchronous
+diagnostic stream. Startup validates the loader-supplied getpid stub prefix
+before using the upstream adapter. Unsupported arguments, resolution or
+permissions fail explicitly. No optional native diagnostic query is wired into
+this ELF.
 
 `make ps5-native-query` explicitly builds a separate
 `build/ps5/ps5-bt-native-query.elf` with the single read-only diagnostic in

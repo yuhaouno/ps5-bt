@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add visible start/finish notifications, an explicit final status and a
+  per-run persistent `/data/ps5-bt-hw1.log` to the minimal HW-1 diagnostic,
+  with synthetic startup, channel-failure and request-layout tests. Hardware
+  behavior remains unverified until the new ELF runs on the target console.
+
 - Record a second macOS 27.0.1 arm64 reproduction of the HW-1 baseline ELF from
   a clean clone of `feat/mvp-bringup`. The documented toolchain produced the
   published SHA-256 with no repository changes. Physical validation and HW-2

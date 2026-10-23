@@ -7,9 +7,28 @@
 
 typedef long (*write_fn)(int, const void *, unsigned long);
 typedef void (*exit_fn)(int);
+typedef int (*notify_fn)(int, void *, size_t, int);
+
+struct notify_request {
+    unsigned char reserved[45];
+    char message[3075];
+};
+
+#define PS5_DIAGNOSTIC_LOG_PATH "/data/ps5-bt-hw1.log"
+#define PS5_O_WRONLY 0x0001
+#define PS5_O_CREAT 0x0200
+#define PS5_O_TRUNC 0x0400
+#define PS5_DIAGNOSTIC_LOG_MODE 0600
+#define PS5_PERSISTENT_LOG_FAILED 126
+#define PS5_NOTIFICATION_FAILED 127
+
 static write_fn platform_write;
 static exit_fn platform_exit;
-static int log_failed;
+static notify_fn platform_notify;
+static int stream_log_failed;
+static int persistent_log_failed;
+static int notification_failed;
+static int persistent_fd;
 static int resolver_ready;
 
 /* Strict accepted getpid instruction layout for the SDK's +0xa convention.
@@ -32,6 +51,8 @@ static int supported_stub_bytes(const unsigned char *code, size_t available)
 /* The pinned loader places payloadout at byte 0x28 in this upstream structure. */
 _Static_assert(sizeof(void *) == 8, "requires x86-64 pointers");
 _Static_assert(sizeof(write_fn) == sizeof(void *), "requires equal code/data pointer sizes");
+_Static_assert(sizeof(notify_fn) == sizeof(void *), "requires equal code/data pointer sizes");
+_Static_assert(sizeof(struct notify_request) == 3120, "notification ABI");
 _Static_assert(offsetof(payload_args_t, payloadout) == 0x28, "loader ABI");
 
 extern int main(void);
@@ -66,6 +87,174 @@ int memcmp(const void *first, const void *second, size_t count)
     return 0;
 }
 
+static size_t append_text(char *buffer, size_t capacity, size_t used, const char *text)
+{
+    while (*text && used < capacity)
+        buffer[used++] = *text++;
+    return used;
+}
+
+static size_t append_status(char *buffer, size_t capacity, size_t used, int status)
+{
+    unsigned int value;
+    char digits[10];
+    size_t count = 0;
+    if (status < 0) {
+        if (used < capacity)
+            buffer[used++] = '-';
+        value = 0U - (unsigned int)status;
+    } else {
+        value = (unsigned int)status;
+    }
+    do {
+        digits[count++] = (char)('0' + value % 10U);
+        value /= 10U;
+    } while (value && count < sizeof digits);
+    while (count && used < capacity)
+        buffer[used++] = digits[--count];
+    return used;
+}
+
+static void persistent_log(const uint8_t *data, uint32_t len)
+{
+    if (!data || !len || persistent_fd < 0 || persistent_log_failed)
+        return;
+    if (__crt_syscall(SYS_write, persistent_fd, data, (unsigned long)len) != (long)len)
+        persistent_log_failed = 1;
+}
+
+static void lifecycle_log(const uint8_t *data, uint32_t len)
+{
+    if (!data || !len)
+        return;
+    if (platform_write && !stream_log_failed &&
+        platform_write(2, data, len) != (long)len)
+        stream_log_failed = 1;
+    persistent_log(data, len);
+}
+
+static int open_persistent_log(void)
+{
+    persistent_fd = (int)__crt_syscall(SYS_open, PS5_DIAGNOSTIC_LOG_PATH,
+                                       PS5_O_WRONLY | PS5_O_CREAT | PS5_O_TRUNC,
+                                       PS5_DIAGNOSTIC_LOG_MODE);
+    if (persistent_fd < 0) {
+        persistent_log_failed = 1;
+        return -1;
+    }
+    return 0;
+}
+
+static int close_persistent_log(void)
+{
+    int result = 0;
+    if (persistent_fd >= 0) {
+        if (__crt_syscall(SYS_close, persistent_fd) < 0) {
+            persistent_log_failed = 1;
+            result = -1;
+        }
+        persistent_fd = -1;
+    }
+    return result;
+}
+
+static int send_notification(const char *message)
+{
+    static struct notify_request request;
+    if (!platform_notify)
+        return -1;
+    memset(&request, 0, sizeof request);
+    size_t length = 0;
+    while (message[length] && length + 1 < sizeof request.message) {
+        request.message[length] = message[length];
+        ++length;
+    }
+    request.message[length] = '\0';
+    return platform_notify(0, &request, sizeof request, 0);
+}
+
+static size_t format_status(char *buffer, size_t capacity, const char *prefix, int status)
+{
+    size_t used = append_text(buffer, capacity, 0, prefix);
+    used = append_status(buffer, capacity, used, status);
+    if (status == 2)
+        used = append_text(buffer, capacity, used, " (expected Unsupported)");
+    return used;
+}
+
+static void report_channel_state(void)
+{
+    static const uint8_t log_unavailable[] =
+        "event=persistent_log_unavailable path=" PS5_DIAGNOSTIC_LOG_PATH "\n";
+    static const uint8_t notify_unavailable[] = "event=notification_unavailable\n";
+    if (persistent_log_failed)
+        lifecycle_log(log_unavailable, (uint32_t)(sizeof log_unavailable - 1));
+    if (!platform_notify)
+        lifecycle_log(notify_unavailable, (uint32_t)(sizeof notify_unavailable - 1));
+}
+
+static void report_start(void)
+{
+    static const uint8_t started[] =
+        "event=payload_start log=" PS5_DIAGNOSTIC_LOG_PATH "\n";
+    static const char notice[] =
+        "PS5-BT diagnostic started\nLog: " PS5_DIAGNOSTIC_LOG_PATH;
+    lifecycle_log(started, (uint32_t)(sizeof started - 1));
+    report_channel_state();
+    if (send_notification(notice)) {
+        static const uint8_t failed[] = "event=notification_failed phase=start\n";
+        notification_failed = 1;
+        lifecycle_log(failed, (uint32_t)(sizeof failed - 1));
+    }
+}
+
+static int final_status_for(int primary_status, int bootstrap_failure)
+{
+    int status = primary_status;
+    if (!bootstrap_failure && stream_log_failed)
+        status = 124;
+    if (!bootstrap_failure && persistent_log_failed)
+        status = PS5_PERSISTENT_LOG_FAILED;
+    if (!bootstrap_failure && notification_failed)
+        status = PS5_NOTIFICATION_FAILED;
+    return status;
+}
+
+static int report_finish(int primary_status)
+{
+    int bootstrap_failure = primary_status >= 120 && primary_status <= 125;
+    char line[128];
+    size_t length = format_status(line, sizeof line, "event=payload_exit status=", primary_status);
+    length = append_text(line, sizeof line, length, "\n");
+    lifecycle_log((const uint8_t *)line, (uint32_t)length);
+
+    int final_status = final_status_for(primary_status, bootstrap_failure);
+    length = format_status(line, sizeof line, "event=payload_return status=", final_status);
+    length = append_text(line, sizeof line, length, "\n");
+    lifecycle_log((const uint8_t *)line, (uint32_t)length);
+    final_status = final_status_for(primary_status, bootstrap_failure);
+
+    if (close_persistent_log() && !bootstrap_failure)
+        final_status = PS5_PERSISTENT_LOG_FAILED;
+
+    char notice[128];
+    length = format_status(notice, sizeof notice, "PS5-BT diagnostic finished\nStatus: ",
+                           final_status);
+    if (length < sizeof notice)
+        notice[length] = '\0';
+    else
+        notice[sizeof notice - 1] = '\0';
+    if (send_notification(notice)) {
+        static const uint8_t failed[] = "event=notification_failed phase=finish\n";
+        notification_failed = 1;
+        if (platform_write && !stream_log_failed)
+            (void)platform_write(2, failed, sizeof failed - 1);
+        if (!bootstrap_failure)
+            final_status = PS5_NOTIFICATION_FAILED;
+    }
+    return final_status;
+}
+
 /* Fixed alternative libkernel handles follow the pinned SDK syscall startup.
  * Each syscall error is returned without privilege changes or module loading. */
 int64_t ps5_bootstrap_lookup(const char *name, void **out)
@@ -89,12 +278,7 @@ int64_t ps5_bootstrap_lookup(const char *name, void **out)
 
 void ps5_platform_log(const uint8_t *data, uint32_t len)
 {
-    if (!data || !len || log_failed)
-        return;
-    if (!platform_write || platform_write(2, data, len) != (long)len) {
-        /* A short/failed write is terminal for logging; do not hide it by retry. */
-        log_failed = 1;
-    }
+    lifecycle_log(data, len);
 }
 
 _Noreturn void ps5_platform_abort(void)
@@ -117,7 +301,11 @@ int ps5_bootstrap_entry(payload_args_t *args)
         return result;
     platform_write = 0;
     platform_exit = 0;
-    log_failed = 0;
+    platform_notify = 0;
+    stream_log_failed = 0;
+    persistent_log_failed = 0;
+    notification_failed = 0;
+    persistent_fd = -1;
     resolver_ready = 0;
     void *symbol = 0;
     if (!supported_stub_bytes((const unsigned char *)(uintptr_t)args->sys_dynlib_dlsym, 12)) {
@@ -126,6 +314,7 @@ int ps5_bootstrap_entry(payload_args_t *args)
         result = 121;
     } else {
         resolver_ready = 1;
+        (void)open_persistent_log();
         if (ps5_bootstrap_lookup("write", &symbol)) {
             result = 122;
         } else {
@@ -135,11 +324,13 @@ int ps5_bootstrap_entry(payload_args_t *args)
                 result = 123;
             } else {
                 platform_exit = (exit_fn)symbol;
+                if (!ps5_bootstrap_lookup("sceKernelSendNotificationRequest", &symbol))
+                    platform_notify = (notify_fn)symbol;
+                report_start();
                 result = main();
-                if (log_failed)
-                    result = 124;
             }
         }
+        result = report_finish(result);
     }
     resolver_ready = 0;
     *args->payloadout = result;

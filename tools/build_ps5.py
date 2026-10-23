@@ -173,7 +173,7 @@ def build(args):
     except ValueError:
         elf.unlink(missing_ok=True)
         raise
-    report["runtime"] = "minimal-syscall-v1"
+    report["runtime"] = "minimal-syscall-v2"
     report["native_query"] = args.native_query
     report["rust"] = rust_version
     report["llvm"] = run([tools["clang"], "--version"], capture=True).strip()

@@ -4,10 +4,10 @@ No hardware run has occurred. The current C shim deliberately returns
 Unsupported. Do not replace that result with synthetic controller metadata in a
 payload. Desktop fake packets have separate test-only source files.
 
-Development wave closeout (2026-10-23): physical PS5 access is currently
-unavailable. **The next action is HW-1 physical validation using the baseline
-ELF below. HW-2 has not started.** The optional query ELF is software-tested
-only and is not part of this first physical test.
+Physical access returned on 2026-10-24. **The next action is HW-1 physical
+validation using the instrumented baseline ELF below. HW-2 has not started.**
+The optional query ELF is software-tested only and is not part of this first
+physical test.
 
 ## Ready diagnostic: HW-1 entry, logging and return
 
@@ -28,8 +28,11 @@ This project supplies no loader installation or exploit procedure. Record the
 actual loader/version; a different entry ABI needs review before this test.
 
 1. Confirm wireless DualSense input works; leave the headset disconnected.
-2. Build with `make`, or use the supplied ELF together with its manifest and
-   corresponding source bundle. Check the ELF hash against the manifest.
+2. Build from a clean committed state with `make`, or use the supplied ELF
+   together with its manifest and corresponding source bundle. Check the ELF
+   hash against the manifest. This instrumented candidate attempts to replace
+   `/data/ps5-bt-hw1.log` with a mode-`0600` log for this run; it does not create
+   directories, change credentials or add permissions.
 3. If **elfldr v0.27 is already listening on its configured port** (default
    9021), run the following from the repository root, replacing `PS5_IP`.
    This sends the diagnostic once and captures at most 64 KiB for 15 seconds.
@@ -70,30 +73,61 @@ print(f"\n{outcome}; log saved to {output}")
 PY
 ```
 
-4. Expected payload output:
+4. A normal run produces two visible notifications:
 
 ```text
+PS5-BT diagnostic started
+Log: /data/ps5-bt-hw1.log
+
+PS5-BT diagnostic finished
+Status: 2 (expected Unsupported)
+```
+
+Expected payload output and persistent file content are:
+
+```text
+event=payload_start log=/data/ps5-bt-hw1.log
 event=rust_entry abi=1 phase=bootstrap
 event=adapter_unavailable status=unsupported
+event=payload_exit status=2 (expected Unsupported)
+event=payload_return status=2 (expected Unsupported)
 ```
 
 Expected payload result is **2**, not zero: the transport is deliberately
-Unsupported. A closed network connection alone does not prove clean return;
-also check the loader is responsive and wireless DualSense input still works.
-There is no audible output. Do not pair, reset a radio or change permissions.
+Unsupported. The finish notification plus the final persistent-log marker show
+that the payload reached its return path; a closed network connection alone
+does not. If existing console file access is already available, retrieve
+`/data/ps5-bt-hw1.log` without installing another service and compare it with
+the captured stream. Also check the loader is responsive and wireless
+DualSense input still works. There is no audible output. Do not pair, reset a
+radio or change permissions.
 
-5. Return the complete PS5-BT/payload log, actual loader name/version or artifact
-   hash, ELF hash, whether the loader resumed/remains responsive, and DualSense
-   input before/during/after. Include any displayed return code or error. Slim
-   and 13.40 are already recorded; note any change. Redact unrelated addresses,
-   account details and keys. No headset identity is needed for this stage.
+5. Return the complete streamed and persistent PS5-BT logs, the two notification
+   results, actual loader name/version or artifact hash, ELF hash, whether the
+   loader resumed/remains responsive, and DualSense input before/during/after.
+   Include any displayed return code or error. Slim and 13.40 are already
+   recorded; note any change. Redact unrelated addresses, account details and
+   keys. No headset identity is needed for this stage.
 
-No Rust log can mean an early startup failure, loader incompatibility or stderr
-routing failure; report the observed result without guessing. Startup results:
-120 invalid arguments; 121 syscall bridge init failed; 122 write unavailable;
-123 exit unavailable; 124 incomplete log write; 125 unsupported getpid stub
-prefix. A 125 stops before invoking the stub. Do not provide library dumps or
-attempt alternate offsets. Panic result 101 is a separate failure investigation.
+Interpret the lifecycle markers conservatively:
+
+- No start notification and no new file can mean failure before syscall setup,
+  loader incompatibility or a stale/unreachable `/data` path.
+- A start notification without `event=rust_entry` means failure at the C/Rust
+  boundary.
+- Rust output without `event=payload_return` or the finish notification means the
+  return path did not complete.
+- A complete file ending in status 2 plus the matching finish notification is
+  the expected software result; loader responsiveness and DualSense still need
+  direct observation.
+
+Startup/results: 120 invalid arguments; 121 syscall bridge init failed; 122
+write unavailable; 123 exit unavailable; 124 incomplete stream log; 125
+unsupported getpid stub prefix; 126 persistent log open/write/close failure;
+127 notification lookup/send failure. A 125 stops before invoking the stub.
+Codes 120-125 remain primary even if lifecycle reporting is also unavailable.
+Do not provide library dumps or attempt alternate offsets. Panic result 101 is
+a separate failure investigation.
 
 Only after this entry/return test passes should an optional native presence
 query or descriptor experiment run. See [NATIVE-QUERY.md](NATIVE-QUERY.md).

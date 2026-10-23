@@ -1,6 +1,6 @@
 # Minimal runtime source review
 
-Runtime identifier: `minimal-syscall-v1`. Reviewed 2026-10-23 for an inspectable
+Runtime identifier: `minimal-syscall-v2`. Reviewed 2026-10-24 for an inspectable
 compile/link artifact. **Hardware-untested; no PS5/firmware/loader compatibility
 or deployment approval is established.** The current adapter remains Unsupported.
 
@@ -46,13 +46,27 @@ Only the known alternative libkernel handles 1 and 0x2001 are tried, as in the
 pinned SDK startup. Resolution failure stops startup; it does not load modules,
 alter permissions, retry transport, or access any kernel-R/W argument field.
 
-Logging uses synchronous `write(2, bytes, len)` without retaining the buffer.
-A short/failed write is sticky, no write is retried, and normal return reports
-124 rather than the Rust result. Panic invokes the resolved `_exit(101)`;
-if that unexpectedly returns, a trap stops execution. Panic does not unwind or
-claim clean return to the loader. No heap, TLS, C constructors or destructors
-are used. Original byte-loop `memset`, `memcpy` and `memcmp` satisfy freestanding
-Rust compiler lowering; compilation disables builtin loop replacement.
+Logging uses synchronous `write(2, bytes, len)` without retaining the buffer and
+duplicates the same bytes to a freshly truncated `/data/ps5-bt-hw1.log` opened
+with mode `0600`. Each channel accepts exactly one full write per message; a
+short/failed write is sticky and is never hidden by retry. The persistent file
+is closed before normal return. Status 124 reports stream-log failure and 126
+reports persistent-log open/write/close failure.
+
+After `write` and `_exit` resolve, the runtime also looks up the existing
+libkernel `sceKernelSendNotificationRequest` export and uses the fixed request
+layout recorded by the pinned SDK's GPL-3.0-or-later `notify_debug` sample. It
+does not link an import library or load a module. One notification is sent
+immediately before C -> Rust entry and a second reports the numeric final
+status. Missing or failed notification returns 127 after the primary result has
+been logged. These calls are hardware-untested and failure remains visible; no
+fallback offset or alternate notification API is guessed.
+
+Panic invokes the resolved `_exit(101)`; if that unexpectedly returns, a trap
+stops execution. Panic does not unwind or claim clean return to the loader. No
+heap, TLS, C constructors or destructors are used. Original byte-loop `memset`,
+`memcpy` and `memcmp` satisfy freestanding Rust compiler lowering; compilation
+disables builtin loop replacement.
 
 `bootstrap/bootstrap.h` exposes `ps5_bootstrap_lookup(name, out)` only during
 the bootstrap's call to `main`. It performs the same fixed libkernel lookup,
@@ -106,13 +120,15 @@ until that prerequisite and the actual loader/runtime are established.
 
 ## Results and failure codes
 
-The existing Rust probe returns 2 for the unsupported adapter. New startup codes:
+The existing Rust probe returns 2 for the unsupported adapter. Startup codes:
 120 invalid loader arguments; 121 syscall initialization failed; 122 no write
 symbol; 123 no exit symbol; 124 incomplete/failed log write; 125 unsupported
-getpid stub prefix. Normal return also
-stores the result in the loader-owned `payloadout`. Raw syscall resolver errors
-are not treated as success. No attempt is made to clean up loader-owned kernel
-descriptors because the payload never takes their ownership.
+getpid stub prefix; 126 persistent log unavailable or incomplete; 127 visible
+notification unavailable or failed. Codes 120-125 retain precedence over
+reporting-channel failures. Normal return also stores the result in the
+loader-owned `payloadout`. Raw syscall resolver errors are not treated as
+success. No attempt is made to clean up loader-owned kernel descriptors because
+the payload never takes their ownership.
 
 ## Remaining hardware gates
 

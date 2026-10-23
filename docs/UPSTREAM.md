@@ -1,6 +1,6 @@
 # Upstream inventory and synchronization
 
-Snapshot: 2026-10-23, Asia/Shanghai. Revisions below are immutable research
+Snapshot: 2026-10-24, Asia/Shanghai. Revisions below are immutable research
 and build pins. No upstream Bluetooth/audio implementation has been imported.
 The Rust dependencies are workspace paths. The minimal diagnostic ELF uses
 exactly three unmodified, hash-verified external SDK source files described
@@ -54,7 +54,7 @@ loader release alone does not resolve native HCI ownership.
 loader entry and relocation contracts, a read-only descriptor probe plan,
 controller-quirk provenance, and the capture interface discrepancies. The
 stock SDK CRT remains outside the approved payload scope. The reviewed
-`minimal-syscall-v1` build now uses original project entry/runtime code and a
+`minimal-syscall-v2` build now uses original project entry/runtime code and a
 linker script, plus the three selected SDK files below. It performs no credential
 or permission mutation and includes no kernel-memory helper. It must still
 satisfy the actual installed loader contract on hardware.
@@ -72,6 +72,7 @@ exact source, local changes and attribution when adopting further material.
 | Candidate files | Terms inspected | Recommendation and excluded behavior |
 | --- | --- | --- |
 | SDK `crt/syscall.c`, `crt/syscall.h`, `crt/payload.h` | Copyright (C) 2024 John Törnblom; explicit GPL-3.0-or-later notices | selected unmodified external source subset; hashes enforced; no local patches |
+| SDK `samples/notify_debug/main.c` | Copyright (C) 2023 John Törnblom; explicit GPL-3.0-or-later notice | interface/layout provenance for the diagnostic notification call; no sample source, import library or module loader enters the build; the project-owned bounded request construction and runtime resolution are host-tested |
 | SDK `host/bin/prospero-clang`, `host/bin/prospero-lld`, `crt/_start.S`, `host/elf_x86_64.x` | explicit GPL-3.0-or-later notices | toolchain/startup research only; not build inputs; project uses direct LLVM tools and original startup/linker sources |
 | SDK `crt/crt.c`, `crt/patch.c`, `crt/kernel.c`, `crt/rtld*.c` | explicit GPL-3.0-or-later notices | scope audit reference; do not adopt the startup credential/syscall mutation or kernel-memory resolver for a minimal diagnostic |
 | SDK `include/freebsd/dev/usb/usb.h`, `usb_ioctl.h`, `usb_endian.h`, `usb_freebsd.h` | individual BSD-style notices, including two-clause terms in `usb.h` and `usb_ioctl.h` | use SDK headers externally in C; preserve each file's actual notice if redistributed; not a license grant for proprietary runtime libraries |
@@ -140,6 +141,7 @@ which claims have been reproduced here.
 | Resident-audio evidence limitations | [RFC](https://github.com/FGGstore/FGG-PlayPods/blob/d726e1c32568048aae66f3218c0540adc357e408/docs/RESIDENT-AUDIO-RFC.md), [hardware summary](https://github.com/FGGstore/FGG-PlayPods/blob/d726e1c32568048aae66f3218c0540adc357e408/docs/hardware-summary.json) | test design reference, not our compatibility evidence |
 | SDK linker target/script/CRT and 16 KiB alignment research | [prospero-clang](https://github.com/ps5-payload-dev/sdk/blob/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/host/bin/prospero-clang), [prospero-lld](https://github.com/ps5-payload-dev/sdk/blob/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/host/bin/prospero-lld) | original project minimal startup/linker script and direct LLVM 18.1.8 tools now used; no project PS5 loader |
 | Startup credential/syscall permission mutation | [crt.c](https://github.com/ps5-payload-dev/sdk/blob/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/crt/crt.c), [patch.c](https://github.com/ps5-payload-dev/sdk/blob/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/crt/patch.c) | scope blocker to default runtime adoption; no local implementation |
+| Debug notification request layout and libkernel entry point | [notify_debug sample](https://github.com/ps5-payload-dev/sdk/blob/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/samples/notify_debug/main.c) | visible HW-1 lifecycle marker only; bounded text, no imported library/module load, and failure remains explicit |
 
 ## License decisions and unresolved questions
 

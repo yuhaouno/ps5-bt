@@ -3,7 +3,7 @@
 A diagnostic ELF handed to another person must be accompanied by the actual
 corresponding source and retained license notices. A GitHub link alone does not
 supply that package. This packaging workflow is for the reviewed
-`minimal-syscall-v1` diagnostic, whose adapter returns Unsupported; it establishes
+`minimal-syscall-v2` diagnostic, whose adapter returns Unsupported; it establishes
 no PS5, firmware, loader, controller or audio compatibility and is not a release.
 
 After the intended project changes are committed, rebuild the ELF from the clean

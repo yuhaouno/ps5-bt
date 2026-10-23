@@ -1,14 +1,16 @@
 # MVP orchestration state
 
-Last updated: 2026-10-23. Lead-owned integration board; workers own only their
+Last updated: 2026-10-24. Lead-owned integration board; workers own only their
 assigned paths. No PS5 hardware evidence exists. MVP is not operational.
 
 ## Current milestone and baseline
 
 Current software wave is complete at the HW-1 artifact. A real inspected PS5
 ELF containing Rust and corresponding-source package are available. **The exact
-next action is HW-1 physical validation.** No physical PS5 is currently
-available; no further development or HW-2 work starts in this wave. A second
+next action is HW-1 physical validation.** Physical access is available again;
+the instrumented candidate adds start/finish notifications and a persistent
+per-run log, but no result is claimed until it is executed. No HW-2 work starts
+in this wave. A second
 macOS 27.0.1 arm64 machine cloned `origin/feat/mvp-bringup` at `89bdce0` and
 reproduced the baseline ELF hash with the documented toolchain. No repository
 change was required. Tone, capture and all controller operations remain
@@ -23,9 +25,9 @@ was no final-link/runtime or known working hardware path at baseline. The
 reviewed minimal startup now links a genuine diagnostic ELF; execution is untested.
 
 Intended user test environment: PS5 Slim, system firmware 13.40, and a Classic
-A2DP headset (model not yet recorded). The user currently has no physical PS5
-access; diagnostic loading/log collection is deferred until access returns.
-This is a bring-up target, not verified compatibility. Pin the
+A2DP headset (model not yet recorded). The target is now reachable for the HW-1
+diagnostic; no console execution result has been recorded yet. This is a
+bring-up target, not verified compatibility. Pin the
 latest verified loader/runtime releases before giving loading instructions.
 Detect vendor/revision, HCI/LMP versions, features and buffer limits at runtime;
 do not ask the user to infer them from the console model.
@@ -103,8 +105,8 @@ Neither researched loader provides a direct dlsym callback in the first argument
 it is a getpid syscall stub. Loader-supported relative relocations and BSS/return
 requirements must be checked for the actual ELF.
 
-No active implementation assignments remain. All completed workers were reviewed
-and integrated; the clean-source rebuild review passed. The optional query ELF
-remains unexecuted. Controller transport is blocked on ownership evidence. Next
-action is only HW-1 baseline entry/log/return and DualSense validation once the
-user has physical access. Do not start HW-2 or speculative work to fill the wait.
+No active protocol implementation assignments remain. All completed workers
+were reviewed and integrated; the clean-source rebuild review passed. The
+optional query ELF remains unexecuted. Controller transport is blocked on
+ownership evidence. Next action is only HW-1 instrumented entry/log/return and
+DualSense validation. Do not start HW-2 or speculative work to fill the wait.
