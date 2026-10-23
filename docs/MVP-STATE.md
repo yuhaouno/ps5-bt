@@ -51,15 +51,16 @@ do not ask the user to infer them from the console model.
 | B1 | READY | build_toolchain (running) | inspect SDK startup and tool availability; reproducible final link or exact missing dependency; owns build script/link recipe and toolchain/runtime review docs |
 | D1a | DONE | hci_l2cap + lead review | safe HCI command/event/ACL and capability/completion types; malformed-input tests; no credit accounting or live transport |
 | D1b | DONE | hci_l2cap + lead review | bounded L2CAP framing/reassembly in caller storage, tied to explicit handle/epoch; no signaling/channel establishment |
-| A2 | READY | native_hci_research (running) | investigate additional public native broker/query/separate-function evidence; no active USB-reader workaround |
+| A2 | DONE | native_hci_research + lead review | source-backed single read-only native stack-version query; no PS5 broker found in bounded inventory; see NATIVE-HCI-RESEARCH.md |
 | C1a | DONE | platform_descriptors + lead review | bounded descriptor parser/report, hostile host tests and ASan/UBSan; no live USB access |
 | C1b | WAITING | platform worker | actual read-only descriptor probe after verified runtime operations/SDK headers; no endpoint takeover |
 | C2 | BLOCKER | lead + platform worker | native HCI command/event/ACL ownership and enforceable credits; upstream read competition is not routing |
+| C3 | READY | native_presence_probe (running) | one bounded read-only native stack-version query using B1 resolver; no transport or controller-capability claim |
 | H1 | HARDWARE | user + lead | HW-1 ELF load, Rust entry and clean return after reviewed startup |
 | H2 | HARDWARE | user + lead | HW-2 descriptor/HCI data and DualSense before/during/after; requires C1/C2 |
 | E1 | WAITING | connection worker | bounded Classic connection/pairing/key lifecycle and A2DP SDP discovery after packet interfaces |
 | F1 | WAITING | AVDTP/A2DP worker | typed SBC negotiation/open/start/close and RTP packetization after D1/E1 contracts |
-| G1 | WAITING | audio worker | independently review SBC implementation/license, bounded 48 kHz stereo source and encoder API; no import before review |
+| G1 | READY | sbc_audit + independent review | LGPL/runtime audit and shared pure SBC parameter model; encoder import remains gated on runtime allocation/distribution plan |
 | T1 | WAITING | integration worker | hostile scripted transport/headset and PCM-to-SBC-to-RTP-to-ACL simulation once module contracts exist |
 | H7 | HARDWARE | user + lead | 440 Hz SBC A2DP tone audible on real headset, after controller/connection/negotiation |
 | H8 | HARDWARE | user + lead | actual PS5 PCM audible through the proven tone pipeline |
