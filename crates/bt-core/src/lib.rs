@@ -3,6 +3,12 @@
 #![no_std]
 #![forbid(unsafe_code)]
 
+pub mod sbc;
+pub use sbc::{
+    SbcAllocation, SbcBitpoolRange, SbcBlocks, SbcChannelMode, SbcParameters, SbcSampleRate,
+    SbcSubbands,
+};
+
 /// Stable categories; retain unexpected backend statuses for diagnostics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {

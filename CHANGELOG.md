@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add validated, codec-independent SBC parameter selections and frame-size
+  calculations; audit libsbc licensing/runtime needs without importing it.
+
 - Add bounded USB descriptor parsing and deterministic metadata reports with
   host regression tests and C sanitizers; no live USB operation is enabled.
 

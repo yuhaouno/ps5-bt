@@ -23,6 +23,7 @@ collision checks must precede naming. All Cargo packages are `publish = false`.
 | L2CAP basic framing and bounded ACL reassembly | Implemented | synthetic handle/epoch/bounds tests; no channel negotiation |
 | C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |
+| SBC parameter selection and frame sizing | Implemented | portable validation tests; no encoder linked |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
 | Live PS5 transport and capture | Unsupported | adapter explicitly returns Unsupported |
 | PS5 Fat / Slim / Pro | Unknown | no project hardware runs |

@@ -60,7 +60,8 @@ do not ask the user to infer them from the console model.
 | H2 | HARDWARE | user + lead | HW-2 descriptor/HCI data and DualSense before/during/after; requires C1/C2 |
 | E1 | WAITING | connection worker | bounded Classic connection/pairing/key lifecycle and A2DP SDP discovery after packet interfaces |
 | F1 | WAITING | AVDTP/A2DP worker | typed SBC negotiation/open/start/close and RTP packetization after D1/E1 contracts |
-| G1 | READY | sbc_audit + independent review | LGPL/runtime audit and shared pure SBC parameter model; encoder import remains gated on runtime allocation/distribution plan |
+| G1a | DONE | sbc_audit + independent/lead review | validated shared SBC selections and LGPL/runtime audit; no encoder imported |
+| G1b | WAITING | codec worker | proven libsbc encoder behind narrow wrapper, after bounded initialization storage and relinking plan; per-frame allocation prohibited |
 | T1 | WAITING | integration worker | hostile scripted transport/headset and PCM-to-SBC-to-RTP-to-ACL simulation once module contracts exist |
 | H7 | HARDWARE | user + lead | 440 Hz SBC A2DP tone audible on real headset, after controller/connection/negotiation |
 | H8 | HARDWARE | user + lead | actual PS5 PCM audible through the proven tone pipeline |
