@@ -1,8 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-.PHONY: check host-smoke rust-archive ps5-link usb-descriptors-test check-c-sanitize
+.DEFAULT_GOAL := all
+.PHONY: all check host-smoke rust-archive ps5-link usb-descriptors-test check-c-sanitize
+export LLVM_CONFIG PS5_SDK_SOURCE
 HOST_CC ?= cc
 USB_TEST_SOURCES := platform/ps5/diagnostics/usb_descriptors.c tests/platform/usb_descriptors_test.c
 USB_TEST_FLAGS := -std=c11 -Wall -Wextra -Werror -pedantic -Iplatform/ps5/diagnostics
+
+all: ps5-link
 
 check:
 	cargo fmt --all -- --check

@@ -8,7 +8,7 @@ The current dependency graph, worker ownership and blockers are tracked in
 | Milestone | Deliverable | Exit evidence | Current state |
 | --- | --- | --- | --- |
 | M0 — research/bootstrap | source/license inventory, architecture, bounded ABI, desktop tests, freestanding Rust archive | reproducible host checks and artifact inspection; explicit unknowns | bootstrap implemented; validation below |
-| M1 — Rust on PS5 / controller information | audited C startup, Rust entry, minimal metadata backend, bounded HCI queries only after routing gate | real console log with build hashes, USB IDs, HCI/LMP version, actual commands/features/buffers where accessible; clean return and DualSense before/during/after | blocked by runtime review, ownership and hardware access |
+| M1 — Rust on PS5 / controller information | audited C startup, Rust entry, minimal metadata backend, bounded HCI queries only after routing gate | real console log with build hashes, USB IDs, HCI/LMP version, actual commands/features/buffers where accessible; clean return and DualSense before/during/after | diagnostic ELF linked; ownership and console execution unverified |
 | M2 — platform transport and capture | safe command/event/ACL transport, vendor detection, capture open/read/close | fault/cleanup tests, no hidden loss, proven native traffic routing, capture format/timing report | planned |
 | M3a — minimal A2DP tone | Rust L2CAP/SDP/AVDTP/A2DP/RTP, explicit pairing/key storage, conservative SBC | reproducible 48 kHz stereo tone on named headset/controller/firmware, correct credits and negotiated limits | planned |
 | M3b — captured audio | PS5 PCM through bounded queues to the demonstrated sink | game/menu/silence tests, capture discontinuity and queue telemetry, clean stop | planned |
@@ -31,4 +31,6 @@ the runtime is reviewed. Do not open artificial issues for each empty crate.
 
 Initial host validation: four Rust parser tests, 15 C/Rust seam scenarios, C stub
 contract checks, fmt/check/Clippy and the freestanding archive build/inspection.
-No final PS5 SDK link or console execution is validated.
+Current local checks: 25 Rust tests, descriptor C tests with ASan/UBSan, 15 ABI
+scenarios, fmt/check/Clippy and archive inspection pass. The minimal PS5 ELF
+links and passes structural/failure-path checks; no console execution is verified.

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Produce an inspected PS5 diagnostic ELF through `make`, using an original
+  minimal startup/linker script and three hash-verified SDK syscall source files;
+  exclude stock permission-changing CRT and keep hardware support unverified.
+
 - Add validated, codec-independent SBC parameter selections and frame-size
   calculations; audit libsbc licensing/runtime needs without importing it.
 

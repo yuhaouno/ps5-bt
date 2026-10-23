@@ -1,99 +1,118 @@
 # Building the bootstrap
 
 The public project/package name is not selected. Crate names are local and
-unpublished. Builds never contact or deploy to a console.
+unpublished. Builds never contact or deploy to a console. The PS5 output is a
+real diagnostic ELF linking C -> Rust -> an Unsupported adapter; it has never
+run on PS5 and does not provide working Bluetooth or controller information.
 
-## Desktop and freestanding archive
+## Minimal PS5 ELF
 
-Requirements: Rust/rustup, C11 compiler (`cc`, or `HOST_CC`), Make, Python 3.11+.
-Install rustup using [the official instructions](https://www.rust-lang.org/tools/install).
-The checked-in `rust-toolchain.toml` pins **1.90.0**, rustfmt, Clippy and the
-`x86_64-unknown-none` target. This is a deliberate bootstrap baseline, not a claim
-that it is the newest release. Cargo downloads toolchain components when needed;
-after setup the workspace has no registry dependencies. Do not commit local
-toolchain files or change the pin to `stable` without reviewing the update.
+Install Rust/rustup, a C11 host compiler (`cc`, or `HOST_CC`), Make, Python 3.11+
+and LLVM **18.1.8** containing clang, ld.lld, llvm-readobj and llvm-objdump.
+The checked-in [rust-toolchain.toml](../rust-toolchain.toml) pins **Rust 1.90.0**,
+rustfmt, Clippy and `x86_64-unknown-none`. Install rustup using
+[the official instructions](https://www.rust-lang.org/tools/install). These are
+deliberate build baselines, not claims about the newest releases. Cargo downloads
+toolchain components when needed; the workspace has no registry dependencies.
+Do not change the pin to `stable` without reviewing the update.
+
+Set `LLVM_CONFIG` to the LLVM 18.1.8 `llvm-config`. The documented macOS/Homebrew
+path is `/opt/homebrew/opt/llvm@18/bin/llvm-config`; Linux installations may use
+another path. Apple Clang alone does not supply this final-link baseline.
+After setup, the single build entry is:
+
+```sh
+make
+```
+
+`make ps5-link` selects the same build explicitly. `LLVM_CONFIG` and optional
+`PS5_SDK_SOURCE=/absolute/path/to/sdk` can be environment or Make variables.
+See [TOOLCHAIN.md](TOOLCHAIN.md) for the exact observed host environment,
+flags, synthetic tests and native tool provenance.
+
+[tools/build_ps5.py](../tools/build_ps5.py) enforces the Rust/LLVM versions and
+exactly three unmodified external files from SDK v0.45, revision
+`a7685ce8e97ce1f8a4f38253a41d54241c9124f1`: `crt/syscall.c`, `crt/syscall.h`
+and `crt/payload.h`. It verifies each file's SHA-256, including when using an
+external checkout. Without an override it fetches missing files from immutable
+revision URLs into ignored `.sdk/`. The release SDK binary archive is neither
+required nor linked. No SDK installation, SDK libc/import library, proprietary
+console binary or firmware is required by this build.
+
+The builder runs synthetic host startup tests, builds the Rust static archive,
+compiles the project C/assembly and selected syscall source, and links using the
+original project [minimal.ld](../platform/ps5/bootstrap/minimal.ld). It writes
+these ignored outputs under `build/ps5/`:
+
+* `ps5-bt.elf`: x86-64 ET_DYN diagnostic ELF.
+* `ps5-bt.map`, `ps5-bt.inspect.txt`, `ps5-bt.disasm.txt`: link map, LLVM
+  inspection and disassembly.
+* `ps5-bt.manifest.json`: artifact, source, archive and tool hashes, exact
+  versions, SDK revision, Git HEAD/dirty state and structural inspection.
+
+Inspection rejects unsupported relocations, imports, TLS, constructors,
+forbidden stock-runtime symbols and invalid segment alignment/permissions.
+Output has 16 KiB-aligned RX/R/RW load segments and retains the section headers
+needed by the researched loaders' relocation pass. These checks establish a
+reviewable build artifact, not PS5 loader or firmware compatibility.
+
+## Runtime scope and execution gate
+
+The fixed [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md) documents runtime
+`minimal-syscall-v1`, selected source behavior and the inspected loader contract.
+The project-owned entry preserves the caller's stack/frame, clears BSS,
+initializes the selected syscall bridge, resolves existing libkernel `write`
+and `_exit`, then invokes C main -> Rust -> the Unsupported C adapter. Startup
+validates the loader-supplied getpid stub prefix before using the upstream
+adapter. Unsupported arguments, resolution or permissions fail visibly. No
+optional native diagnostic query is wired into this ELF.
+
+The SDK's default `crt/crt.c` calls `__patch_init()` and its `crt/patch.c` changes
+credentials and syscall permissions; neither is a build input. No kernel-memory
+helper, stock CRT, SDK linker script or local SDK patch enters the link. The
+minimal startup performs no credential or permission mutation, module loading,
+controller takeover, exploit or new loader implementation.
+
+A compatible already-installed loader and sufficient existing permissions are
+external prerequisites. Their actual behavior, syscall stub bytes, entry/return
+ABI, stderr routing and panic termination require hardware verification. PS5
+Slim / firmware 13.40 remains **Unknown**, as do controller information,
+DualSense coexistence and audio. This artifact is an experimental
+hardware test candidate. Execute only in an already-capable, compatible loader
+environment after establishing those prerequisites and the actual runtime ABI,
+following [HARDWARE-TEST.md](HARDWARE-TEST.md).
+
+## Desktop checks and freestanding archive
 
 ```sh
 make check
 ```
 
-This runs fmt, cargo check, workspace tests, Clippy with warnings denied, actual C/Rust host
-links and boundary tests, then builds/inspects the `no_std` archive:
-`target/x86_64-unknown-none/release/libps5_runtime.a`.
-Host binaries are in `build/host/`. The stub process intentionally exits 2 for
-Unsupported; the harness recognizes that outcome as success for the stub test.
-The synthetic adapter is test-only and never appears in `payload.mk`.
+This explicitly selects desktop formatting, Cargo checks/tests/Clippy, actual
+C/Rust host links and boundary tests, descriptor tests, then builds/inspects
+`target/x86_64-unknown-none/release/libps5_runtime.a`. It does not need the
+LLVM final-link tools or fetch SDK sources. Host binaries are in `build/host/`.
+The stub process intentionally exits 2 for Unsupported; the harness recognizes
+that as the expected stub outcome. Synthetic adapters remain test-only.
 
-To rebuild on the desktop after local changes, use the same commands; Cargo.lock
-contains only workspace packages. The host compiler is not pinned as a binary;
-record its version when reporting a failure. Ubuntu and macOS host CI are
-configured; a configuration is not proof those remote jobs have run.
+`make host-smoke` runs the desktop seam; `make rust-archive` selects the
+freestanding archive alone. Cargo.lock contains only workspace packages. The
+host C compiler is not pinned as a binary; record its version on failures.
+Ubuntu and macOS host CI are configured; configuration is not proof remote
+jobs ran. Desktop tests do not execute the real syscall bridge or loader and
+must not be reported as hardware tests.
 
-## Candidate PS5 toolchain
+## Reproducibility and distribution
 
-The research baseline is community SDK v0.45, commit
-`a7685ce8e97ce1f8a4f38253a41d54241c9124f1`.
-Download the [versioned SDK archive](https://github.com/ps5-payload-dev/sdk/releases/download/v0.45/ps5-payload-sdk.zip)
-to an external tools folder. Before extracting, compute SHA-256 and compare to:
+The source/target/flags, Rust and LLVM versions, and selected SDK file hashes
+are pinned. Consult the manifest from the final source state for artifact
+hashes; no byte-identical cross-host ELF result or hardware execution is claimed.
+Publish source state, actual tool versions/hashes, command, map and artifact
+hashes with any future release.
 
-```text
-5fac64093d0e3e69f2584ce7935f24f703f622d9681f1495c85b9f00d1291a2c
-```
-
-Use `sha256sum` on Linux or `shasum -a 256` on macOS. Extract without replacing
-an existing installation and set `PS5_PAYLOAD_SDK` to the extracted
-`ps5-payload-sdk` directory. Never use a moving `latest` release in CI.
-No proprietary console library files or firmware are required by our archive
-build or supplied by this repository.
-
-Upstream documents LLVM/Clang/lld 18 as a host baseline. On Debian/Ubuntu this
-means `clang-18`, `lld-18`, `llvm-18`, Make and unzip; on macOS its documented
-path uses Homebrew `llvm@18` and `LLVM_CONFIG` pointing to its `llvm-config`.
-Follow the pinned SDK's own README/wrappers and record actual versions. Apple
-Clang alone is not the documented toolchain. We have not validated a final SDK
-link in this environment, and do not claim a reproducible PS5 ELF yet.
-
-## Runtime scope gate
-
-**Do not deploy the stock candidate runtime as an approved project payload.**
-At the pinned revision, `crt/crt.c` calls `__patch_init()` before main and
-`crt/patch.c` changes process credentials and syscall permissions via kernel
-helpers. The project must not implement privilege changes as a prerequisite to
-audio. We need a reviewed existing startup arrangement that fits the scope;
-this assignment does not create a replacement loader/CRT or patch the SDK.
-
-Once that question is resolved, save a runtime review including exact SDK/runtime
-and loader revisions, startup behavior, existing permission prerequisites,
-imports, local patches (if any), license/source plan and reason it fits scope.
-The link recipe requires `PS5_RUNTIME_REVIEW` to name that real review file. The
-file-existence gate is a workflow reminder, **not an automated security audit**.
-Do not create an empty review to bypass it. If the reviewed arrangement requires
-a different link path, update the recipe and provenance before using it.
-
-The eventual link-only command is:
-
-```sh
-make ps5-link PS5_PAYLOAD_SDK=/absolute/path/to/ps5-payload-sdk \
-  PS5_RUNTIME_REVIEW=/absolute/path/to/completed-runtime-review.md
-```
-
-It runs the SDK C compiler with our C main/log/stub and the Rust archive, writes
-`build/ps5/bootstrap.elf` and a link map, and **does not deploy**. The output still
-has no hardware backend. This recipe is proposed and has not passed an SDK link
-or console test here. Current first compilable deliverables are the host seam
-and freestanding Rust archive, not a working controller-information payload.
-
-Before any console execution, inspect ELF type/machine/segments, entry symbol,
-16 KiB load alignment, dynamic imports and relocations with the SDK tools; record
-the map and hashes. Verify only intended SDK imports exist and no host runtime
-or Linux/FreeBSD std/TLS dependency entered the ELF. Review panic `_Exit` behavior
-and loader return on hardware. Follow [HARDWARE-TEST.md](HARDWARE-TEST.md).
-
-## Reproducibility claim
-
-The portable workspace/toolchain/target/flags and upstream research inputs are
-pinned. `make check` is the repeatable host/bootstrap procedure. PS5 build-host
-LLVM binaries, approved runtime and final hardware execution are not yet pinned
-and demonstrated; therefore there is no byte-identical cross-host PS5 ELF claim.
-Publish exact tool versions, source state, SDK archive hash, patches, build
-commands, link map and artifact hashes when that milestone is reached.
+All three selected SDK files retain John Törnblom's copyright and
+GPL-3.0-or-later notices without modification. No SDK patches are applied.
+Redistributing a linked ELF requires the selected corresponding source,
+notices, GPL text and project/build sources; GitHub links alone are not a
+complete source distribution. There is no release distribution yet. See
+[UPSTREAM.md](UPSTREAM.md) for attribution, exact selection and update rules.

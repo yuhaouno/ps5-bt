@@ -11,10 +11,11 @@ hardware gates; portable work may continue independently.
 
 Baseline commit: `7f4b9cb`. Existing history preserved; integration branch:
 `feat/mvp-bringup`. Plain `make check` fails in this shell because cargo is not
-on PATH. With the documented temporary Rust 1.90.0 environment it passes: four
+on PATH. With the documented temporary Rust 1.90.0 environment it passed: four
 parser tests, 15 C/Rust scenarios, Clippy/check/fmt, and a 398-object x86-64
 freestanding archive. `make ps5-link` stops at the runtime-review gate. There
-is no approved final-link/runtime or known working hardware path yet.
+was no final-link/runtime or known working hardware path at baseline. The
+reviewed minimal startup now links a genuine diagnostic ELF; execution is untested.
 
 User test environment: PS5 Slim, system firmware 13.40, an available Classic
 A2DP headset (model not yet recorded), and ability to load diagnostic ELF files
@@ -48,7 +49,7 @@ do not ask the user to infer them from the console model.
 | --- | --- | --- | --- |
 | B0 | DONE | lead | inspect repository and repeat documented baseline |
 | A1 | DONE | platform_research + lead review | exact SDK/loader pins, startup/syscall contract, metadata-only probe and capture boundaries, native routing blocker and per-file license review; see PS5_PLATFORM.md |
-| B1 | READY | build_toolchain (running) | inspect SDK startup and tool availability; reproducible final link or exact missing dependency; owns build script/link recipe and toolchain/runtime review docs |
+| B1 | DONE | build_toolchain + independent/lead review | real inspected diagnostic ELF, original minimal entry/linker, three hash-verified SDK syscall inputs; no stock permission-changing CRT |
 | D1a | DONE | hci_l2cap + lead review | safe HCI command/event/ACL and capability/completion types; malformed-input tests; no credit accounting or live transport |
 | D1b | DONE | hci_l2cap + lead review | bounded L2CAP framing/reassembly in caller storage, tied to explicit handle/epoch; no signaling/channel establishment |
 | A2 | DONE | native_hci_research + lead review | source-backed single read-only native stack-version query; no PS5 broker found in bounded inventory; see NATIVE-HCI-RESEARCH.md |
@@ -76,11 +77,14 @@ Do not declare hardware completion from desktop simulation or an ELF link.
 
 SDK pin: v0.45 / `a7685ce8e97ce1f8a4f38253a41d54241c9124f1`;
 PlayPods and HearBridge research pins remain in upstream.lock.json. Default SDK
-startup mutates credentials/syscall permissions; its suitability must be resolved
-without implementing a bypass. Existing transport code competes with the native
-stack for USB input. Console/loader/runtime/headset environment is unknown.
+startup mutates credentials/syscall permissions and is excluded. The reviewed
+minimal startup requires existing loader permissions and a checked stub ABI.
+Existing upstream transport competes with the native stack for USB input. The
+test target is Slim/13.40; actual loader, controller and headset identity remain
+unknown until runtime evidence is returned.
 
-Last lead verification: 21 HCI/L2CAP tests, 15 ABI scenarios, fmt/check/Clippy and the
+Last lead verification: 25 HCI/L2CAP/SBC-model tests, 15 ABI scenarios, descriptor
+regressions with ASan/UBSan, fmt/check/Clippy and the
 freestanding archive passed from an isolated staged snapshot. HCI framing was
 integrated in `418071c`; no command dispatcher/credit ledger was added.
 
@@ -91,6 +95,6 @@ Neither researched loader provides a direct dlsym callback in the first argument
 it is a getpid syscall stub. Loader-supported relative relocations and BSS/return
 requirements must be checked for the actual ELF.
 
-Next integration target: review B1's minimal no-permission-write entry and ELF,
-then C1 descriptor diagnostics and D1b bounded L2CAP. Continue desktop work while
-awaiting actual hardware evidence.
+Next integration target: compile/review the optional single native presence query,
+then hand over the baseline ELF for entry/log/return evidence. Controller transport
+remains blocked on ownership. Continue independent desktop work while awaiting logs.

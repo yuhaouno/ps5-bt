@@ -2,8 +2,10 @@
 
 Date: 2026-10-23 (Asia/Shanghai). Primary repository snapshots were read locally
 from shallow clones outside this project. Full pins, license evidence and source
-permalinks are in [UPSTREAM.md](UPSTREAM.md). No upstream implementation is
-imported. Findings describe source, not independently reproduced hardware facts.
+permalinks are in [UPSTREAM.md](UPSTREAM.md). This is the initial research snapshot. Current build integration is documented
+in [TOOLCHAIN.md](TOOLCHAIN.md) and [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md):
+three unchanged SDK syscall files are now external link inputs. Findings below
+describe source, not independently reproduced hardware facts.
 
 ## SDK ecosystem
 

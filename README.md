@@ -8,7 +8,7 @@ console's built-in Bluetooth hardware, while DualSense stays wireless. PS5 is
 the first-class initial platform; the Bluetooth/audio core should also work
 with future Linux and FreeBSD backends.
 
-**Status: Phase 0 research and repository bootstrap. No playable audio or
+**Status: diagnostic ELF bring-up. No playable audio or
 verified PS5 support yet.** The skeleton contains portable contracts, a small HCI
 diagnostic parser, a Rust/C seam, and an adapter that explicitly returns
 `Unsupported`. It is an independent project, not a translation or fork of an
@@ -25,6 +25,7 @@ collision checks must precede naming. All Cargo packages are `publish = false`.
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |
 | SBC parameter selection and frame sizing | Implemented | portable validation tests; no encoder linked |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
+| Minimal PS5 diagnostic ELF | Experimental | final link and structural inspection pass; execution untested |
 | Live PS5 transport and capture | Unsupported | adapter explicitly returns Unsupported |
 | PS5 Fat / Slim / Pro | Unknown | no project hardware runs |
 | Console firmware | Unknown | no version verified |
@@ -43,9 +44,11 @@ and **Unknown**. Upstream results do not confer our Verified status. See
 ## Development
 
 Install Rust using the pinned [toolchain](rust-toolchain.toml), a C11 host compiler,
-Python 3.11+ and Make. Then:
+Python 3.11+, Make and LLVM 18.1.8. Set `LLVM_CONFIG` to that installation's
+`llvm-config`; see [exact setup and provenance](docs/TOOLCHAIN.md). Then:
 
 ```sh
+make                # build/ps5/ps5-bt.elf: diagnostic only, hardware untested
 make check          # formatting, Rust check/tests/lints, C/Rust seam tests, cross archive
 make host-smoke     # C main -> Rust -> unsupported C adapter, on the desktop
 make rust-archive   # no_std x86-64 ELF archive; no SDK or console needed
@@ -60,11 +63,11 @@ unverified. Controller vendor, revision and capabilities will be detected rather
 than inferred from that model. See the [live MVP task board](docs/MVP-STATE.md)
 and [portable framing contract](docs/HCI-L2CAP.md).
 
-There is no installable payload or end-user pairing procedure yet. The first
-major milestone is Rust in a PS5 ELF logging actual Bluetooth controller
-information through a reviewed C adapter. The SDK's default startup and native
-HCI ownership need resolution before deployment. The C link recipe is an
-explicitly gated experiment; it does not deploy to a console.
+The ELF currently logs Rust startup and returns `Unsupported`; there is no
+end-user pairing procedure. A reviewed minimal startup excludes the SDK's
+credential/permission-changing CRT. The first console test must establish actual
+entry, logging and clean return before controller diagnostics. Native HCI
+ownership still needs resolution. Builds never deploy to a console.
 
 ## Architecture
 

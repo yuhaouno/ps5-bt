@@ -20,7 +20,7 @@ everything in its runtime acceptable. Stop at an insufficient-permissions error.
 ## Ownership
 
 ```text
-C payload entry / existing loader integration
+Original minimal C/assembly entry / existing loader integration
                     |
 Rust runtime -> Rust audio engine (later)
                     |
@@ -32,7 +32,7 @@ ps5-platform: safe ownership, checked buffers, error translation
                     |
 ps5-sys: private-to-platform unsafe extern declarations
 ==================== C ABI ====================
-platform/ps5: SDK startup integration, Avcap2 capture, USB/HCI,
+platform/ps5: minimal startup; planned Avcap2 capture, USB/HCI,
              endpoint discovery, controller quirks, cleanup
                     |
              PS5 platform / hardware
@@ -78,8 +78,8 @@ LLVM versions. Do not enable CPU-specific optimizations before measuring them.
 ```text
 cargo build -p ps5-runtime --release --target x86_64-unknown-none
   -> libps5_runtime.a
-SDK C compiler: own main.c + C adapter + archive
-  -> SDK CRT/linker script/import stubs -> diagnostic ELF
+LLVM 18.1.8 clang: original entry/runtime + main.c + C stub + SDK syscall.c
+  -> ld.lld + original minimal.ld + Rust archive -> diagnostic ELF
   -> pre-existing user-supplied loader (outside project)
 ```
 
@@ -89,12 +89,30 @@ alignment, panic termination, and return-to-loader on actual hardware. Use only
 primitive/pointer FFI until the ABI is established. A custom target becomes an
 option only when a concrete limitation is demonstrated.
 
-**Current gate:** the SDK v0.45 CRT calls `__patch_init()` before `main`, which
-changes credentials and syscall permissions. The repository provides a static
-archive and C link recipe but does not build/deploy a stock-runtime PS5 ELF by
-default. Resolve this with an audited existing runtime that fits the scope, or
-an upstream-supported startup configuration. Do not implement a bypass or patch
-chain here. See [BUILDING.md](BUILDING.md).
+The reviewed build now produces a real x86-64 ET_DYN diagnostic ELF through
+`make` (or `make ps5-link`), using LLVM 18.1.8 and Rust 1.90.0. Original
+`platform/ps5/bootstrap/start.S`, `runtime.c` and `minimal.ld` supply the entry,
+BSS initialization, byte-memory routines, logging/abort and 16 KiB RX/R/RW
+segments. Exactly three unmodified, hash-verified SDK v0.45 external files are
+selected: `crt/syscall.c`, `crt/syscall.h` and `crt/payload.h`. There is no SDK
+libc, import library, proprietary binary or local SDK patch in the link.
+
+The default SDK CRT is excluded because it calls credential/syscall-permission
+mutation before `main`. The minimal runtime instead requires the loader's
+existing syscall permissions, checks its supplied getpid stub prefix and
+resolves existing libkernel exports. It performs no credential/permission
+mutation or kernel-memory operation and implements no loader or exploit. The
+Rust/C transport adapter still returns Unsupported; no optional native query
+is wired into the ELF. See [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md) for source and
+loader contracts and [TOOLCHAIN.md](TOOLCHAIN.md) for build evidence.
+
+**Current gate:** the ELF is review-ready but hardware-untested. Its actual
+loader, stub ABI, permission prerequisites, logging, panic termination and clean
+return remain unverified. PS5 Slim firmware 13.40 and all Bluetooth/audio
+capabilities remain Unknown. The ELF is an experimental hardware test candidate;
+execute only in an already-capable, compatible loader environment after
+establishing the runtime prerequisites. See [BUILDING.md](BUILDING.md) and
+[HARDWARE-TEST.md](HARDWARE-TEST.md).
 
 ## ADR 002: explicit transport integrity and shared-controller ownership
 
