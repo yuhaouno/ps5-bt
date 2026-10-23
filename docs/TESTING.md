@@ -36,6 +36,11 @@ are regression coverage, not a coverage-guided fuzz campaign or ownership proof.
 
 ## Portable expansion
 
+The SDP foundation tests exact PDU/transaction/continuation framing, all element
+type/size descriptors and Boolean bytes, integer extrema, truncations and explicit
+byte/node/depth limits. See [SDP.md](SDP.md). Response chunks are deliberately
+separate from complete-tree validation; no discovery/session pass is claimed.
+
 Implement unit/state tests with each protocol component. Include malformed
 lengths, nested SDP limits, L2CAP fragmentation/MTU bounds, foreign/stale handles,
 transaction timeouts, AVDTP collisions and disconnects at each transition. Use a

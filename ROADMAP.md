@@ -31,6 +31,6 @@ the runtime is reviewed. Do not open artificial issues for each empty crate.
 
 Initial host validation: four Rust parser tests, 15 C/Rust seam scenarios, C stub
 contract checks, fmt/check/Clippy and the freestanding archive build/inspection.
-Current local checks: 25 Rust tests, descriptor C tests with ASan/UBSan, 15 ABI
+Current local checks: 34 Rust tests, descriptor/native-query C tests with ASan/UBSan, 15 ABI
 scenarios, fmt/check/Clippy and archive inspection pass. The minimal PS5 ELF
 links and passes structural/failure-path checks; no console execution is verified.

@@ -59,18 +59,20 @@ do not ask the user to infer them from the console model.
 | C3 | DONE | native_presence_probe + lead review | separate opt-in ELF, one read-only stack-version query, strict/sanitized/main-hook tests; PS5 availability Unknown |
 | H1 | HARDWARE | user + lead | HW-1 ELF load, Rust entry and clean return after reviewed startup |
 | H2 | HARDWARE | user + lead | HW-2 descriptor/HCI data and DualSense before/during/after; requires C1/C2 |
-| E1 | WAITING | connection worker | bounded Classic connection/pairing/key lifecycle and A2DP SDP discovery after packet interfaces |
+| E1a | DONE | sdp_framing + independent/lead review | bounded SDP PDU/continuation/data-element foundation, nine parser tests; no discovery client |
+| E1b | WAITING | connection worker | bounded Classic connection/pairing/key lifecycle and A2DP SDP discovery after packet interfaces |
 | F1 | WAITING | AVDTP/A2DP worker | typed SBC negotiation/open/start/close and RTP packetization after D1/E1 contracts |
 | G1a | DONE | sbc_audit + independent/lead review | validated shared SBC selections and LGPL/runtime audit; no encoder imported |
 | G1b | WAITING | codec worker | proven libsbc encoder behind narrow wrapper, after bounded initialization storage and relinking plan; per-frame allocation prohibited |
 | T1 | WAITING | integration worker | hostile scripted transport/headset and PCM-to-SBC-to-RTP-to-ACL simulation once module contracts exist |
 | H7 | HARDWARE | user + lead | 440 Hz SBC A2DP tone audible on real headset, after controller/connection/negotiation |
 | H8 | HARDWARE | user + lead | actual PS5 PCM audible through the proven tone pipeline |
-| I1 | WAITING | documentation worker | exact build/load/config/log workflow as actual artifacts and behavior become available |
+| I1a | DONE | build_docs_integration + lead | pinned build/source-package instructions and exact baseline loading/log checklist |
+| I1b | WAITING | documentation worker | pairing/configuration/audio workflow only when those capabilities exist |
 
-Initial parallel wave A1/B1/D1a: A1 and D1a reviewed; B1 is pursuing a minimal
-entry using only the pinned SDK syscall bridge and no stock CRT. Second wave:
-C1 descriptor parsing and D1b L2CAP. SBC research can start after a slot frees.
+Completed waves: upstream/runtime research and real minimal ELF; portable HCI,
+L2CAP, SBC selections and SDP framing; host-only descriptor diagnostics; separate
+native-query ELF. Each was reviewed and tested before atomic integration.
 Do not declare hardware completion from desktop simulation or an ELF link.
 
 ## Persistent blockers and next integration target
@@ -83,8 +85,8 @@ Existing upstream transport competes with the native stack for USB input. The
 test target is Slim/13.40; actual loader, controller and headset identity remain
 unknown until runtime evidence is returned.
 
-Last lead verification: 25 HCI/L2CAP/SBC-model tests, 15 ABI scenarios, descriptor
-regressions with ASan/UBSan, fmt/check/Clippy and the
+Last lead verification: 34 HCI/L2CAP/SBC-model/SDP tests, 15 ABI scenarios,
+descriptor/native-query/main-hook regressions with ASan/UBSan, fmt/check/Clippy and the
 freestanding archive passed from an isolated staged snapshot. HCI framing was
 integrated in `418071c`; no command dispatcher/credit ledger was added.
 

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add allocation-free SDP PDU/continuation framing and bounded typed data-element
+  parsing; full service discovery and connection policy remain future work.
+
 - Package matching committed project/SDK corresponding source and license
   notices offline, with clean-build/hash gates and deterministic archive tests.
 

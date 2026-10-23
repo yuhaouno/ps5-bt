@@ -9,8 +9,8 @@ the first-class initial platform; the Bluetooth/audio core should also work
 with future Linux and FreeBSD backends.
 
 **Status: diagnostic ELF bring-up. No playable audio or
-verified PS5 support yet.** The skeleton contains portable contracts, a small HCI
-diagnostic parser, a Rust/C seam, and an adapter that explicitly returns
+verified PS5 support yet.** The workspace contains portable contracts and packet
+parsers, a Rust/C seam, and an adapter that explicitly returns
 `Unsupported`. It is an independent project, not a translation or fork of an
 existing payload. The final public name is undecided; repository and package
 collision checks must precede naming. All Cargo packages are `publish = false`.
@@ -21,6 +21,7 @@ collision checks must precede naming. All Cargo packages are `publish = false`.
 | --- | --- | --- |
 | Portable contracts, HCI command/ACL framing and capability event decoders | Implemented | host packet/malformed-input tests |
 | L2CAP basic framing and bounded ACL reassembly | Implemented | synthetic handle/epoch/bounds tests; no channel negotiation |
+| SDP framing and bounded data-element parsing | Implemented | synthetic parser tests; no discovery client |
 | C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |
 | SBC parameter selection and frame sizing | Implemented | portable validation tests; no encoder linked |
@@ -83,7 +84,8 @@ See [source distribution](docs/SOURCE-DISTRIBUTION.md).
 ```text
 Application / payload
     -> Rust audio engine (planned)
-    -> Rust A2DP / AVDTP / RTP / SDP / L2CAP (planned)
+    -> Rust A2DP / AVDTP / RTP (planned)
+    -> Rust SDP / L2CAP framing (session/signaling planned)
     -> Rust HCI representation and state
     -> portable platform traits
     -> ps5-platform safe wrappers -> ps5-sys -> small C ABI
@@ -92,8 +94,9 @@ Application / payload
 
 Rust owns the architecture. Proven platform adaptation may remain C. See
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
-The workspace contains `bt-core`, `bt-hci`, `bt-l2cap`, `ps5-sys`, `ps5-platform`,
-and `ps5-runtime`. L2CAP signaling and further protocol crates remain future work.
+The workspace contains `bt-core`, `bt-hci`, `bt-l2cap`, `bt-sdp`, `ps5-sys`,
+`ps5-platform`, and `ps5-runtime`. L2CAP signaling, SDP discovery and media
+protocols remain future work.
 
 ## Roadmap and contribution
 
