@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a separate opt-in diagnostic ELF for one read-only native stack-version
+  query, raw failure reporting and main-hook tests; transport remains Unsupported.
+
 - Produce an inspected PS5 diagnostic ELF through `make`, using an original
   minimal startup/linker script and three hash-verified SDK syscall source files;
   exclude stock permission-changing CRT and keep hardware support unverified.

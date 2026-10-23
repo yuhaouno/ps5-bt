@@ -26,6 +26,7 @@ collision checks must precede naming. All Cargo packages are `publish = false`.
 | SBC parameter selection and frame sizing | Implemented | portable validation tests; no encoder linked |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
 | Minimal PS5 diagnostic ELF | Experimental | final link and structural inspection pass; execution untested |
+| Optional read-only native stack-version query | Experimental | separate ELF and host boundary tests; PS5 export/OID unknown |
 | Live PS5 transport and capture | Unsupported | adapter explicitly returns Unsupported |
 | PS5 Fat / Slim / Pro | Unknown | no project hardware runs |
 | Console firmware | Unknown | no version verified |
@@ -52,6 +53,7 @@ make                # build/ps5/ps5-bt.elf: diagnostic only, hardware untested
 make check          # formatting, Rust check/tests/lints, C/Rust seam tests, cross archive
 make host-smoke     # C main -> Rust -> unsupported C adapter, on the desktop
 make rust-archive   # no_std x86-64 ELF archive; no SDK or console needed
+make ps5-native-query # separate opt-in query ELF; run only after baseline entry test
 ```
 
 See [build instructions](docs/BUILDING.md), [testing](docs/TESTING.md), the
@@ -68,6 +70,10 @@ end-user pairing procedure. A reviewed minimal startup excludes the SDK's
 credential/permission-changing CRT. The first console test must establish actual
 entry, logging and clean return before controller diagnostics. Native HCI
 ownership still needs resolution. Builds never deploy to a console.
+Use the [exact first hardware test instructions](docs/HARDWARE-TEST.md) and
+return the log, loader identity and wireless DualSense result. No headset is
+needed for this stage. The [optional native query](docs/NATIVE-QUERY.md) reports
+a stack interface value, never controller capabilities or usable transport.
 
 ## Architecture
 

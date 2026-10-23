@@ -19,6 +19,10 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 - USB metadata parsing and atomic bounded reports: truncations, resource limits,
   duplicate endpoints/alternates and deterministic mutations. Run
   `make usb-descriptors-test` or `make check-c-sanitize` for ASan/UBSan.
+- Native query boundary and real C main ordering: exact one-call read-only
+  arguments, resolver/query/length failures and atomic reports. `make
+  native-query-test` also links the baseline main without query dependencies;
+  `make check-c-sanitize` covers the optional path with ASan/UBSan.
 - Formatting, cargo check, Clippy warnings denied, and freestanding archive compilation;
   inspect every object as little-endian ELF64 x86-64 relocatable code.
 

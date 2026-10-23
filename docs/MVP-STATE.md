@@ -56,7 +56,7 @@ do not ask the user to infer them from the console model.
 | C1a | DONE | platform_descriptors + lead review | bounded descriptor parser/report, hostile host tests and ASan/UBSan; no live USB access |
 | C1b | WAITING | platform worker | actual read-only descriptor probe after verified runtime operations/SDK headers; no endpoint takeover |
 | C2 | BLOCKER | lead + platform worker | native HCI command/event/ACL ownership and enforceable credits; upstream read competition is not routing |
-| C3 | READY | native_presence_probe (running) | one bounded read-only native stack-version query using B1 resolver; no transport or controller-capability claim |
+| C3 | DONE | native_presence_probe + lead review | separate opt-in ELF, one read-only stack-version query, strict/sanitized/main-hook tests; PS5 availability Unknown |
 | H1 | HARDWARE | user + lead | HW-1 ELF load, Rust entry and clean return after reviewed startup |
 | H2 | HARDWARE | user + lead | HW-2 descriptor/HCI data and DualSense before/during/after; requires C1/C2 |
 | E1 | WAITING | connection worker | bounded Classic connection/pairing/key lifecycle and A2DP SDP discovery after packet interfaces |

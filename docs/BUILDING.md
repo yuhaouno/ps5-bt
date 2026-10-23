@@ -67,6 +67,11 @@ validates the loader-supplied getpid stub prefix before using the upstream
 adapter. Unsupported arguments, resolution or permissions fail visibly. No
 optional native diagnostic query is wired into this ELF.
 
+`make ps5-native-query` explicitly builds a separate
+`build/ps5/ps5-bt-native-query.elf` with the single read-only diagnostic in
+[NATIVE-QUERY.md](NATIVE-QUERY.md). It never replaces the baseline artifact;
+run it only after the baseline entry/log/return test succeeds.
+
 The SDK's default `crt/crt.c` calls `__patch_init()` and its `crt/patch.c` changes
 credentials and syscall permissions; neither is a build input. No kernel-memory
 helper, stock CRT, SDK linker script or local SDK patch enters the link. The

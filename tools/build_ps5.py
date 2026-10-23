@@ -97,6 +97,18 @@ def self_test():
             pass
         else:
             raise AssertionError("unsupported LLVM version accepted")
+        suffixes = ("elf", "map", "manifest.json", "inspect.txt", "disasm.txt")
+        for stem in ("ps5-bt", "ps5-bt-native-query"):
+            for suffix in suffixes:
+                (base / f"{stem}.{suffix}").write_text(stem)
+        invalidate_output("ps5-bt-native-query", base)
+        for suffix in suffixes:
+            assert (base / f"ps5-bt.{suffix}").read_text() == "ps5-bt"
+            assert not (base / f"ps5-bt-native-query.{suffix}").exists()
+        (base / "ps5-bt-native-query.elf").write_text("optional")
+        invalidate_output("ps5-bt", base)
+        assert (base / "ps5-bt-native-query.elf").read_text() == "optional"
+        assert not any((base / f"ps5-bt.{suffix}").exists() for suffix in suffixes)
     print("PASS missing/modified SDK and missing toolchain failure paths")
 
 
@@ -110,13 +122,15 @@ def host_test(source):
     print("PASS synthetic host startup resolver/log/error/memory cases (not loader execution)")
 
 
-def invalidate_output():
+def invalidate_output(stem, output=None):
+    output = output if output is not None else ROOT / "build/ps5"
     for suffix in ("elf", "map", "manifest.json", "inspect.txt", "disasm.txt"):
-        (ROOT / "build/ps5" / ("ps5-bt." + suffix)).unlink(missing_ok=True)
+        (output / f"{stem}.{suffix}").unlink(missing_ok=True)
 
 
 def build(args):
-    invalidate_output()
+    stem = "ps5-bt-native-query" if args.native_query else "ps5-bt"
+    invalidate_output(stem)
     tools = llvm_tools(args.llvm_config)
     source = sdk_sources(args.sdk_source)
     host_test(source)
@@ -130,18 +144,22 @@ def build(args):
          "x86_64-unknown-none", "--target-dir", ROOT / "target", "--locked"])
     output = ROOT / "build/ps5"
     output.mkdir(parents=True, exist_ok=True)
-    elf = output / "ps5-bt.elf"
+    elf = output / f"{stem}.elf"
     elf.unlink(missing_ok=True)
     sources = [ROOT / "platform/ps5/bootstrap/start.S",
                ROOT / "platform/ps5/bootstrap/runtime.c", ROOT / "platform/ps5/main.c",
                ROOT / "platform/ps5/adapter_stub.c", source / "crt/syscall.c"]
+    if args.native_query:
+        sources.append(ROOT / "platform/ps5/diagnostics/native_query.c")
     objects = []
     flags = ["-target", "x86_64-sie-ps5", "-std=gnu11", "-O1", "-ffreestanding",
              "-fno-builtin", "-fPIC", "-fno-stack-protector", "-fno-plt",
              "-mno-red-zone", "-mgeneral-regs-only", "-ffunction-sections", "-fdata-sections",
              "-Wall", "-Wextra", "-Werror", "-Iplatform/ps5/include", "-I" + str(source / "crt")]
+    if args.native_query:
+        flags.append("-DPS5_BT_NATIVE_QUERY")
     for index, path in enumerate(sources):
-        obj = output / f"{index}-{path.stem}.o"
+        obj = output / f"{stem}-{index}-{path.stem}.o"
         run([tools["clang"], *flags, "-c", path, "-o", obj])
         objects.append(obj)
     archive = ROOT / "target/x86_64-unknown-none/release/libps5_runtime.a"
@@ -149,13 +167,14 @@ def build(args):
          "-e", "_start", "-T", ROOT / "platform/ps5/bootstrap/minimal.ld", "-z", "max-page-size=0x4000",
          "--gc-sections", "--no-undefined", "--build-id=none", "--strip-debug", "--hash-style=gnu",
          "--undefined=ps5_bootstrap_lookup",
-         "-Map=" + str(output / "ps5-bt.map"), *objects, archive, "-o", elf])
+         "-Map=" + str(output / f"{stem}.map"), *objects, archive, "-o", elf])
     try:
         report = inspect_bytes(elf.read_bytes())
     except ValueError:
         elf.unlink(missing_ok=True)
         raise
     report["runtime"] = "minimal-syscall-v1"
+    report["native_query"] = args.native_query
     report["rust"] = rust_version
     report["llvm"] = run([tools["clang"], "--version"], capture=True).strip()
     report["lld"] = run([tools["ld.lld"], "--version"], capture=True).strip()
@@ -169,14 +188,17 @@ def build(args):
                                  for path in sources if path.is_relative_to(ROOT / "platform")}
     report["project_sources"]["platform/ps5/bootstrap/minimal.ld"] = digest(ROOT / "platform/ps5/bootstrap/minimal.ld")
     report["project_sources"]["platform/ps5/bootstrap/bootstrap.h"] = digest(ROOT / "platform/ps5/bootstrap/bootstrap.h")
+    if args.native_query:
+        name = "platform/ps5/diagnostics/native_query.h"
+        report["project_sources"][name] = digest(ROOT / name)
     report["runtime_review_sha256"] = digest(review)
-    (output / "ps5-bt.manifest.json").write_text(json.dumps(report, indent=2) + "\n")
+    (output / f"{stem}.manifest.json").write_text(json.dumps(report, indent=2) + "\n")
     inspection = run([tools["llvm-readobj"], "--file-headers", "--program-headers",
                       "--sections", "--symbols", "--dyn-symbols", "--relocations",
                       "--dynamic-table", "--needed-libs", elf], capture=True)
-    (output / "ps5-bt.inspect.txt").write_text(inspection)
+    (output / f"{stem}.inspect.txt").write_text(inspection)
     disassembly = run([tools["llvm-objdump"], "--disassemble", elf], capture=True)
-    (output / "ps5-bt.disasm.txt").write_text(disassembly)
+    (output / f"{stem}.disasm.txt").write_text(disassembly)
     print(f"PASS inspectable bootstrap ELF: {elf}\nSHA-256 {report['sha256']}")
     print("UNTESTED on PS5; no live Bluetooth adapter, deployment or firmware compatibility claim.")
 
@@ -186,10 +208,12 @@ if __name__ == "__main__":
     parser.add_argument("--sdk-source", default=os.environ.get("PS5_SDK_SOURCE"))
     parser.add_argument("--llvm-config", default=os.environ.get("LLVM_CONFIG", "llvm-config-18"))
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--native-query", action="store_true",
+                        help="build separate single read-only native query diagnostic")
     args = parser.parse_args()
     try:
         self_test() if args.self_test else build(args)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         if not args.self_test:
-            invalidate_output()
+            invalidate_output("ps5-bt-native-query" if args.native_query else "ps5-bt")
         parser.exit(1, f"PS5 build failed: {error}\n")
