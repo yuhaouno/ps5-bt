@@ -11,4 +11,5 @@
 - Add host C conformance checks for stub outputs and unsupported operations.
 - Add the C-callable Rust diagnostic bootstrap and 15 host C/Rust seam scenarios.
 - Build/inspect the freestanding Rust archive with PIC and small code model.
+- Add repeatable Make targets and an explicitly gated, untested PS5 SDK link recipe.
 - No PS5 hardware, audio, headset or latency compatibility is claimed.

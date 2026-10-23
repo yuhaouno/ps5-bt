@@ -94,3 +94,10 @@ The 15 host seam scenarios distinguish Unsupported, synthetic success, malformed
 responses, backend errors and cleanup failure. The adapter has no controller
 access. `x86_64-unknown-none` uses PIC/small code model and panic abort; final PS5
 link/runtime and native traffic ownership remain separate gates.
+
+The reproducible check entry point is now `make check` (fmt, cargo check, tests,
+Clippy, C/Rust checks and archive inspection). `make host-smoke` and
+`make rust-archive` run the respective subsets. See [build instructions](docs/BUILDING.md)
+and [testing strategy](docs/TESTING.md). `make ps5-link` is a gated link-only
+experiment requiring a completed runtime review and the pinned SDK. It has not
+been validated here and never deploys to a console.

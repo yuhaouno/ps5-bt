@@ -1,8 +1,6 @@
 # Architecture
 
 Status: accepted bootstrap decisions; hardware design remains experimental.
-Implementation status: portable contracts, HCI diagnostics, the C/Rust boundary
-and a freestanding Rust archive are implemented. Final PS5 linking is untested.
 Research snapshot: 2026-10-23. See [RESEARCH.md](RESEARCH.md) for evidence and
 [UPSTREAM.md](UPSTREAM.md) for immutable source revisions.
 
@@ -95,7 +93,7 @@ changes credentials and syscall permissions. The repository provides a static
 archive and C link recipe but does not build/deploy a stock-runtime PS5 ELF by
 default. Resolve this with an audited existing runtime that fits the scope, or
 an upstream-supported startup configuration. Do not implement a bypass or patch
-chain here. See BUILDING.md (`BUILDING.md`; planned bootstrap artifact).
+chain here. See [BUILDING.md](BUILDING.md).
 
 ## ADR 002: explicit transport integrity and shared-controller ownership
 
