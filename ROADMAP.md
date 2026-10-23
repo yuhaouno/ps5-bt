@@ -2,6 +2,8 @@
 
 Milestones are evidence gates, not dates or promises. A compiling archive, a
 linked ELF, execution on a PS5, and stable audio are different achievements.
+The current dependency graph, worker ownership and blockers are tracked in
+[MVP-STATE.md](docs/MVP-STATE.md).
 
 | Milestone | Deliverable | Exit evidence | Current state |
 | --- | --- | --- | --- |
