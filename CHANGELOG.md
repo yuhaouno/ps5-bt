@@ -14,4 +14,5 @@
 - Add repeatable Make targets and an explicitly gated, untested PS5 SDK link recipe.
 - Document atomic Conventional Commits, staged-state validation and session Git reports.
 - Add contribution, conduct and issue/PR reporting guidance.
+- Add eight concise translated status guides with English as the authority.
 - No PS5 hardware, audio, headset or latency compatibility is claimed.

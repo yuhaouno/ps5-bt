@@ -108,3 +108,13 @@ loader are prerequisites. We do not implement or distribute exploits, privilege
 escalation, DRM/license bypasses, Sony binaries, firmware, keys, or game content.
 If an operation needs permissions absent from the existing environment, report
 the blocker. There is no affiliation with or endorsement by Sony.
+
+## Translations
+
+Initial translations are concise status guides, not full duplicated manuals.
+English remains authoritative if a translation is outdated.
+
+[简体中文](docs/i18n/README.zh-CN.md) · [繁體中文](docs/i18n/README.zh-TW.md) ·
+[日本語](docs/i18n/README.ja.md) · [Español](docs/i18n/README.es.md) ·
+[Português brasileiro](docs/i18n/README.pt-BR.md) · [Français](docs/i18n/README.fr.md) ·
+[Deutsch](docs/i18n/README.de.md) · [한국어](docs/i18n/README.ko.md)
