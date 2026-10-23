@@ -31,18 +31,20 @@ static int notification_failed;
 static int persistent_fd;
 static int resolver_ready;
 
-/* Strict accepted getpid instruction layout for the SDK's +0xa convention.
- * Actual firmware bytes are UNKNOWN; any other layout is rejected, not guessed.
- * Accept only the selected elfldr/websrv stub convention, before any callback.
- * The trusted loader must supply a readable code pointer with at least 12 bytes. */
-static int supported_stub_bytes(const unsigned char *code, size_t available)
+/* The pinned SDK jumps to +0xa in the loader-supplied getpid veneer. Validate
+ * the syscall instruction at that exact entry. The preceding veneer encoding
+ * and following return/error path are firmware-owned; the syscall bridge enters
+ * neither at an invented offset nor through a copied instruction sequence. The
+ * trusted loader must supply a readable code pointer with at least 12 bytes. */
+#define PS5_SYSCALL_ENTRY_OFFSET 0x0a
+#define PS5_SYSCALL_ENTRY_SIZE 2
+static int supported_syscall_entry(const unsigned char *code, size_t available)
 {
-    static const unsigned char expected[] = {0x48, 0xc7, 0xc0, 0x14, 0,    0,
-                                             0,    0x49, 0x89, 0xca, 0x0f, 0x05};
-    if (!code || available < sizeof expected)
+    static const unsigned char expected[] = {0x0f, 0x05};
+    if (!code || available < PS5_SYSCALL_ENTRY_OFFSET + sizeof expected)
         return 0;
     for (size_t i = 0; i < sizeof expected; ++i) {
-        if (code[i] != expected[i])
+        if (code[PS5_SYSCALL_ENTRY_OFFSET + i] != expected[i])
             return 0;
     }
     return 1;
@@ -308,7 +310,8 @@ int ps5_bootstrap_entry(payload_args_t *args)
     persistent_fd = -1;
     resolver_ready = 0;
     void *symbol = 0;
-    if (!supported_stub_bytes((const unsigned char *)(uintptr_t)args->sys_dynlib_dlsym, 12)) {
+    if (!supported_syscall_entry((const unsigned char *)(uintptr_t)args->sys_dynlib_dlsym,
+                                 PS5_SYSCALL_ENTRY_OFFSET + PS5_SYSCALL_ENTRY_SIZE)) {
         result = 125;
     } else if (__crt_syscall_init(args)) {
         result = 121;

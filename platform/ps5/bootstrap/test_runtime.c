@@ -43,8 +43,8 @@ static enum test_mode mode;
 static int resolutions, writes, probes, opens, file_writes, closes, notifications;
 static char file_log[4096];
 static size_t file_log_length;
-static const unsigned char fake_stub[] = {0x48, 0xc7, 0xc0, 0x14, 0,    0,
-                                          0,    0x49, 0x89, 0xca, 0x0f, 0x05};
+static const unsigned char fake_stub[] = {0x48, 0xc7, 0xc0, 0x14, 0,    0,    0,
+                                          0x49, 0x89, 0xca, 0x0f, 0x05, 0xc3};
 static const unsigned char unknown_stub[sizeof fake_stub] = {0};
 
 static long fake_write(int fd, const void *data, unsigned long len)
@@ -183,14 +183,23 @@ static int run(payload_args_t *args, enum test_mode selected)
 int main(void)
 {
     int result = -999;
-    assert(supported_stub_bytes(fake_stub, sizeof fake_stub));
-    assert(!supported_stub_bytes(0, 0));
-    for (size_t i = 0; i < sizeof fake_stub; ++i) {
-        assert(!supported_stub_bytes(fake_stub, i));
+    assert(supported_syscall_entry(fake_stub, sizeof fake_stub));
+    assert(!supported_syscall_entry(0, 0));
+    for (size_t i = 0; i < PS5_SYSCALL_ENTRY_OFFSET + PS5_SYSCALL_ENTRY_SIZE; ++i) {
+        assert(!supported_syscall_entry(fake_stub, i));
+    }
+    for (size_t i = 0; i < PS5_SYSCALL_ENTRY_OFFSET; ++i) {
         unsigned char changed[sizeof fake_stub];
         memcpy(changed, fake_stub, sizeof changed);
         changed[i] ^= 1;
-        assert(!supported_stub_bytes(changed, sizeof changed));
+        assert(supported_syscall_entry(changed, sizeof changed));
+    }
+    for (size_t i = PS5_SYSCALL_ENTRY_OFFSET; i < sizeof fake_stub; ++i) {
+        unsigned char changed[sizeof fake_stub];
+        memcpy(changed, fake_stub, sizeof changed);
+        changed[i] ^= 1;
+        assert(supported_syscall_entry(changed, sizeof changed) ==
+               (i >= PS5_SYSCALL_ENTRY_OFFSET + PS5_SYSCALL_ENTRY_SIZE));
     }
     payload_args_t args = {.sys_dynlib_dlsym =
                                (int (*)(int, const char *, void *))(uintptr_t)fake_stub,

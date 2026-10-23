@@ -5,16 +5,18 @@ linked ELF, execution on a PS5, and stable audio are different achievements.
 The current dependency graph, worker ownership and blockers are tracked in
 [MVP-STATE.md](docs/MVP-STATE.md).
 
-Current wave: software-side HW-1 artifact complete; physical PS5 access is
-available again. **Next action: HW-1 physical validation** of the instrumented
-diagnostic, following [HARDWARE-TEST.md](docs/HARDWARE-TEST.md). Do not start
-HW-2 or infer hardware success from desktop tests. Slim / firmware 13.40 remains
-the unverified first target. See [wave evidence](docs/WAVE-1-REPORT.md).
+Current wave: the first HW-1 load attempt transferred successfully through
+Payload Manager v0.6.3 but failed before any payload lifecycle marker. The
+fixed-entry syscall guard has been repaired in `minimal-syscall-v4`.
+**Next action: HW-1 physical retest** following
+[HARDWARE-TEST.md](docs/HARDWARE-TEST.md). Do not start HW-2 or infer payload
+entry from loader transfer. Slim / firmware 13.40 remains unverified support.
+See [wave evidence](docs/WAVE-1-REPORT.md).
 
 | Milestone | Deliverable | Exit evidence | Current state |
 | --- | --- | --- | --- |
 | M0 — research/bootstrap | source/license inventory, architecture, bounded ABI, desktop tests, freestanding Rust archive | reproducible host checks and artifact inspection; explicit unknowns | bootstrap implemented; validation below |
-| M1 — Rust on PS5 / controller information | audited C startup, Rust entry, minimal metadata backend, bounded HCI queries only after routing gate | real console log with build hashes, USB IDs, HCI/LMP version, actual commands/features/buffers where accessible; clean return and DualSense before/during/after | diagnostic ELF linked; ownership and console execution unverified |
+| M1 — Rust on PS5 / controller information | audited C startup, Rust entry, minimal metadata backend, bounded HCI queries only after routing gate | real console log with build hashes, USB IDs, HCI/LMP version, actual commands/features/buffers where accessible; clean return and DualSense before/during/after | loader transfer verified; early entry failure observed; repaired diagnostic awaits retest |
 | M2 — platform transport and capture | safe command/event/ACL transport, vendor detection, capture open/read/close | fault/cleanup tests, no hidden loss, proven native traffic routing, capture format/timing report | planned |
 | M3a — minimal A2DP tone | Rust L2CAP/SDP/AVDTP/A2DP/RTP, explicit pairing/key storage, conservative SBC | reproducible 48 kHz stereo tone on named headset/controller/firmware, correct credits and negotiated limits | planned |
 | M3b — captured audio | PS5 PCM through bounded queues to the demonstrated sink | game/menu/silence tests, capture discontinuity and queue telemetry, clean stop | planned |
@@ -39,4 +41,5 @@ Initial host validation: four Rust parser tests, 15 C/Rust seam scenarios, C stu
 contract checks, fmt/check/Clippy and the freestanding archive build/inspection.
 Current local checks: 34 Rust tests, descriptor/native-query C tests with ASan/UBSan, 15 ABI
 scenarios, fmt/check/Clippy and archive inspection pass. The minimal PS5 ELF
-links and passes structural/failure-path checks; no console execution is verified.
+links and passes structural/failure-path checks; loader transfer is verified but
+payload entry and clean return are not.

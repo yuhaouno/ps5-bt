@@ -1,11 +1,15 @@
 # First hardware test payload
 
-No hardware run has occurred. The current C shim deliberately returns
-Unsupported. Do not replace that result with synthetic controller metadata in a
-payload. Desktop fake packets have separate test-only source files.
+The first hardware load attempt occurred on 2026-10-24. Payload Manager v0.6.3
+on PS5 Slim / firmware 13.40 transferred the complete diagnostic ELF repeatedly,
+but no payload notification or `/data/ps5-bt-hw1.log` appeared. This is an early
+startup failure, not a completed payload run. The current C shim still
+deliberately returns Unsupported once reached. Do not replace that result with
+synthetic controller metadata in a payload. Desktop fake packets have separate
+test-only source files.
 
-Physical access returned on 2026-10-24. **The next action is HW-1 physical
-validation using the instrumented baseline ELF below. HW-2 has not started.**
+Physical access returned on 2026-10-24. **The next action is an HW-1 retest using
+the repaired `minimal-syscall-v4` ELF below. HW-2 has not started.**
 The optional query ELF is software-tested only and is not part of this first
 physical test.
 
@@ -123,7 +127,7 @@ Interpret the lifecycle markers conservatively:
 
 Startup/results: 120 invalid arguments; 121 syscall bridge init failed; 122
 write unavailable; 123 exit unavailable; 124 incomplete stream log; 125
-unsupported getpid stub prefix; 126 persistent log open/write/close failure;
+unsupported fixed `+0xa` syscall entry; 126 persistent log open/write/close failure;
 127 notification lookup/send failure. A 125 stops before invoking the stub.
 Codes 120-125 remain primary even if lifecycle reporting is also unavailable.
 Do not provide library dumps or attempt alternate offsets. Panic result 101 is

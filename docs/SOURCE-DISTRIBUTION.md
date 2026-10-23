@@ -3,7 +3,7 @@
 A diagnostic ELF handed to another person must be accompanied by the actual
 corresponding source and retained license notices. A GitHub link alone does not
 supply that package. This packaging workflow is for the reviewed
-`minimal-syscall-v2` diagnostic, whose adapter returns Unsupported; it establishes
+`minimal-syscall-v4` diagnostic, whose adapter returns Unsupported; it establishes
 no PS5, firmware, loader, controller or audio compatibility and is not a release.
 
 After the intended project changes are committed, rebuild the ELF from the clean
@@ -79,8 +79,9 @@ legal determination of every possible distribution arrangement.
 
 The build requires no Sony binary, firmware, key, exploit, permission patch,
 SDK stock CRT, kernel-memory helper or bundled loader. Existing permission and
-compatible-loader prerequisites, actual loader behavior and PS5 Slim firmware
-13.40 remain external and hardware-untested; see [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md)
+compatible-loader prerequisites and actual loader behavior remain external. The
+first PS5 Slim firmware 13.40 transfer reached an early startup failure; the
+repaired runtime remains hardware-untested. See [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md)
 and [HARDWARE-TEST.md](HARDWARE-TEST.md). There is no project installation bypass
 or console deployment procedure. If a distribution arrangement requires further
 installation information, resolve that obligation for its actual environment

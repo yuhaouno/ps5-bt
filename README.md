@@ -15,12 +15,14 @@ parsers, a Rust/C seam, and an adapter that explicitly returns
 existing payload. The final public name is undecided; repository and package
 collision checks must precede naming. All Cargo packages are `publish = false`.
 
-**This development wave is complete at the software side of HW-1.** Physical
-PS5 access is available again, so the exact next step is to load the instrumented
-diagnostic ELF and verify its visible start/finish notifications, persistent log,
-clean return and wireless DualSense operation using
-[HW-1](docs/HARDWARE-TEST.md). PS5 Slim / firmware 13.40 is the intended first
-validation target, not verified support. HW-2 has not started. A second macOS
+**HW-1 has reached its first hardware repair cycle.** Payload Manager v0.6.3 on
+a PS5 Slim / firmware 13.40 accepted and transferred the diagnostic ELF, but no
+payload notification or persistent log appeared. That is evidence of an early
+startup failure, not a successful payload run. Runtime `minimal-syscall-v4`
+narrows the fixed `+0xa` guard to the syscall instruction the bridge actually
+executes and awaits a hardware retest of entry, logging, clean return and
+wireless DualSense operation using [HW-1](docs/HARDWARE-TEST.md). HW-2 has not
+started. A second macOS
 arm64 machine reproduced the earlier baseline ELF from a clean clone of
 `feat/mvp-bringup` with the documented toolchain and no repository changes.
 That reproduction is not PS5 execution. See the
@@ -37,10 +39,10 @@ That reproduction is not PS5 execution. See the
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |
 | SBC parameter selection and frame sizing | Implemented | portable validation tests; no encoder linked |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
-| Minimal PS5 diagnostic ELF | Experimental | final link and structural inspection pass; execution untested |
+| Minimal PS5 diagnostic ELF | Experimental | transfer through Payload Manager verified; entry failed before observable lifecycle; repaired candidate needs retest |
 | Optional read-only native stack-version query | Experimental | separate ELF and host boundary tests; PS5 export/OID unknown |
 | Live PS5 transport and capture | Unsupported | adapter explicitly returns Unsupported |
-| PS5 Fat / Slim / Pro | Unknown | no project hardware runs |
+| PS5 Fat / Slim / Pro | Unknown | one Slim/13.40 loader transfer; payload entry not verified |
 | Console firmware | Unknown | no version verified |
 | Marvell/NXP and MediaTek controllers | Experimental research targets | upstream source inspected; no live backend |
 | Other controller families | Unknown | detection must fail explicitly |
@@ -77,10 +79,13 @@ unverified. Controller vendor, revision and capabilities will be detected rather
 than inferred from that model. See the [live MVP task board](docs/MVP-STATE.md)
 and [portable framing contract](docs/HCI-L2CAP.md).
 
-The ELF currently shows start/finish notifications, mirrors diagnostics to
+The ELF is designed to show start/finish notifications and mirror diagnostics to
 `/data/ps5-bt-hw1.log`, logs Rust startup and returns `Unsupported`; there is no
-end-user pairing procedure. The file is replaced on each run so an incomplete
-run is distinguishable by its missing exit marker. A reviewed minimal startup
+end-user pairing procedure. The first hardware attempt produced neither the
+notification nor the file, identifying an early startup failure. The repaired
+candidate remains unverified until rerun. Once entry succeeds, the file is
+replaced on each run so an incomplete run is distinguishable by its missing exit
+marker. A reviewed minimal startup
 excludes the SDK's credential/permission-changing CRT. The first console test
 must establish actual entry, logging and clean return before controller
 diagnostics. Native HCI ownership still needs resolution. Builds never deploy
