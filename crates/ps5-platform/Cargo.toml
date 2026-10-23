@@ -1,0 +1,15 @@
+[package]
+name = "ps5-platform"
+description = "Safe ownership and checked buffers for the experimental PS5 adapter"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+bt-core = { path = "../bt-core" }
+ps5-sys = { path = "../ps5-sys" }
+
+[lints]
+workspace = true

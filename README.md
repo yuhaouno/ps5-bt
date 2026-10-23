@@ -7,14 +7,16 @@ through the built-in radio while DualSense stays wireless.
 **Status: Phase 0 repository bootstrap.** Project policy, research, architecture
 and platform boundaries are documented. The portable Rust workspace and platform
 contracts and a minimal HCI diagnostic decoder are implemented. The full
-Bluetooth/audio stack remains planned.
+Bluetooth/audio stack remains planned. The C ABI and safe PS5 wrapper now exist,
+with an adapter that explicitly returns Unsupported and never opens hardware.
 
 | Area | Status |
 | --- | --- |
 | Project mission, scope and Git discipline | Implemented |
 | Portable no_std transport, clock and PCM contracts | Implemented |
 | HCI event framing and local-version diagnostic decoder | Implemented; synthetic tests only |
-| Rust Bluetooth/audio stack and thin C platform adapter | Planned |
+| Versioned C ABI, safe wrapper and unsupported platform stub | Implemented; no live backend |
+| Full Bluetooth/audio stack and capture | Planned |
 | PS5 ELF build, console models/firmware, controller families and headphones | Unknown / untested |
 | SBC, other codecs, captured audio, latency and reconnect | Planned; no support claimed |
 | Installable payload and pairing workflow | Unsupported |
@@ -65,3 +67,14 @@ evidence rather than planned release dates.
 The HCI decoder has synthetic packet fixtures, truncation/error tests and
 exhaustive event-length checks. See the [protocol implementation plan](docs/PROTOCOL.md).
 It is not a live HCI dispatcher or evidence of controller support.
+
+The C adapter contract can be checked on the host with a C11 compiler:
+
+```sh
+cc -std=c11 -Wall -Wextra -Werror -Iplatform/ps5/include \
+  tests/abi/stub_contract.c platform/ps5/adapter_stub.c -o /tmp/ps5-bt-stub-contract
+/tmp/ps5-bt-stub-contract
+```
+
+The test verifies the unsupported/error contract; it does not establish PS5 ABI
+execution or hardware access.

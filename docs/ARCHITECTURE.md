@@ -1,8 +1,8 @@
 # Architecture
 
 Status: accepted bootstrap decisions; hardware design remains experimental.
-Implementation status at this design commit: the following contracts and builds
-are planned for subsequent bootstrap commits.
+Implementation status: portable contracts and the C/Rust platform boundary are
+implemented; the runtime/link bootstrap follows in a separate commit.
 Research snapshot: 2026-10-23. See [RESEARCH.md](RESEARCH.md) for evidence and
 [UPSTREAM.md](UPSTREAM.md) for immutable source revisions.
 
@@ -121,7 +121,7 @@ transport integrity loss by blindly reopening the radio.
 
 ## ADR 003: small, versioned C contract
 
-The normative bootstrap interface is ps5_bt.h (`../platform/ps5/include/ps5_bt.h`; planned bootstrap artifact)
+The normative bootstrap interface is [ps5_bt.h](../platform/ps5/include/ps5_bt.h)
 and [ABI.md](ABI.md). These are project-defined functions, **not Sony/SDK APIs**.
 Use an ABI version, fixed-width status codes, a nonzero opaque session token,
 caller-owned byte buffers, explicit capacities and output lengths. No borrowed

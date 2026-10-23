@@ -9,3 +9,15 @@ version = "0.0.1"
 [[package]]
 name = "bt-hci"
 version = "0.0.1"
+
+[[package]]
+name = "ps5-platform"
+version = "0.0.1"
+dependencies = [
+ "bt-core",
+ "ps5-sys",
+]
+
+[[package]]
+name = "ps5-sys"
+version = "0.0.1"

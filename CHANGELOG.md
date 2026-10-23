@@ -7,4 +7,6 @@
 - Define evidence-based development milestones and hardware test gates.
 - Add a pinned Rust workspace and portable no_std transport/clock/PCM contracts.
 - Add HCI event framing/local-version decoding with synthetic malformed-packet tests.
+- Define the small C ABI, safe Rust session/buffer wrappers and unsupported C adapter.
+- Add host C conformance checks for stub outputs and unsupported operations.
 - No PS5 hardware, audio, headset or latency compatibility is claimed.
