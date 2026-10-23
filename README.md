@@ -4,8 +4,8 @@ A Rust-first Bluetooth Audio stack for PlayStation 5 homebrew, designed for low
 latency, audio quality and portability. The goal is ordinary Bluetooth headphones
 through the built-in radio while DualSense stays wireless.
 
-**Status: Phase 0 repository bootstrap.** Project policy and upstream research
-are documented; implementation remains planned.
+**Status: Phase 0 repository bootstrap.** Project policy, research, architecture
+and platform boundaries are documented; implementation remains planned.
 
 | Area | Status |
 | --- | --- |
@@ -44,3 +44,8 @@ repository/package collision checks. No release tag is justified yet.
 Research: [technical findings](docs/RESEARCH.md), [upstream revisions and
 license inventory](docs/UPSTREAM.md). The SDK is a candidate build dependency;
 upstream Bluetooth/audio implementations are behavioral references only.
+
+Design: [architecture](docs/ARCHITECTURE.md), [proposed ABI](docs/ABI.md),
+[hardware test gates](docs/HARDWARE-TEST.md), [compatibility evidence](docs/COMPATIBILITY.md),
+and [security/scope policy](SECURITY.md). Shared HCI ownership and SDK startup
+review must be resolved before live controller queries.

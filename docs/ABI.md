@@ -1,0 +1,63 @@
+# Proposed platform ABI v1
+
+The header `platform/ps5/include/ps5_bt.h` is the bootstrap source of truth.
+These are our symbols, not existing PS5 SDK functions. ABI value `0x00010000`
+is experimental major 1/minor 0; wrappers currently require an exact match.
+Change the version for incompatible semantics. Never change one side silently.
+
+## Transport contract
+
+| Function | Meaning |
+| --- | --- |
+| `ps5_bt_abi_version()` | exact numeric ABI identifier |
+| `ps5_bt_init(out_session)` | create one owned session; success returns a nonzero opaque u32 token |
+| `ps5_bt_shutdown(session)` | revoke token, stop/reap owned transfers, release adapter state; return cleanup errors |
+| `ps5_bt_send_hci_command(session, data, len)` | complete HCI command: LE opcode, u8 parameter length, parameters; no H4 byte |
+| `ps5_bt_send_acl(session, data, len)` | complete ACL header + payload; no H4 byte |
+| `ps5_bt_receive(session, data, capacity, out_len, out_kind, timeout_ms)` | one event (kind 1) or ACL (kind 2), including native HCI header; no H4 byte |
+| `ps5_platform_log(data, len)` | synchronous byte output; caller storage is never retained |
+| `ps5_platform_abort()` | non-returning panic termination in platform C |
+
+All status returns are i32: `0` OK, `-1` unsupported, `-2` invalid,
+`-3` busy, `-4` buffer too small, `-5` I/O, `-6` disconnected,
+`-7` transport integrity lost, `-8` timeout. Unexpected values are preserved by
+Rust as `Backend(code)`, never treated as success. This is not an errno ABI.
+
+All non-success calls initialize output lengths/kinds/tokens to zero. Init
+failure leaves no live token/resources. Tokens are adapter-managed, never raw
+pointers, and must not be reused while stale sessions could exist. Current
+session is neither thread-safe nor reentrant. The wrapper is not Send/Sync.
+Only `ps5-platform` calls the unsafe declarations; portable code uses traits.
+
+Caller buffers are valid only during a call. Send must copy all accepted bytes
+before return and must return busy without accepting any part if the bounded
+queue is full. Success is not a controller completion. Receive must validate
+USB lengths before copying, must not write beyond capacity, and must not combine
+packets or silently truncate them. A short destination leaves the queued frame
+available and returns `-4` with output length zero. Queue overflow/framing loss
+is a sticky integrity error, not a dropped-packet counter followed by success.
+Timeout zero polls; positive waits are bounded in milliseconds. Timeout returns
+`-8` with zero outputs and maps to `Ok(None)` in Rust receive.
+
+Shutdown consumes the token even if it reports a failure. C must own all pending
+transfer memory and quarantine it if cancellation/reaping cannot be proven;
+it must never free storage still referenced by the platform. No Rust pointer is
+retained. Explicit close returns the error; Drop can only attempt close and
+log failure. No implicit reopen/recovery or controller reset.
+
+The Rust wrapper checks frame lengths, packet kinds and received lengths. C's
+capacity/write and lifetime guarantees remain necessary for memory safety;
+post-call Rust checks cannot repair an out-of-bounds C write. Add sanitizer and
+real C conformance tests when a real backend is selected.
+
+## Future audio ABI (not implemented or frozen)
+
+Proposed `ps5_audio_open`, `ps5_audio_read`, `ps5_audio_close` use a separate opaque
+token and caller-owned interleaved PCM buffer. Return format, actual whole frame
+count, monotonic timestamp with defined origin, and discontinuity flags through
+primitive output arguments or a separately versioned project-owned record.
+Do not expose Avcap2 handles, private parameter blocks, NIDs or SDK structs.
+48 kHz stereo float is an initial request based on upstream, not an established
+capture contract. Determine bytes vs frames, time origin, finite sample handling,
+permissions, empty/overrun/ended statuses, and cleanup through hardware tests
+before implementing this ABI. No speculative C audio functions are shipped.

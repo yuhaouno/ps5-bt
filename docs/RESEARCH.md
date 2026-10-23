@@ -89,7 +89,7 @@ custom Rust PS5 target before it is needed. Restrict FFI to fixed-width integers
 pointers and byte buffers. Panic terminates through a C function, never unwinds.
 Host tests validate contracts; target archive inspection validates compilation;
 only a console validates execution. See BUILDING.md (`BUILDING.md`; planned bootstrap document) for commands
-and ARCHITECTURE.md (`ARCHITECTURE.md`; planned bootstrap document) for the crate/dependency decisions.
+and [ARCHITECTURE.md](ARCHITECTURE.md) for the crate/dependency decisions.
 
 Primary Rust references: [freestanding target](https://doc.rust-lang.org/rustc/platform-support/x86_64-unknown-none.html),
 [static library linkage](https://doc.rust-lang.org/reference/linkage.html#r-link.staticlib).
