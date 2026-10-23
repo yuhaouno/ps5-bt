@@ -1,103 +1,110 @@
 # PS5-BT — working title
 
-A Rust-first Bluetooth Audio stack for PlayStation 5 homebrew, designed for low
-latency, audio quality and portability. The goal is ordinary Bluetooth headphones
-through the built-in radio while DualSense stays wireless.
+A Rust-first Bluetooth Audio stack for PlayStation 5 homebrew — built for low
+latency, high quality, and portability.
 
-**Status: Phase 0 repository bootstrap.** Project policy, research, architecture
-and platform boundaries are documented. The portable Rust workspace and platform
-contracts and a minimal HCI diagnostic decoder are implemented. The full
-Bluetooth/audio stack remains planned. The C ABI and safe PS5 wrapper now exist,
-with an adapter that explicitly returns Unsupported and never opens hardware.
-A C-callable Rust runtime now exercises the boundary on the desktop and builds
-as a freestanding x86-64 archive. No PS5 ELF link or hardware execution is verified.
+The goal is game and system audio on ordinary Bluetooth headphones through the
+console's built-in Bluetooth hardware, while DualSense stays wireless. PS5 is
+the first-class initial platform; the Bluetooth/audio core should also work
+with future Linux and FreeBSD backends.
 
-| Area | Status |
-| --- | --- |
-| Project mission, scope and Git discipline | Implemented |
-| Portable no_std transport, clock and PCM contracts | Implemented |
-| HCI event framing and local-version diagnostic decoder | Implemented; synthetic tests only |
-| Versioned C ABI, safe wrapper and unsupported platform stub | Implemented; no live backend |
-| Rust/C diagnostic bootstrap and freestanding archive | Implemented; host/synthetic validation only |
-| Full Bluetooth/audio stack and capture | Planned |
-| PS5 ELF build, console models/firmware, controller families and headphones | Unknown / untested |
-| SBC, other codecs, captured audio, latency and reconnect | Planned; no support claimed |
-| Installable payload and pairing workflow | Unsupported |
+**Status: Phase 0 research and repository bootstrap. No playable audio or
+verified PS5 support yet.** The skeleton contains portable contracts, a small HCI
+diagnostic parser, a Rust/C seam, and an adapter that explicitly returns
+`Unsupported`. It is an independent project, not a translation or fork of an
+existing payload. The final public name is undecided; repository and package
+collision checks must precede naming. All Cargo packages are `publish = false`.
 
-Architecture: application -> portable Rust audio/protocol core -> platform
-traits -> safe Rust PS5 wrappers -> narrow C ABI -> SDK/capture/USB/controller
-adaptation -> hardware. Valuable PS5-specific C may remain for compatibility
-and upstream synchronization. This is not a goal to rewrite all platform code.
+## Compatibility and measurements
 
-A homebrew-capable console and an existing ELF loader are prerequisites. This
-project does not implement jailbreaks, privilege escalation, DRM/license bypasses,
-piracy, Sony binaries, firmware, keys or game content. Missing permissions must
-be reported as blockers.
+| Area | Status | Evidence |
+| --- | --- | --- |
+| Portable contracts and HCI diagnostic decoder | Implemented | host parser tests |
+| C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
+| Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
+| Live PS5 transport and capture | Unsupported | adapter explicitly returns Unsupported |
+| PS5 Fat / Slim / Pro | Unknown | no project hardware runs |
+| Console firmware | Unknown | no version verified |
+| Marvell/NXP and MediaTek controllers | Experimental research targets | upstream source inspected; no live backend |
+| Other controller families | Unknown | detection must fail explicitly |
+| DualSense wireless coexistence | Unknown; required release gate | shared HCI ownership unresolved |
+| SBC / high-quality SBC / SBC-XQ | Planned | no encoder or streaming implementation |
+| AAC / additional codecs | Research only | technical and licensing review required |
+| Headphones | Unknown | no compatible or incompatible models verified here |
+| Latency, bitrate, CPU use, multi-hour stability | Unknown | no measurements yet |
 
-The [roadmap](ROADMAP.md) is research -> Rust/C controller diagnostics -> transport/capture ->
-SBC test tone -> PS5 PCM -> stability -> latency/quality -> later codecs and
-adaptation. No working audio or PS5 compatibility is claimed.
+Evidence labels are **Verified**, **Reported**, **Experimental**, **Unsupported**,
+and **Unknown**. Upstream results do not confer our Verified status. See
+[compatibility policy](docs/COMPATIBILITY.md).
 
-The [pinned Rust toolchain](rust-toolchain.toml) builds the portable `bt-core`
-crate without registry dependencies. Run `cargo fmt --all -- --check`,
-`cargo check --workspace --all-targets --locked`, `cargo test --workspace --locked`,
-and `cargo clippy --workspace --all-targets --locked -- -D warnings`. These
-contracts are not a live hardware implementation.
+## Development
 
-FGG-PlayPods, HearBridge PS5 and community Payload SDKs are research references;
-this independent project is not their fork or Rust translation. No upstream
-implementation is imported. Reuse requires license review, exact provenance and
-attribution. Original contributions use [GPL-3.0-or-later](LICENSE); third-party
-material keeps its own terms.
-
-Contributions should be small, tested, documented and committed in reviewable
-units; see [repository rules](AGENTS.md). English is canonical. Translated status
-guides will be linked when introduced. The public name remains undecided pending
-repository/package collision checks. No release tag is justified yet.
-
-Research: [technical findings](docs/RESEARCH.md), [upstream revisions and
-license inventory](docs/UPSTREAM.md). The SDK is a candidate build dependency;
-upstream Bluetooth/audio implementations are behavioral references only.
-
-Design: [architecture](docs/ARCHITECTURE.md), [proposed ABI](docs/ABI.md),
-[hardware test gates](docs/HARDWARE-TEST.md), [compatibility evidence](docs/COMPATIBILITY.md),
-and [security/scope policy](SECURITY.md). Shared HCI ownership and SDK startup
-review must be resolved before live controller queries.
-
-Changes are recorded in [CHANGELOG.md](CHANGELOG.md); milestones require
-evidence rather than planned release dates.
-
-The HCI decoder has synthetic packet fixtures, truncation/error tests and
-exhaustive event-length checks. See the [protocol implementation plan](docs/PROTOCOL.md).
-It is not a live HCI dispatcher or evidence of controller support.
-
-The C adapter contract can be checked on the host with a C11 compiler:
+Install Rust using the pinned [toolchain](rust-toolchain.toml), a C11 host compiler,
+Python 3.11+ and Make. Then:
 
 ```sh
-cc -std=c11 -Wall -Wextra -Werror -Iplatform/ps5/include \
-  tests/abi/stub_contract.c platform/ps5/adapter_stub.c -o /tmp/ps5-bt-stub-contract
-/tmp/ps5-bt-stub-contract
+make check          # formatting, Rust check/tests/lints, C/Rust seam tests, cross archive
+make host-smoke     # C main -> Rust -> unsupported C adapter, on the desktop
+make rust-archive   # no_std x86-64 ELF archive; no SDK or console needed
 ```
 
-The test verifies the unsupported/error contract; it does not establish PS5 ABI
-execution or hardware access.
+See [build instructions](docs/BUILDING.md), [testing](docs/TESTING.md), the
+[research report](docs/RESEARCH.md).
+No third-party Rust packages are required.
+Host checks and target compilation do not establish PS5 compatibility.
 
-Runtime bootstrap checks (host C11 compiler and Python 3.11+ required):
+There is no installable payload or end-user pairing procedure yet. The first
+major milestone is Rust in a PS5 ELF logging actual Bluetooth controller
+information through a reviewed C adapter. The SDK's default startup and native
+HCI ownership need resolution before deployment. The C link recipe is an
+explicitly gated experiment; it does not deploy to a console.
 
-```sh
-python3 tools/host_check.py
-cargo build -p ps5-runtime --release --target x86_64-unknown-none --locked
-python3 tools/inspect_archive.py target/x86_64-unknown-none/release/libps5_runtime.a
+## Architecture
+
+```text
+Application / payload
+    -> Rust audio engine (planned)
+    -> Rust A2DP / AVDTP / RTP / SDP / L2CAP (planned)
+    -> Rust HCI representation and state
+    -> portable platform traits
+    -> ps5-platform safe wrappers -> ps5-sys -> small C ABI
+    -> C SDK / capture / USB HCI / controller quirks -> PS5
 ```
 
-The 15 host seam scenarios distinguish Unsupported, synthetic success, malformed
-responses, backend errors and cleanup failure. The adapter has no controller
-access. `x86_64-unknown-none` uses PIC/small code model and panic abort; final PS5
-link/runtime and native traffic ownership remain separate gates.
+Rust owns the architecture. Proven platform adaptation may remain C. See
+[architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
+The initial five crates are `bt-core`, `bt-hci`, `ps5-sys`, `ps5-platform`, and
+`ps5-runtime`; future protocol crates will be created when needed.
 
-The reproducible check entry point is now `make check` (fmt, cargo check, tests,
-Clippy, C/Rust checks and archive inspection). `make host-smoke` and
-`make rust-archive` run the respective subsets. See [build instructions](docs/BUILDING.md)
-and [testing strategy](docs/TESTING.md). `make ps5-link` is a gated link-only
-experiment requiring a completed runtime review and the pinned SDK. It has not
-been validated here and never deploys to a console.
+## Roadmap and contribution
+
+[Milestones](ROADMAP.md): research/bootstrap -> Rust/C hardware diagnostics ->
+transport and capture -> conservative SBC tone -> captured audio -> stability
+and coexistence -> latency/quality -> additional codecs -> adaptive control.
+No adaptation before reliable telemetry. No codec support promises before
+hardware demonstration. Bluetooth version numbers do not predict audio quality.
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md),
+[SECURITY.md](SECURITY.md), and [CHANGELOG.md](CHANGELOG.md). English is canonical
+for source, API docs, issues, commits, and project documentation.
+Use [Conventional Commits and staged-state checks](CONTRIBUTING.md#git-and-commit-discipline)
+for each independently reviewable change; see [repository development rules](AGENTS.md).
+
+## Upstream and license
+
+FGG-PlayPods, HearBridge PS5, the PS5 Payload SDK, PS5SDK, and BlueZ/libsbc are
+important research references. Credit their authors and contributors; preserve
+their history and file-specific licenses when reusing code. No upstream
+Bluetooth/audio implementation has been imported. [UPSTREAM.md](docs/UPSTREAM.md)
+records exact revisions, licenses, behavior provenance, credits, and update rules.
+
+Original bootstrap work is **GPL-3.0-or-later**, see [LICENSE](LICENSE).
+Third-party code retains its own terms. FFI is an architectural boundary, not
+an exemption from license obligations. Codec licensing/patents and distribution
+requirements must be reviewed before adoption.
+
+This is not a jailbreak project. A homebrew-capable console and existing ELF
+loader are prerequisites. We do not implement or distribute exploits, privilege
+escalation, DRM/license bypasses, Sony binaries, firmware, keys, or game content.
+If an operation needs permissions absent from the existing environment, report
+the blocker. There is no affiliation with or endorsement by Sony.
