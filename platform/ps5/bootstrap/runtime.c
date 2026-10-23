@@ -50,6 +50,28 @@ static int supported_syscall_entry(const unsigned char *code, size_t available)
     return 1;
 }
 
+/* Some compatible loaders pass the internal implementation reached by the
+ * public sceKernelDlsym veneer. Resolve the public entry exactly as the selected
+ * SDK does, then give the SDK a local copy whose first field is canonical. A
+ * getpid veneer returns a PID and leaves resolved untouched, so it falls back
+ * to the fixed syscall-entry validation below. The loader is trusted to supply
+ * a callable first field and valid argument storage. */
+static int prepare_syscall_args(payload_args_t *args, const unsigned char *code,
+                                size_t available, payload_args_t *prepared)
+{
+    void *resolved = 0;
+    *prepared = *args;
+    int error = args->sys_dynlib_dlsym(0x1, "sceKernelDlsym", &resolved);
+    if (error)
+        error = args->sys_dynlib_dlsym(0x2001, "sceKernelDlsym", &resolved);
+    if (!error && resolved) {
+        prepared->sys_dynlib_dlsym =
+            (int (*)(int, const char *, void *))(uintptr_t)resolved;
+        return 1;
+    }
+    return supported_syscall_entry(code, available);
+}
+
 /* The pinned loader places payloadout at byte 0x28 in this upstream structure. */
 _Static_assert(sizeof(void *) == 8, "requires x86-64 pointers");
 _Static_assert(sizeof(write_fn) == sizeof(void *), "requires equal code/data pointer sizes");
@@ -310,10 +332,14 @@ int ps5_bootstrap_entry(payload_args_t *args)
     persistent_fd = -1;
     resolver_ready = 0;
     void *symbol = 0;
-    if (!supported_syscall_entry((const unsigned char *)(uintptr_t)args->sys_dynlib_dlsym,
-                                 PS5_SYSCALL_ENTRY_OFFSET + PS5_SYSCALL_ENTRY_SIZE)) {
+    payload_args_t syscall_args;
+    int contract_ready =
+        prepare_syscall_args(args, (const unsigned char *)(uintptr_t)args->sys_dynlib_dlsym,
+                             PS5_SYSCALL_ENTRY_OFFSET + PS5_SYSCALL_ENTRY_SIZE,
+                             &syscall_args);
+    if (!contract_ready) {
         result = 125;
-    } else if (__crt_syscall_init(args)) {
+    } else if (__crt_syscall_init(&syscall_args)) {
         result = 121;
     } else {
         resolver_ready = 1;

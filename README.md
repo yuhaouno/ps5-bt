@@ -18,9 +18,10 @@ collision checks must precede naming. All Cargo packages are `publish = false`.
 **HW-1 has reached its first hardware repair cycle.** Payload Manager v0.6.3 on
 a PS5 Slim / firmware 13.40 accepted and transferred the diagnostic ELF, but no
 payload notification or persistent log appeared. That is evidence of an early
-startup failure, not a successful payload run. Runtime `minimal-syscall-v4`
-narrows the fixed `+0xa` guard to the syscall instruction the bridge actually
-executes and awaits a hardware retest of entry, logging, clean return and
+startup failure, not a successful payload run. Runtime `minimal-syscall-v5`
+accepts both loader contracts supported by the selected SDK—a verified direct
+resolver or the fixed `+0xa` syscall entry—and awaits a hardware retest of
+entry, logging, clean return and
 wireless DualSense operation using [HW-1](docs/HARDWARE-TEST.md). HW-2 has not
 started. A second macOS
 arm64 machine reproduced the earlier baseline ELF from a clean clone of

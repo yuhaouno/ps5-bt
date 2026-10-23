@@ -10,7 +10,7 @@ Current software wave has entered the HW-1 repair cycle. A real inspected PS5
 ELF containing Rust and corresponding-source package are available. Payload
 Manager v0.6.3 on PS5 Slim / firmware 13.40 transferred the initial instrumented
 candidate, but no payload notification or persistent log appeared. Runtime
-`minimal-syscall-v4` repairs the over-constrained fixed-entry guard. **The exact
+`minimal-syscall-v5` repairs the over-constrained loader-contract guard. **The exact
 next action is an HW-1 physical retest.** No HW-2 work starts
 in this wave. A second
 macOS 27.0.1 arm64 machine cloned `origin/feat/mvp-bringup` at `89bdce0` and
@@ -91,8 +91,8 @@ Do not declare hardware completion from desktop simulation or an ELF link.
 SDK pin: v0.45 / `a7685ce8e97ce1f8a4f38253a41d54241c9124f1`;
 PlayPods and HearBridge research pins remain in upstream.lock.json. Default SDK
 startup mutates credentials/syscall permissions and is excluded. The reviewed
-minimal startup requires existing loader permissions and a checked fixed `+0xa`
-syscall entry.
+minimal startup requires existing loader permissions and either a verified
+direct resolver or a checked fixed `+0xa` syscall entry.
 Existing upstream transport competes with the native stack for USB input. The
 test target is Slim/13.40; actual loader, controller and headset identity remain
 unknown until runtime evidence is returned.
@@ -107,9 +107,10 @@ Verified tooling research pins: elfldr v0.27 at
 `4d35610914273f8f4fc37af2b1d5bfb069dfba5b` (newer default branch is distinct).
 Neither researched loader provides a direct dlsym callback in the first argument:
 it is a getpid syscall stub. Loader-supported relative relocations and BSS/return
-requirements must be checked for the actual ELF. The repaired guard validates
-the syscall instruction at that fixed entry without searching alternate offsets
-or constraining libkernel's following return/error path.
+requirements must be checked for the actual ELF. The repaired guard accepts a
+direct resolver only after it resolves itself, otherwise it validates the
+syscall instruction at the fixed entry without searching alternate offsets or
+constraining libkernel's following return/error path.
 
 No active protocol implementation assignments remain. All completed workers
 were reviewed and integrated; the clean-source rebuild review passed. The

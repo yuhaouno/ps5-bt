@@ -4,10 +4,11 @@
 
 - Record the first PS5 Slim / firmware 13.40 load attempt: Payload Manager v0.6.3
   transferred the complete ELF repeatedly, while the payload produced no start
-  notification or persistent log. Repair the over-constrained syscall guard by
-  validating only the pinned `+0xa` syscall instruction actually entered by the
-  SDK bridge, leaving libkernel's following return/error path unconstrained;
-  the repaired hardware result remains pending.
+  notification or persistent log. Repair the over-constrained startup guard by
+  accepting both contracts implemented by the selected SDK: a direct
+  `sceKernelDlsym` resolver verified by identity, or the pinned `+0xa` syscall
+  instruction without constraining libkernel's return/error path. The repaired
+  hardware result remains pending.
 
 - Add visible start/finish notifications, an explicit final status and a
   per-run persistent `/data/ps5-bt-hw1.log` to the minimal HW-1 diagnostic,

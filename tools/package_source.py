@@ -85,7 +85,7 @@ def validate_manifest(root, head, files, manifest_path):
         raise ValueError("manifest must identify the current clean committed HEAD; rebuild first")
     if manifest.get("sdk_revision") != SDK_REVISION or manifest.get("sdk_sources") != SDK_FILES:
         raise ValueError("manifest SDK revision/source hashes differ from the selected build inputs")
-    if manifest.get("runtime") != "minimal-syscall-v4":
+    if manifest.get("runtime") != "minimal-syscall-v5":
         raise ValueError("unsupported runtime in manifest")
     if not str(manifest.get("rust", "")).startswith("rustc 1.90.0 "):
         raise ValueError("manifest does not identify pinned Rust 1.90.0")
@@ -128,7 +128,7 @@ Original project commit: {manifest['git_head']}
 Associated ELF SHA-256: {manifest['sha256']}
 SDK repository: https://github.com/ps5-payload-dev/sdk
 SDK revision: {SDK_REVISION}
-Runtime: minimal-syscall-v4; hardware entry remains unverified; adapter Unsupported.
+Runtime: minimal-syscall-v5; hardware entry remains unverified; adapter Unsupported.
 
 Contents:
   project/                 Every tracked project file at the stated clean commit.
@@ -247,7 +247,7 @@ def self_test():
             manifest = {
                 "git_head": clean_head(root), "git_status": [], "sha256": sha256(elf.read_bytes()),
                 "sdk_revision": SDK_REVISION, "sdk_sources": SDK_FILES.copy(),
-                "runtime": "minimal-syscall-v4", "rust": "rustc 1.90.0 (fixture)",
+                "runtime": "minimal-syscall-v5", "rust": "rustc 1.90.0 (fixture)",
                 "llvm": "clang 18.1.8", "lld": "LLD 18.1.8",
                 "rust_archive_sha256": sha256(rust.read_bytes()),
                 "project_sources": {name: sha256(files[name][0]) for name in REQUIRED_SOURCES},

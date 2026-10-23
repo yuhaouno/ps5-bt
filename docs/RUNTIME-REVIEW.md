@@ -1,6 +1,6 @@
 # Minimal runtime source review
 
-Runtime identifier: `minimal-syscall-v4`. Reviewed 2026-10-24 for an inspectable
+Runtime identifier: `minimal-syscall-v5`. Reviewed 2026-10-24 for an inspectable
 compile/link artifact. A first PS5 Slim / firmware 13.40 attempt verified loader
 transfer but produced no payload lifecycle marker; the repaired entry path is
 hardware-untested and no compatibility or deployment approval is established.
@@ -96,16 +96,16 @@ our entry does so before reading mutable globals.
 `elfldr_prepare_exec` puts the argument pointer in rdi and pushes the original
 instruction pointer as a return address. `elfldr_payload_args` stores
 `payloadout` at byte 0x28. Its first field contains a resolved **getpid syscall
-stub**, despite the SDK field name `sys_dynlib_dlsym`; it is not safe to call it
-as a resolver by assumption. The unmodified SDK adapter detects the convention
-and uses the existing stub at +0xa, exactly as upstream does. Before invoking
-the adapter or any supplied callback, our entry requires the syscall instruction
-at that fixed bridge entry. It does not constrain the preceding firmware-owned
-getpid veneer encoding or libkernel's following return/error path, and it does
-not search or invent an alternate offset. This policy derives from SDK
-`SYS_getpid` and its
+stub** in the two pinned loader sources, despite the SDK field name
+`sys_dynlib_dlsym`. The selected unmodified SDK also supports a direct
+`sceKernelDlsym` callback. The runtime probes that callback exactly as the SDK
+does and accepts it only when resolving `sceKernelDlsym` returns the same
+address. Otherwise it requires the syscall instruction at the getpid veneer's
+fixed +0xa bridge entry. It does not constrain the preceding firmware-owned
+veneer encoding or libkernel's following return/error path, and it does not
+search or invent an alternate offset. This policy derives from SDK `SYS_getpid` and its
 +0xa convention; **the complete libkernel veneer bytes, including firmware
-13.40, remain Unknown**. A different fixed entry stops with 125 before
+13.40, remain Unknown**. A value matching neither contract stops with 125 before
 invocation. SDK `libc/syscalls.c` demonstrates
 analogous userland syscall veneers, but does not define imported getpid.
 The trusted loader must supply a readable code pointer covering these 12 bytes;
@@ -127,7 +127,7 @@ until that prerequisite and the actual loader/runtime are established.
 The existing Rust probe returns 2 for the unsupported adapter. Startup codes:
 120 invalid loader arguments; 121 syscall initialization failed; 122 no write
 symbol; 123 no exit symbol; 124 incomplete/failed log write; 125 unsupported
-fixed `+0xa` syscall entry; 126 persistent log unavailable or incomplete; 127 visible
+direct-resolver/fixed-syscall contract; 126 persistent log unavailable or incomplete; 127 visible
 notification unavailable or failed. Codes 120-125 retain precedence over
 reporting-channel failures. Normal return also stores the result in the
 loader-owned `payloadout`. Raw syscall resolver errors are not treated as
@@ -136,7 +136,7 @@ the payload never takes their ownership.
 
 ## Remaining hardware gates
 
-Retest the repaired fixed-entry guard on the recorded Payload Manager/elfldr
+Retest the repaired loader-contract guard on the recorded Payload Manager/elfldr
 environment. Inspect exact loader entry registers, supplied stub ABI, ordinary syscall
 permissions, resolved exports, stderr routing, stack/callee-saved registers,
 Rust log bytes, expected unsupported result and clean return. Panic termination

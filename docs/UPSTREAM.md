@@ -54,7 +54,7 @@ loader release alone does not resolve native HCI ownership.
 loader entry and relocation contracts, a read-only descriptor probe plan,
 controller-quirk provenance, and the capture interface discrepancies. The
 stock SDK CRT remains outside the approved payload scope. The reviewed
-`minimal-syscall-v4` build now uses original project entry/runtime code and a
+`minimal-syscall-v5` build now uses original project entry/runtime code and a
 linker script, plus the three selected SDK files below. It performs no credential
 or permission mutation and includes no kernel-memory helper. It must still
 satisfy the actual installed loader contract on hardware.
@@ -114,10 +114,11 @@ excluded. No upstream loader implementation or proprietary binary is bundled.
 
 The resulting C -> Rust -> Unsupported ELF is a reviewable diagnostic build,
 not evidence of hardware execution, a working controller query or Bluetooth.
-The selected bridge consumes the existing loader syscall stub only after the
-project verifies the syscall instruction at the pinned `+0xa` entry; it does not
-search alternate offsets or constrain libkernel's following return/error path.
-The full veneer bytes and permissions on PS5 Slim firmware
+The selected bridge accepts both contracts implemented by the selected SDK: a
+direct `sceKernelDlsym` resolver only when it resolves itself, or an existing
+loader syscall stub after verifying the syscall instruction at the pinned
+`+0xa` entry. It does not search alternate offsets or constrain libkernel's
+following return/error path. The full veneer bytes and permissions on PS5 Slim firmware
 13.40 remain Unknown. No optional native query is wired into the ELF.
 See [TOOLCHAIN.md](TOOLCHAIN.md) for build provenance and
 [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md) for behavior and failure paths.

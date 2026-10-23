@@ -59,7 +59,7 @@ reviewable build artifact, not PS5 loader or firmware compatibility.
 ## Runtime scope and execution gate
 
 The fixed [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md) documents runtime
-`minimal-syscall-v4`, selected source behavior and the inspected loader contract.
+`minimal-syscall-v5`, selected source behavior and the inspected loader contract.
 The project-owned entry preserves the caller's stack/frame, clears BSS,
 initializes the selected syscall bridge, opens a fresh diagnostic log at
 `/data/ps5-bt-hw1.log`, and resolves existing libkernel `write`, `_exit` and the
@@ -67,9 +67,10 @@ best-effort notification entry point before invoking C main -> Rust -> the
 Unsupported C adapter. Start and finish notifications plus an explicit final
 status distinguish a completed run from a payload that never entered Rust. The
 log file is truncated at the start of each run and duplicates the synchronous
-diagnostic stream. Startup validates the syscall instruction at the loader-supplied
-getpid veneer's pinned `+0xa` bridge entry before using the upstream adapter;
-it does not search alternate offsets. Unsupported arguments, resolution or
+diagnostic stream. Startup accepts the selected SDK's two explicit loader
+contracts: a direct `sceKernelDlsym` resolver verified by resolving itself, or
+the syscall instruction at a getpid veneer's pinned `+0xa` bridge entry. It does
+not search alternate offsets. Unsupported arguments, resolution or
 permissions fail explicitly. No optional native diagnostic query is wired into
 this ELF.
 

@@ -47,6 +47,33 @@ static const unsigned char fake_stub[] = {0x48, 0xc7, 0xc0, 0x14, 0,    0,    0,
                                           0x49, 0x89, 0xca, 0x0f, 0x05, 0xc3};
 static const unsigned char unknown_stub[sizeof fake_stub] = {0};
 
+static int fake_direct_resolver(int module, const char *name, void *out)
+{
+    assert(module == 0x1 || module == 0x2001);
+    assert(name && out);
+    if (strcmp(name, "sceKernelDlsym"))
+        return 13;
+    *(void **)out = (void *)(uintptr_t)fake_direct_resolver;
+    return 0;
+}
+
+static int fake_forwarding_resolver(int module, const char *name, void *out)
+{
+    assert(module == 0x1 || module == 0x2001);
+    assert(name && out);
+    if (strcmp(name, "sceKernelDlsym"))
+        return 13;
+    *(void **)out = (void *)(uintptr_t)fake_direct_resolver;
+    return 0;
+}
+
+static int fake_nonresolver(int module, const char *name, void *out)
+{
+    assert(module == 0x1 || module == 0x2001);
+    assert(name && out);
+    return 13;
+}
+
 static long fake_write(int fd, const void *data, unsigned long len)
 {
     assert(fd == 2 && data && len);
@@ -84,7 +111,7 @@ static int fake_notify(int kind, void *data, size_t size, int flags)
 
 int __crt_syscall_init(payload_args_t *args)
 {
-    assert(args && (uintptr_t)args->sys_dynlib_dlsym == (uintptr_t)fake_stub);
+    assert(args && args->sys_dynlib_dlsym == fake_direct_resolver);
     return mode == MODE_SYSCALL_INIT_FAIL ? -1 : 0;
 }
 
@@ -201,8 +228,19 @@ int main(void)
         assert(supported_syscall_entry(changed, sizeof changed) ==
                (i >= PS5_SYSCALL_ENTRY_OFFSET + PS5_SYSCALL_ENTRY_SIZE));
     }
-    payload_args_t args = {.sys_dynlib_dlsym =
-                               (int (*)(int, const char *, void *))(uintptr_t)fake_stub,
+    payload_args_t prepared;
+    payload_args_t direct = {.sys_dynlib_dlsym = fake_direct_resolver, .payloadout = &result};
+    payload_args_t forwarding = {.sys_dynlib_dlsym = fake_forwarding_resolver,
+                                 .payloadout = &result};
+    payload_args_t veneer = {.sys_dynlib_dlsym = fake_nonresolver, .payloadout = &result};
+    assert(prepare_syscall_args(&direct, unknown_stub, sizeof unknown_stub, &prepared));
+    assert(prepared.sys_dynlib_dlsym == fake_direct_resolver);
+    assert(prepare_syscall_args(&forwarding, unknown_stub, sizeof unknown_stub, &prepared));
+    assert(prepared.sys_dynlib_dlsym == fake_direct_resolver);
+    assert(prepare_syscall_args(&veneer, fake_stub, sizeof fake_stub, &prepared));
+    assert(prepared.sys_dynlib_dlsym == fake_nonresolver);
+    assert(!prepare_syscall_args(&veneer, unknown_stub, sizeof unknown_stub, &prepared));
+    payload_args_t args = {.sys_dynlib_dlsym = fake_forwarding_resolver,
                            .payloadout = &result};
     reset_test(MODE_OK);
     assert(ps5_bootstrap_entry(0) == 120);
@@ -213,7 +251,7 @@ int main(void)
     invalid.sys_dynlib_dlsym = 0;
     assert(ps5_bootstrap_entry(&invalid) == 120);
     invalid = args;
-    invalid.sys_dynlib_dlsym = (int (*)(int, const char *, void *))(uintptr_t)unknown_stub;
+    invalid.sys_dynlib_dlsym = fake_nonresolver;
     assert(ps5_bootstrap_entry(&invalid) == 125 && result == 125);
     assert(resolutions == 0 && writes == 0 && probes == 0 && opens == 0);
 

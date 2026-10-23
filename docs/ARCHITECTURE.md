@@ -100,8 +100,8 @@ libc, import library, proprietary binary or local SDK patch in the link.
 
 The default SDK CRT is excluded because it calls credential/syscall-permission
 mutation before `main`. The minimal runtime instead requires the loader's
-existing syscall permissions, checks the syscall instruction at its supplied getpid
-veneer's pinned `+0xa` bridge entry and
+existing syscall permissions, verifies either a direct resolver identity or the
+syscall instruction at a supplied getpid veneer's pinned `+0xa` bridge entry, and
 resolves existing libkernel exports. It performs no credential/permission
 mutation or kernel-memory operation and implements no loader or exploit. The
 Rust/C transport adapter still returns Unsupported; no optional native query
@@ -110,7 +110,7 @@ loader contracts and [TOOLCHAIN.md](TOOLCHAIN.md) for build evidence.
 
 **Current gate:** Payload Manager v0.6.3 transferred the ELF on PS5 Slim firmware
 13.40, but the payload produced no lifecycle notification or file before the
-fixed-entry guard repair. The repaired entry, syscall permissions, logging,
+loader-contract guard repair. The repaired entry, syscall permissions, logging,
 panic termination and clean return remain unverified, as do all Bluetooth/audio
 capabilities. The ELF is an experimental hardware test candidate;
 execute only in an already-capable, compatible loader environment after

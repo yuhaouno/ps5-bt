@@ -7,7 +7,7 @@ The current dependency graph, worker ownership and blockers are tracked in
 
 Current wave: the first HW-1 load attempt transferred successfully through
 Payload Manager v0.6.3 but failed before any payload lifecycle marker. The
-fixed-entry syscall guard has been repaired in `minimal-syscall-v4`.
+loader-contract guard has been repaired in `minimal-syscall-v5`.
 **Next action: HW-1 physical retest** following
 [HARDWARE-TEST.md](docs/HARDWARE-TEST.md). Do not start HW-2 or infer payload
 entry from loader transfer. Slim / firmware 13.40 remains unverified support.
