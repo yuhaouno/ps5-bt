@@ -74,6 +74,9 @@ Use the [exact first hardware test instructions](docs/HARDWARE-TEST.md) and
 return the log, loader identity and wireless DualSense result. No headset is
 needed for this stage. The [optional native query](docs/NATIVE-QUERY.md) reports
 a stack interface value, never controller capabilities or usable transport.
+After a clean committed build, `make source-bundle` packages the matching project
+and selected SDK sources with notices; distribute it with the ELF and manifest.
+See [source distribution](docs/SOURCE-DISTRIBUTION.md).
 
 ## Architecture
 

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 .DEFAULT_GOAL := all
-.PHONY: all check host-smoke rust-archive ps5-link ps5-native-query usb-descriptors-test native-query-test check-c-sanitize
+.PHONY: all check host-smoke rust-archive ps5-link ps5-native-query usb-descriptors-test native-query-test check-c-sanitize check-build-tools source-bundle
 export LLVM_CONFIG PS5_SDK_SOURCE
 HOST_CC ?= cc
 USB_TEST_SOURCES := platform/ps5/diagnostics/usb_descriptors.c tests/platform/usb_descriptors_test.c
@@ -17,7 +17,15 @@ check:
 	python3 tools/host_check.py
 	$(MAKE) usb-descriptors-test
 	$(MAKE) native-query-test
+	$(MAKE) check-build-tools
 	$(MAKE) rust-archive
+
+check-build-tools:
+	python3 tools/build_ps5.py --self-test
+	python3 tools/package_source.py --self-test
+
+source-bundle:
+	python3 tools/package_source.py
 
 usb-descriptors-test:
 	mkdir -p build/host/usb-diagnostics

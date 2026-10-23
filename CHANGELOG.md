@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Package matching committed project/SDK corresponding source and license
+  notices offline, with clean-build/hash gates and deterministic archive tests.
+
 - Add a separate opt-in diagnostic ELF for one read-only native stack-version
   query, raw failure reporting and main-hook tests; transport remains Unsupported.
 
