@@ -31,9 +31,17 @@ ABI, build and testing documents before changing those areas.
 - No codecs, GUI or full stack expansion before their authorized milestone.
   Prove controller capabilities and native traffic ownership; do not guess HCI
   credits, hide transport loss with retries or claim mock tests as hardware tests.
-- No exploits, new privilege escalation, kernel patch chains, DRM/license bypass,
-  piracy, Sony binaries, firmware, keys or game content. Missing permissions are
-  a documented blocker. Audit SDK/runtime behavior independently of its API.
+- Elevate this payload's own process credentials and syscall-origin permissions
+  only by using kernel read/write the installed jailbreak/loader environment
+  already provides, and only as far as owning the Bluetooth transport and audio
+  capture requires. Document the touched kernel structures and offsets as unsafe
+  invariants, mark them Requires hardware until verified, and narrow or restore
+  scope where feasible. An environment that does not already grant such access is
+  a documented blocker, not a reason to loosen these bounds.
+- Do not develop, bundle or invoke a new exploit or vulnerability chain to obtain
+  that initial kernel access, and no DRM/license bypass, piracy, Sony binaries,
+  firmware, keys or game content. Audit SDK/runtime behavior independently of its
+  API.
 - Before upstream reuse, inspect the license and record repository, exact
   revision, selected components, local changes and attribution. Keep integration
   separate from unrelated features. Preserve file-specific license obligations.
