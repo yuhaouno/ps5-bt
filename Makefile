@@ -21,6 +21,7 @@ check:
 	$(MAKE) rust-archive
 
 check-build-tools:
+	python3 tools/test_syscall_checked.py
 	python3 tools/build_ps5.py --self-test
 	python3 tools/package_source.py --self-test
 
@@ -60,6 +61,10 @@ rust-archive:
 
 ps5-link:
 	$(MAKE) -f platform/ps5/payload.mk
+
+.PHONY: ps5-hw1
+ps5-hw1:
+	python3 tools/build_ps5.py --loader-kernel-resolver
 
 ps5-native-query:
 	python3 tools/build_ps5.py --native-query

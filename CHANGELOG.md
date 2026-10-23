@@ -1,5 +1,17 @@
 # Changelog
 
+## HW-1 repair, 2026-10-24
+
+- Execute the diagnostic on Slim/13.40: existing-loader kernel initialization,
+  Rust entry, durable lifecycle, notification API success and final Unsupported
+  status 2; native query executes but returns -1.
+- Remove faulting executable-byte inspection; capture syscall carry errors with
+  six-argument/stack/MAP_FAILED regression tests; tolerate missing stderr when
+  durable logging works. Add explicit existing-loader own-process symbol lookup,
+  without credential setters, stock CRT or patch.c. Earlier startup assumptions
+  below are superseded by docs/HW1-REPAIR.md.
+
+
 ## Unreleased
 
 - Record the first PS5 Slim / firmware 13.40 load attempt: Payload Manager v0.6.3

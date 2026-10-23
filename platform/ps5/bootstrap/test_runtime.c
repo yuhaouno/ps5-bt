@@ -37,16 +37,14 @@ enum test_mode {
     MODE_NOTIFY_RESOLVE_NULL,
     MODE_NOTIFY_START_FAIL,
     MODE_NOTIFY_FINISH_FAIL,
+    MODE_KERNEL_FALLBACK,
+    MODE_KERNEL_INIT_FAIL,
 };
 
 static enum test_mode mode;
 static int resolutions, writes, probes, opens, file_writes, closes, notifications;
 static char file_log[4096];
 static size_t file_log_length;
-static const unsigned char fake_stub[] = {0x48, 0xc7, 0xc0, 0x14, 0,    0,    0,
-                                          0x49, 0x89, 0xca, 0x0f, 0x05, 0xc3};
-static const unsigned char unknown_stub[sizeof fake_stub] = {0};
-
 static int fake_direct_resolver(int module, const char *name, void *out)
 {
     assert(module == 0x1 || module == 0x2001);
@@ -78,8 +76,7 @@ static long fake_write(int fd, const void *data, unsigned long len)
 {
     assert(fd == 2 && data && len);
     ++writes;
-    return mode == MODE_STREAM_SHORT ? (long)len - 1
-                                     : mode == MODE_STREAM_ERROR ? -1 : (long)len;
+    return mode == MODE_STREAM_SHORT ? (long)len - 1 : mode == MODE_STREAM_ERROR ? -1 : (long)len;
 }
 
 static void fake_exit(int status)
@@ -97,8 +94,7 @@ static int fake_notify(int kind, void *data, size_t size, int flags)
     assert(memchr(request->message, '\0', sizeof request->message));
     ++notifications;
     if (notifications == 1) {
-        assert(!strcmp(request->message,
-                       "PS5-BT diagnostic started\nLog: /data/ps5-bt-hw1.log"));
+        assert(!strcmp(request->message, "PS5-BT diagnostic started\nLog: /data/ps5-bt-hw1.log"));
     } else {
         assert(strstr(request->message, "PS5-BT diagnostic finished\nStatus: "));
     }
@@ -114,6 +110,27 @@ int __crt_syscall_init(payload_args_t *args)
     assert(args && args->sys_dynlib_dlsym == fake_direct_resolver);
     return mode == MODE_SYSCALL_INIT_FAIL ? -1 : 0;
 }
+
+#ifdef PS5_BT_LOADER_KERNEL_RESOLVER
+int __kernel_init(payload_args_t *args)
+{
+    assert(args && args->payloadout);
+    return mode == MODE_KERNEL_INIT_FAIL ? -9 : 0;
+}
+
+unsigned long kernel_dynlib_dlsym(int pid, unsigned int handle, const char *name)
+{
+    assert(pid == -1 && (handle == 1 || handle == 0x2001));
+    if (mode != MODE_KERNEL_FALLBACK)
+        return 0;
+    if (!strcmp(name, "write"))
+        return (unsigned long)(uintptr_t)fake_write;
+    if (!strcmp(name, "_exit"))
+        return (unsigned long)(uintptr_t)fake_exit;
+    assert(!strcmp(name, "sceKernelSendNotificationRequest"));
+    return (unsigned long)(uintptr_t)fake_notify;
+}
+#endif
 
 long __crt_syscall(long number, ...)
 {
@@ -159,6 +176,8 @@ long __crt_syscall(long number, ...)
     va_end(args);
     assert(module == 1 || module == 0x2001);
     ++resolutions;
+    if (mode == MODE_KERNEL_FALLBACK)
+        return 13;
     if (mode == MODE_FIRST_MODULE_ERROR && module == 1)
         return 13;
     if (!strcmp(name, "write")) {
@@ -210,37 +229,23 @@ static int run(payload_args_t *args, enum test_mode selected)
 int main(void)
 {
     int result = -999;
-    assert(supported_syscall_entry(fake_stub, sizeof fake_stub));
-    assert(!supported_syscall_entry(0, 0));
-    for (size_t i = 0; i < PS5_SYSCALL_ENTRY_OFFSET + PS5_SYSCALL_ENTRY_SIZE; ++i) {
-        assert(!supported_syscall_entry(fake_stub, i));
-    }
-    for (size_t i = 0; i < PS5_SYSCALL_ENTRY_OFFSET; ++i) {
-        unsigned char changed[sizeof fake_stub];
-        memcpy(changed, fake_stub, sizeof changed);
-        changed[i] ^= 1;
-        assert(supported_syscall_entry(changed, sizeof changed));
-    }
-    for (size_t i = PS5_SYSCALL_ENTRY_OFFSET; i < sizeof fake_stub; ++i) {
-        unsigned char changed[sizeof fake_stub];
-        memcpy(changed, fake_stub, sizeof changed);
-        changed[i] ^= 1;
-        assert(supported_syscall_entry(changed, sizeof changed) ==
-               (i >= PS5_SYSCALL_ENTRY_OFFSET + PS5_SYSCALL_ENTRY_SIZE));
-    }
     payload_args_t prepared;
     payload_args_t direct = {.sys_dynlib_dlsym = fake_direct_resolver, .payloadout = &result};
     payload_args_t forwarding = {.sys_dynlib_dlsym = fake_forwarding_resolver,
                                  .payloadout = &result};
     payload_args_t veneer = {.sys_dynlib_dlsym = fake_nonresolver, .payloadout = &result};
-    assert(prepare_syscall_args(&direct, unknown_stub, sizeof unknown_stub, &prepared));
+    prepare_syscall_args(&direct, &prepared);
     assert(prepared.sys_dynlib_dlsym == fake_direct_resolver);
-    assert(prepare_syscall_args(&forwarding, unknown_stub, sizeof unknown_stub, &prepared));
+    prepare_syscall_args(&forwarding, &prepared);
     assert(prepared.sys_dynlib_dlsym == fake_direct_resolver);
-    assert(prepare_syscall_args(&veneer, fake_stub, sizeof fake_stub, &prepared));
+    prepare_syscall_args(&veneer, &prepared);
     assert(prepared.sys_dynlib_dlsym == fake_nonresolver);
-    assert(!prepare_syscall_args(&veneer, unknown_stub, sizeof unknown_stub, &prepared));
+    int descriptors[2] = {3, 4};
     payload_args_t args = {.sys_dynlib_dlsym = fake_forwarding_resolver,
+                           .rwpipe = descriptors,
+                           .rwpair = descriptors,
+                           .kpipe_addr = 1,
+                           .kdata_base_addr = 1,
                            .payloadout = &result};
     reset_test(MODE_OK);
     assert(ps5_bootstrap_entry(0) == 120);
@@ -250,9 +255,6 @@ int main(void)
     invalid = args;
     invalid.sys_dynlib_dlsym = 0;
     assert(ps5_bootstrap_entry(&invalid) == 120);
-    invalid = args;
-    invalid.sys_dynlib_dlsym = fake_nonresolver;
-    assert(ps5_bootstrap_entry(&invalid) == 125 && result == 125);
     assert(resolutions == 0 && writes == 0 && probes == 0 && opens == 0);
 
     assert(run(&args, MODE_OK) == 2);
@@ -273,9 +275,10 @@ int main(void)
     assert(run(&args, MODE_EXIT_RESOLVE_NULL) == 123);
     assert(run(&args, MODE_FIRST_MODULE_ERROR) == 2);
     assert(resolutions == 6 && probes == 1);
-    assert(run(&args, MODE_STREAM_SHORT) == 124);
+    assert(run(&args, MODE_STREAM_SHORT) == 2);
     assert(probes == 1 && writes == 1);
-    assert(run(&args, MODE_STREAM_ERROR) == 124);
+    assert(strstr(file_log, "event=stream_log_unavailable fallback=persistent\n"));
+    assert(run(&args, MODE_STREAM_ERROR) == 2);
     assert(run(&args, MODE_FILE_OPEN_FAIL) == PS5_PERSISTENT_LOG_FAILED);
     assert(probes == 1 && notifications == 2 && closes == 0);
     assert(run(&args, MODE_FILE_SHORT) == PS5_PERSISTENT_LOG_FAILED);
@@ -287,6 +290,19 @@ int main(void)
     assert(run(&args, MODE_NOTIFY_START_FAIL) == PS5_NOTIFICATION_FAILED);
     assert(notifications == 2);
     assert(run(&args, MODE_NOTIFY_FINISH_FAIL) == PS5_NOTIFICATION_FAILED);
+#ifdef PS5_BT_LOADER_KERNEL_RESOLVER
+    assert(run(&args, MODE_KERNEL_FALLBACK) == 2);
+    assert(probes == 1 && notifications == 2 && closes == 1);
+    assert(strstr(file_log, "event=loader_kernel_init_end code=0\n"));
+    assert(run(&args, MODE_KERNEL_INIT_FAIL) == 128);
+    assert(probes == 0 && closes == 1 && resolutions == 0);
+    assert(strstr(file_log, "event=loader_kernel_init_end code=-9\n"));
+    assert(strstr(file_log, "event=payload_return status=128\n"));
+    invalid = args;
+    invalid.rwpipe = 0;
+    assert(run(&invalid, MODE_OK) == 128);
+    assert(probes == 0 && closes == 1 && resolutions == 0);
+#endif
     unsigned char memory[5];
     assert(bootstrap_memset(memory, 0xab, 5) == memory);
     assert(memory[0] == 0xab && memory[4] == 0xab);

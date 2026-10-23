@@ -1,147 +1,100 @@
-# Minimal runtime source review
+# Runtime review: minimal-syscall-v6
 
-Runtime identifier: `minimal-syscall-v5`. Reviewed 2026-10-24 for an inspectable
-compile/link artifact. A first PS5 Slim / firmware 13.40 attempt verified loader
-transfer but produced no payload lifecycle marker; the repaired entry path is
-hardware-untested and no compatibility or deployment approval is established.
-The current adapter remains Unsupported.
+Reviewed 2026-10-24. Baseline and explicit loader-kernel-resolver builds retain
+the project entry/linker and fixed SDK v0.45 revision
+`a7685ce8e97ce1f8a4f38253a41d54241c9124f1`. See
+[HW1-REPAIR.md](HW1-REPAIR.md) for the hardware result and limitations.
 
-## Scope and dependency closure
+## Entry and syscall contract
 
-The default SDK v0.45 CRT is excluded. `crt/crt.c` unconditionally invokes
-`__patch_init`; `crt/patch.c` changes credential capabilities/attributes and
-syscall permission bounds. Neither those files, `kernel.c`, kernel-R/W helpers,
-the SDK `crt1.o`, SDK libc, nor dynamic SDK import libraries enter this link.
-`-nostartfiles` alone is not an alternate runtime; the SDK shared-object example
-also needs a normally initialized host executable.
+The trusted pre-existing loader supplies the SDK payload argument structure,
+callable first-field callback/veneer, live pipe/socket descriptors, kernel data
+base and writable payloadout. Their lifetime spans this synchronous call.
+They are not arbitrary untrusted pointers. Invalid/null arguments return 120.
 
-The selected external source is [ps5-payload-dev/sdk](https://github.com/ps5-payload-dev/sdk/tree/a7685ce8e97ce1f8a4f38253a41d54241c9124f1),
-revision `a7685ce8e97ce1f8a4f38253a41d54241c9124f1` (v0.45):
+The entry preserves the caller stack/frame, aligns the stack and clears BSS.
+It probes the supplied callback as the fixed SDK does. A callback that resolves
+sceKernelDlsym to another public entry is normalized in a local argument copy;
+a getpid veneer leaves the output null and passes unchanged to the SDK.
+The SDK selects its documented +0xa syscall entry; no alternate offsets are
+searched. **The runtime does not read libkernel code bytes.** A readable-code
+assumption was invalid on the recorded hardware: byte-read probes terminated
+before their hold, while using the supplied veneer produced persistent logs.
+Execute-only text is the inferred explanation, not a dumped firmware finding.
 
-| Component | Selection and behavior |
-| --- | --- |
-| `crt/syscall.c` | Unmodified generic userland syscall adapter and initialization; consumes the loader's existing stub after a strict layout check; no permission or credential writes |
-| `crt/syscall.h` | Unmodified declarations and numeric syscall definitions |
-| `crt/payload.h` | Unmodified entry argument structure |
+The unmodified SDK syscall bridge is wrapped by project
+`bootstrap/syscall_checked.S`. The wrapper captures carry immediately, preserves
+all six arguments and call-stack alignment, and returns raw positive errno
+failures as negative errors. mmap errors retain MAP_FAILED (-1) for SDK callers.
+A synthetic x86-64 executable checks all six arguments, carry-set positive
+errors, carry-clear negative returns, stack alignment and mmap failure.
+It runs on macOS through available x86-64 execution and on x86-64 Linux.
 
-Each selected file's SHA-256 is enforced by `tools/build_ps5.py`, including when an external
-source checkout is supplied. Missing files may be fetched only from immutable
-revision URLs into ignored `.sdk/`. All three files carry John Törnblom's
-copyright and GPL-3.0-or-later notices; they are kept intact. They are external
-linked build inputs, not a new upstream Bluetooth implementation. No local SDK
-patches are applied. A distributed ELF must include the selected corresponding
-source, notices, GPL text and project/build sources; a link to GitHub alone is
-not a completed source distribution. There is no release distribution yet.
+## Optional existing-loader kernel resolver
 
-The original `bootstrap/minimal.ld` places the three PT_LOAD segments on 16 KiB
-boundaries with RX, R and RW permissions. The SDK script was tested and rejected:
-its alignment depends on nonempty unwind and initialized-data sections, absent
-in this subset, producing unaligned load starts at 0x13f8 and 0x4120. The original
-script is neither patched nor used. No ELF loader is implemented here.
+`make ps5-hw1` or `build_ps5.py --loader-kernel-resolver` explicitly includes
+unmodified SDK `crt/kernel.c` and `crt/nid.c`, plus their hash-verified headers
+`kernel.h`, `kernel_iommu.h`, `elf.h`, `nid.h`, `klog.h`.
+Each retains John Törnblom's GPL-3.0-or-later notice (2024; kernel_iommu.h 2026).
+No stock CRT, patch.c, runtime module loader or proprietary binary is linked.
+Hashes are enforced by tools/build_ps5.py and included in the manifest/bundle.
 
-The project-owned `bootstrap/start.S` preserves the caller's frame pointer and
-stack, aligns the stack to 16 bytes before a C call and returns its integer
-result. `bootstrap/runtime.c` clears BSS explicitly, initializes the selected
-syscall adapter, resolves existing libkernel `write` and `_exit` exports using
-`SYS_sprx_dlsym` (591), then invokes the existing `main` -> Rust -> C stub seam.
-Only the known alternative libkernel handles 1 and 0x2001 are tried, as in the
-pinned SDK startup. Resolution failure stops startup; it does not load modules,
-alter permissions, retry transport, or access any kernel-R/W argument field.
+The runtime first opens the persistent log, records kernel initialization begin,
+calls `__kernel_init(args)`, and records its exact result. Failure returns 128
+without entering Rust. On success, failed ordinary export lookup may fall back
+to `kernel_dynlib_dlsym(-1, handle, name)` for the current process only.
+This uses the already-supplied pipe/socket kernel-R/W transport. It does not
+establish initial kernel access or mutate process credentials/syscall bounds.
+Kernel setters and __patch_init are rejected by the ELF inspector in both modes.
 
-Logging uses synchronous `write(2, bytes, len)` without retaining the buffer and
-duplicates the same bytes to a freshly truncated `/data/ps5-bt-hw1.log` opened
-with mode `0600`. Each channel accepts exactly one full write per message; a
-short/failed write is sticky and is never hidden by retry. The persistent file
-is closed before normal return. Status 124 reports stream-log failure and 126
-reports persistent-log open/write/close failure.
+### Unsafe invariants and hardware scope
 
-After `write` and `_exit` resolve, the runtime also looks up the existing
-libkernel `sceKernelSendNotificationRequest` export and uses the fixed request
-layout recorded by the pinned SDK's GPL-3.0-or-later `notify_debug` sample. It
-does not link an import library or load a module. One notification is sent
-immediately before C -> Rust entry and a second reports the numeric final
-status. Missing or failed notification returns 127 after the primary result has
-been logged. These calls are hardware-untested and failure remains visible; no
-fallback offset or alternate notification API is guessed.
+The SDK borrows rwpipe/rwpair, kpipe_addr and kdata_base_addr. Pointers must
+describe the installed loader's valid, still-open transport. Reads use that
+transport, including writes to its pipe/socket control state; this is not a
+general promise of zero kernel writes. Descriptors are never closed by us.
 
-Panic invokes the resolved `_exit(101)`; if that unexpectedly returns, a trap
-stops execution. Panic does not unwind or claim clean return to the loader. No
-heap, TLS, C constructors or destructors are used. Original byte-loop `memset`,
-`memcpy` and `memcmp` satisfy freestanding Rust compiler lowering; compilation
-disables builtin loop replacement.
+The pinned source supplies the firmware table and layouts. For 13.40 its
+allproc address is data-base + 0x28C9E80; process traversal reads pid at +0xBC,
+credentials at +0x40 and vmspace at +0x200. Dynamic-loader metadata follows
+the exact dynlib structures in pinned kernel.h. Init also derives DMAP/IOMMU
+state using pinned helpers. These are SDK invariants, not invented offsets.
+No UID/authid/capability/syscall-bound setter is called. Other firmware or
+loaders remain Requires hardware even if the SDK has a table entry.
 
-`bootstrap/bootstrap.h` exposes `ps5_bootstrap_lookup(name, out)` only during
-the bootstrap's call to `main`. It performs the same fixed libkernel lookup,
-clears the output on every failure, returns the final raw resolver error, and
-uses local -2 invalid / -5 unavailable when no raw error exists. It never loads
-a module. This C bootstrap helper does not modify the transport ABI or enable
-any controller operation. No optional diagnostic query is wired into this ELF.
+The source trusts kernel dynlib sizes/pointers and traverses kernel structures;
+host mocks cannot prove these lifetimes or compatibility. The recorded
+Slim/13.40 environment initialized this path and resolved callable write,
+_exit, notification and sysctlbyname exports. That validates this tested path,
+not every SDK helper, malformed-kernel behavior or firmware layout.
 
-## Existing loader entry contract
+## Lifecycle and results
 
-Source inspection, not hardware verification:
+The fresh per-run /data/ps5-bt-hw1.log is opened before export lookup.
+It records initialization, startup, Rust entry, primary exit and final status.
+The raw lookup failure is logged with symbol and signed result. Start/finish
+notifications use the fixed reviewed notification ABI; API success is distinct
+from human confirmation of on-screen display. The file is closed on completion.
 
-* [elfldr v0.27](https://github.com/ps5-payload-dev/elfldr/blob/2a8da002e5292481ea964daa7342bbf4855f4c33/elfldr.c),
-  revision `2a8da002e5292481ea964daa7342bbf4855f4c33`.
-* [websrv v0.34](https://github.com/ps5-payload-dev/websrv/blob/4d35610914273f8f4fc37af2b1d5bfb069dfba5b/src/ps5/elfldr.c),
-  revision `4d35610914273f8f4fc37af2b1d5bfb069dfba5b`.
-  Current source `7748df9d2a43822a5ebfda149f43d4f2696d640b` was also inspected.
+A missing stderr is recorded as
+`event=stream_log_unavailable fallback=persistent`. A healthy persistent log
+allows the diagnostic's expected Unsupported result 2 to remain final.
+Persistent open/write/close failure remains 126; notification failure remains
+127. Early initialization/resolution failures retain their primary status.
+120 invalid args; 121 SDK syscall init; 122 write lookup; 123 _exit lookup;
+125 is reserved from the removed byte guard; 128 loader kernel init.
+124 is a legacy stream-only status; durable failure takes precedence as 126.
+The final value is stored in loader-owned payloadout.
 
-Their `elfldr_load` maps ET_DYN at an arbitrary base, copies PT_LOAD file bytes,
-and applies section-table SHT_RELA / R_X86_64_RELATIVE relocations before entry.
-Other relocation kinds are silently ignored, so our inspector rejects them and
-preserves section headers. Their malloc-backed mirror does not zero BSS tails;
-our entry does so before reading mutable globals.
+Tests cover ordinary and forwarding callbacks, resolution errors, stream/file/
+notification failures, synthetic kernel-resolver fallback and init failure.
+Optional native-query tests remain separate. The hardware baseline completed
+with primary/final 2; the native query resolved sysctlbyname, called the single
+OID once, returned -1 and preserved final 2. No errno was captured by that helper.
 
-`elfldr_prepare_exec` puts the argument pointer in rdi and pushes the original
-instruction pointer as a return address. `elfldr_payload_args` stores
-`payloadout` at byte 0x28. Its first field contains a resolved **getpid syscall
-stub** in the two pinned loader sources, despite the SDK field name
-`sys_dynlib_dlsym`. The selected unmodified SDK also supports a direct
-`sceKernelDlsym` callback. The runtime probes that callback exactly as the SDK
-does and accepts it only when resolving `sceKernelDlsym` returns the same
-address. Otherwise it requires the syscall instruction at the getpid veneer's
-fixed +0xa bridge entry. It does not constrain the preceding firmware-owned
-veneer encoding or libkernel's following return/error path, and it does not
-search or invent an alternate offset. This policy derives from SDK `SYS_getpid` and its
-+0xa convention; **the complete libkernel veneer bytes, including firmware
-13.40, remain Unknown**. A value matching neither contract stops with 125 before
-invocation. SDK `libc/syscalls.c` demonstrates
-analogous userland syscall veneers, but does not define imported getpid.
-The trusted loader must supply a readable code pointer covering these 12 bytes;
-the guard is not a memory-safety boundary against a malicious loader. Our
-payload adds no syscall instruction, offset discovery, permission bypass,
-credential mutation or kernel patch. Existing environment permissions must
-already permit symbol resolution and writing fd 2. Missing permission is a
-startup failure, not an invitation to add patches.
+## Remaining gates
 
-The loaders themselves set up an already homebrew-capable process using their
-own privileged operations. This project neither distributes nor implements
-that prerequisite. Source ABI compatibility does not prove those loaders can
-be installed or run on a particular firmware. PS5 Slim firmware 13.40 remains
-an external environment question; do not present this ELF as user-test-ready
-until that prerequisite and the actual loader/runtime are established.
-
-## Results and failure codes
-
-The existing Rust probe returns 2 for the unsupported adapter. Startup codes:
-120 invalid loader arguments; 121 syscall initialization failed; 122 no write
-symbol; 123 no exit symbol; 124 incomplete/failed log write; 125 unsupported
-direct-resolver/fixed-syscall contract; 126 persistent log unavailable or incomplete; 127 visible
-notification unavailable or failed. Codes 120-125 retain precedence over
-reporting-channel failures. Normal return also stores the result in the
-loader-owned `payloadout`. Raw syscall resolver errors are not treated as
-success. No attempt is made to clean up loader-owned kernel descriptors because
-the payload never takes their ownership.
-
-## Remaining hardware gates
-
-Retest the repaired loader-contract guard on the recorded Payload Manager/elfldr
-environment. Inspect exact loader entry registers, supplied stub ABI, ordinary syscall
-permissions, resolved exports, stderr routing, stack/callee-saved registers,
-Rust log bytes, expected unsupported result and clean return. Panic termination
-requires a separate deliberate test. ELF inspection confirms separate RX/R/RW
-segments; this is structural evidence, not a hardware W^X measurement.
-No Bluetooth operation, controller
-information, audio, DualSense coexistence or firmware support follows from this
-ELF or desktop tests.
+Wireless DualSense input/haptics before/during/after, human-visible notification,
+deliberate panic handling and repeated long-run stability require confirmation.
+Bluetooth controller identity, native traffic ownership, HCI/ACL credits,
+pairing, tone, capture and audio are not implemented by this diagnostic.

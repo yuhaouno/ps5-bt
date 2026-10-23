@@ -3,8 +3,8 @@
 Snapshot: 2026-10-24, Asia/Shanghai. Revisions below are immutable research
 and build pins. No upstream Bluetooth/audio implementation has been imported.
 The Rust dependencies are workspace paths. The minimal diagnostic ELF uses
-exactly three unmodified, hash-verified external SDK source files described
-below; the stock SDK runtime is excluded. No proprietary binary is required.
+three unmodified syscall inputs by default, plus the explicit kernel-resolver
+subset documented below for HW-1; stock CRT and patch.c remain excluded. No proprietary binary is required.
 
 ## Inventory
 
@@ -54,10 +54,11 @@ loader release alone does not resolve native HCI ownership.
 loader entry and relocation contracts, a read-only descriptor probe plan,
 controller-quirk provenance, and the capture interface discrepancies. The
 stock SDK CRT remains outside the approved payload scope. The reviewed
-`minimal-syscall-v5` build now uses original project entry/runtime code and a
-linker script, plus the three selected SDK files below. It performs no credential
-or permission mutation and includes no kernel-memory helper. It must still
-satisfy the actual installed loader contract on hardware.
+`minimal-syscall-v6` build now uses original project entry/runtime code and a
+linker script, plus the selected SDK subset below. The explicit HW-1 variant
+initializes the already-supplied kernel-R/W transport and resolves own-process
+exports. It changes no credentials or syscall bounds. The recorded Slim/13.40
+run completed with final 2; see HW1-REPAIR.md for its limits.
 Neither researched loader supplies a direct symbol-resolver callback in its
 first argument field: it supplies a `getpid` syscall stub. Do not infer that
 field's behavior from the SDK typedef's name.
@@ -74,7 +75,7 @@ exact source, local changes and attribution when adopting further material.
 | SDK `crt/syscall.c`, `crt/syscall.h`, `crt/payload.h` | Copyright (C) 2024 John Törnblom; explicit GPL-3.0-or-later notices | selected unmodified external source subset; hashes enforced; no local patches |
 | SDK `samples/notify_debug/main.c` | Copyright (C) 2023 John Törnblom; explicit GPL-3.0-or-later notice | interface/layout provenance for the diagnostic notification call; no sample source, import library or module loader enters the build; the project-owned bounded request construction and runtime resolution are host-tested |
 | SDK `host/bin/prospero-clang`, `host/bin/prospero-lld`, `crt/_start.S`, `host/elf_x86_64.x` | explicit GPL-3.0-or-later notices | toolchain/startup research only; not build inputs; project uses direct LLVM tools and original startup/linker sources |
-| SDK `crt/crt.c`, `crt/patch.c`, `crt/kernel.c`, `crt/rtld*.c` | explicit GPL-3.0-or-later notices | scope audit reference; do not adopt the startup credential/syscall mutation or kernel-memory resolver for a minimal diagnostic |
+| SDK `crt/crt.c`, `crt/patch.c`, `crt/kernel.c`, `crt/rtld*.c` | explicit GPL-3.0-or-later notices | stock CRT/patch/runtime loader remain excluded; kernel.c is now an explicit audited own-process resolver input, as described below |
 | SDK `include/freebsd/dev/usb/usb.h`, `usb_ioctl.h`, `usb_endian.h`, `usb_freebsd.h` | individual BSD-style notices, including two-clause terms in `usb.h` and `usb_ioctl.h` | use SDK headers externally in C; preserve each file's actual notice if redistributed; not a license grant for proprietary runtime libraries |
 | HearBridge `src/bt/usb_hci_desc.c`, `usb_hci_desc.h`, `btchip.c`, `btchip.h` | no overriding file license found; README/NOTICE GPL-3.0-or-later | smallest useful adaptation candidates for descriptor parsing/vendor labels; strengthen malformed/truncated descriptor errors; reject unknown active backends rather than adopting default-profile fallback |
 | HearBridge `src/bt/hci_usb.c`, `hci_cmd.c` | no overriding file license found; README/NOTICE GPL-3.0-or-later | behavior reference only: exclude competing IN readers, overwrite rings, timed credit refill, endpoint failover and guessed scan-state restoration |
@@ -109,19 +110,40 @@ original project `bootstrap/start.S`, `runtime.c` and `minimal.ld` are not
 adaptations of the SDK startup/linker script. The SDK script was tried and
 rejected because this subset produced unaligned PT_LOAD starts; see
 [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md). SDK `crt/crt.c`, `crt/patch.c`,
-`crt/kernel.c`, kernel-R/W helpers, `crt1.o`, libc and import libraries are
-excluded. No upstream loader implementation or proprietary binary is bundled.
+`crt1.o`, libc and import libraries are excluded. The default minimal variant
+also excludes kernel.c; the explicit HW-1 variant selects it as detailed below. No upstream loader implementation or proprietary binary is bundled.
 
-The resulting C -> Rust -> Unsupported ELF is a reviewable diagnostic build,
-not evidence of hardware execution, a working controller query or Bluetooth.
-The selected bridge accepts both contracts implemented by the selected SDK: a
-direct `sceKernelDlsym` resolver only when it resolves itself, or an existing
-loader syscall stub after verifying the syscall instruction at the pinned
-`+0xa` entry. It does not search alternate offsets or constrain libkernel's
-following return/error path. The full veneer bytes and permissions on PS5 Slim firmware
-13.40 remain Unknown. No optional native query is wired into the ELF.
-See [TOOLCHAIN.md](TOOLCHAIN.md) for build provenance and
-[RUNTIME-REVIEW.md](RUNTIME-REVIEW.md) for behavior and failure paths.
+### HW-1 existing-loader resolver subset, 2026-10-24
+
+The explicit flag `--loader-kernel-resolver` adds unmodified `crt/kernel.c`
+and `crt/nid.c` from the same SDK revision. Their required hash-verified headers
+are `crt/kernel.h`, `crt/kernel_iommu.h`, `crt/elf.h`, `crt/nid.h` and
+`crt/klog.h`. Exact SHA-256 values for all ten provisioned files are pinned in
+[tools/build_ps5.py](../tools/build_ps5.py), recorded in every manifest and
+verified again when packaging corresponding source.
+
+Each added file's explicit GPL-3.0-or-later notice was inspected before use.
+Copyright is John Törnblom 2024, except kernel_iommu.h 2026. Original bytes,
+notices, GPL text and source are retained in corresponding-source bundles.
+No local SDK patch is applied. Selected functions initialize the loader's
+existing pipe/socket kernel-R/W channel and resolve this process's exports.
+No initial exploit, credential setter, stock CRT, patch.c or upstream loader
+implementation is linked. The source's kernel metadata and transport-state
+writes require the invariants recorded in RUNTIME-REVIEW.md.
+
+The project-owned syscall_checked.S wraps the unmodified SDK syscall bridge
+with carry/error normalization, preserving all six arguments and MAP_FAILED.
+It does not introduce a syscall instruction. Runtime v6 never inspects code
+bytes. The recorded hardware returned full Rust lifecycle and final 2 with
+this explicit resolver; that is diagnostic execution, not Bluetooth/audio.
+The optional native query resolved its export and returned -1.
+
+The earlier internal-dlsym hypothesis also consulted etaHEN/etaHEN,
+revision `dafa13b562ddb137a4b4a97b9aaa287c0c57cc9c`,
+`Source Code/bootstrapper/source/elfldr.c`; its root GPL v3 text and file
+GPL-3.0-or-later notice were inspected. This was a behavioral reference only:
+no source was copied and the installed loader was not identified as that build.
+Earlier process-list sightings did not establish that hypothesis.
 
 Before distributing a linked ELF, provide the exact selected corresponding
 source, retained notices, GPL text and project/build sources. A GitHub link alone

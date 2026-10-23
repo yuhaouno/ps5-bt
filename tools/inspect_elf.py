@@ -9,7 +9,7 @@ from pathlib import Path
 import struct
 
 
-def inspect_bytes(data):
+def inspect_bytes(data, allow_kernel_resolver=False):
     def require(condition, message):
         if not condition:
             raise ValueError(message)
@@ -101,10 +101,17 @@ def inspect_bytes(data):
     require(not undefined, f"undefined imports: {sorted(set(undefined))}")
     required = ("_start", "main", "ps5_rust_probe", "ps5_platform_log",
                 "ps5_platform_abort", "ps5_bootstrap_lookup", "__crt_syscall", "__crt_syscall_init")
-    require(all(key in symbols for key in required), "missing required bootstrap/Rust symbols")
+    require(all(key in symbols for key in required),
+            f"missing required bootstrap/Rust symbols: {[key for key in required if key not in symbols]}")
     require(symbols["_start"] == entry, "entry differs from _start")
-    forbidden = [s for s in symbols if s.startswith("kernel_") or
-                 s in ("__patch_init", "__kernel_init", "__crt_start", "__rtld_init")]
+    resolver_helpers = {"__kernel_init", "kernel_copyout", "kernel_dynlib_dlsym",
+                        "kernel_dynlib_obj", "kernel_dynlib_resolve", "kernel_get_proc",
+                        "kernel_resolver_ready"}
+    forbidden = [s for s in symbols if
+                 s in ("__patch_init", "__crt_start", "__rtld_init") or
+                 s.startswith("kernel_set_") or
+                 ((s.startswith("kernel_") or s == "__kernel_init") and
+                  (not allow_kernel_resolver or s not in resolver_helpers))]
     require(not forbidden, f"forbidden stock runtime symbols: {forbidden}")
     return {"sha256": hashlib.sha256(data).hexdigest(), "size": len(data),
             "type": "ET_DYN", "machine": "x86-64", "entry": entry,

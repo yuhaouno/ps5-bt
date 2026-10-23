@@ -34,6 +34,16 @@ write. C descriptor tests run under AddressSanitizer/UndefinedBehaviorSanitizer
 in CI. Add Rust Miri where useful for pure Rust code. Deterministic mutations
 are regression coverage, not a coverage-guided fuzz campaign or ownership proof.
 
+## Runtime v6 verification
+
+The builder compiles/runs startup tests both with and without the explicit
+loader-kernel-resolver flag. Synthetic cases cover fallback lookup, kernel-init
+failure, missing loader transport, durable log errors and unavailable stderr.
+`make check-build-tools` also runs the actual x86-64 syscall wrapper against a
+fake bridge: all six arguments, stack alignment, carry-set positive errno,
+carry-clear negative result and MAP_FAILED are checked. This is a host ABI test;
+no syscall is executed by that test. Hardware evidence is in HW1-REPAIR.md.
+
 ## Portable expansion
 
 The SDP foundation tests exact PDU/transaction/continuation framing, all element

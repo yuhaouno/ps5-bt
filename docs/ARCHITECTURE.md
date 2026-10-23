@@ -12,10 +12,11 @@ ordinary Bluetooth Classic A2DP headphones while DualSense remains wireless.
 No model, firmware, controller, headset, codec, or latency is verified here yet.
 
 Homebrew capability and an ELF loader are prerequisites supplied by the user.
-This project does not supply exploits, privilege escalation, kernel patches,
-DRM/license bypasses, Sony binaries, firmware, keys, or game content. Existing
-SDK/runtime behavior must be reviewed independently; using an SDK does not make
-everything in its runtime acceptable. Stop at an insufficient-permissions error.
+Initial kernel access must be supplied by that environment. Reviewed changes
+through its existing channel may adjust only this payload's necessary permissions,
+as scoped in AGENTS.md. SDK/runtime behavior is audited independently. No new
+exploit chain, DRM/license bypass, Sony binary, firmware, key or game content
+is supplied.
 
 ## Ownership
 
@@ -98,24 +99,19 @@ segments. Exactly three unmodified, hash-verified SDK v0.45 external files are
 selected: `crt/syscall.c`, `crt/syscall.h` and `crt/payload.h`. There is no SDK
 libc, import library, proprietary binary or local SDK patch in the link.
 
-The default SDK CRT is excluded because it calls credential/syscall-permission
-mutation before `main`. The minimal runtime instead requires the loader's
-existing syscall permissions, verifies either a direct resolver identity or the
-syscall instruction at a supplied getpid veneer's pinned `+0xa` bridge entry, and
-resolves existing libkernel exports. It performs no credential/permission
-mutation or kernel-memory operation and implements no loader or exploit. The
-Rust/C transport adapter still returns Unsupported; no optional native query
-is wired into the ELF. See [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md) for source and
-loader contracts and [TOOLCHAIN.md](TOOLCHAIN.md) for build evidence.
+The stock SDK CRT and patch.c remain excluded. Runtime v6 uses the loader's
+callable first field without reading execute-only code. An explicit HW-1
+variant additionally selects unmodified kernel.c/nid.c to initialize the
+already-supplied kernel-R/W transport and resolve current-process exports.
+It never changes credentials or syscall bounds. Its pipe/socket transport
+state writes, kernel metadata assumptions and firmware table are documented
+in [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md).
 
-**Current gate:** Payload Manager v0.6.3 transferred the ELF on PS5 Slim firmware
-13.40, but the payload produced no lifecycle notification or file before the
-loader-contract guard repair. The repaired entry, syscall permissions, logging,
-panic termination and clean return remain unverified, as do all Bluetooth/audio
-capabilities. The ELF is an experimental hardware test candidate;
-execute only in an already-capable, compatible loader environment after
-establishing the runtime prerequisites. See [BUILDING.md](BUILDING.md) and
-[HARDWARE-TEST.md](HARDWARE-TEST.md).
+**Current evidence:** the explicit variant initialized successfully, entered
+Rust and returned final 2 with a complete durable log on the recorded
+Slim/13.40 environment. Ordinary symbol lookup had failed. The native query
+ran but returned -1. Bluetooth, audio, native traffic ownership and wireless
+DualSense coexistence remain unverified. See [HW1-REPAIR.md](HW1-REPAIR.md).
 
 ## ADR 002: explicit transport integrity and shared-controller ownership
 

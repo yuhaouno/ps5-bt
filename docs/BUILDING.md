@@ -2,8 +2,8 @@
 
 The public project/package name is not selected. Crate names are local and
 unpublished. Builds never contact or deploy to a console. The PS5 output is a
-real diagnostic ELF linking C -> Rust -> an Unsupported adapter; it has never
-run on PS5 and does not provide working Bluetooth or controller information.
+real diagnostic ELF linking C -> Rust -> an Unsupported adapter; the explicit HW-1 variant has executed on Slim/13.40, but it does not provide
+working Bluetooth or controller information.
 
 ## Minimal PS5 ELF
 
@@ -31,9 +31,11 @@ See [TOOLCHAIN.md](TOOLCHAIN.md) for the exact observed host environment,
 flags, synthetic tests and native tool provenance.
 
 [tools/build_ps5.py](../tools/build_ps5.py) enforces the Rust/LLVM versions and
-exactly three unmodified external files from SDK v0.45, revision
+the pinned SDK inventory from v0.45, revision
 `a7685ce8e97ce1f8a4f38253a41d54241c9124f1`: `crt/syscall.c`, `crt/syscall.h`
-and `crt/payload.h`. It verifies each file's SHA-256, including when using an
+and `crt/payload.h` are the default link inputs. Seven additional files are
+provisioned for the explicit loader-kernel-resolver variant below. The builder
+verifies each file's SHA-256, including when using an
 external checkout. Without an override it fetches missing files from immutable
 revision URLs into ignored `.sdk/`. The release SDK binary archive is neither
 required nor linked. No SDK installation, SDK libc/import library, proprietary
@@ -59,7 +61,7 @@ reviewable build artifact, not PS5 loader or firmware compatibility.
 ## Runtime scope and execution gate
 
 The fixed [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md) documents runtime
-`minimal-syscall-v5`, selected source behavior and the inspected loader contract.
+`minimal-syscall-v6`, selected source behavior and the inspected loader contract.
 The project-owned entry preserves the caller's stack/frame, clears BSS,
 initializes the selected syscall bridge, opens a fresh diagnostic log at
 `/data/ps5-bt-hw1.log`, and resolves existing libkernel `write`, `_exit` and the
@@ -67,10 +69,8 @@ best-effort notification entry point before invoking C main -> Rust -> the
 Unsupported C adapter. Start and finish notifications plus an explicit final
 status distinguish a completed run from a payload that never entered Rust. The
 log file is truncated at the start of each run and duplicates the synchronous
-diagnostic stream. Startup accepts the selected SDK's two explicit loader
-contracts: a direct `sceKernelDlsym` resolver verified by resolving itself, or
-the syscall instruction at a getpid veneer's pinned `+0xa` bridge entry. It does
-not search alternate offsets. Unsupported arguments, resolution or
+diagnostic stream. Startup accepts the selected SDK's callback/getpid-veneer contracts without
+reading executable code bytes. It does not search alternate offsets. Unsupported arguments, resolution or
 permissions fail explicitly. No optional native diagnostic query is wired into
 this ELF.
 
@@ -79,20 +79,30 @@ this ELF.
 [NATIVE-QUERY.md](NATIVE-QUERY.md). It never replaces the baseline artifact;
 run it only after the baseline entry/log/return test succeeds.
 
-The SDK's default `crt/crt.c` calls `__patch_init()` and its `crt/patch.c` changes
-credentials and syscall permissions; neither is a build input. No kernel-memory
-helper, stock CRT, SDK linker script or local SDK patch enters the link. The
-minimal startup performs no credential or permission mutation, module loading,
-controller takeover, exploit or new loader implementation.
+### Existing-loader HW-1 variant
 
-A compatible already-installed loader and sufficient existing permissions are
-external prerequisites. Their actual behavior, syscall stub bytes, entry/return
-ABI, stderr routing and panic termination require hardware verification. PS5
-Slim / firmware 13.40 remains **Unknown**, as do controller information,
-DualSense coexistence and audio. This artifact is an experimental
-hardware test candidate. Execute only in an already-capable, compatible loader
-environment after establishing those prerequisites and the actual runtime ABI,
-following [HARDWARE-TEST.md](HARDWARE-TEST.md).
+```sh
+LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-hw1
+# Optional separate query artifact:
+LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config python3 tools/build_ps5.py --native-query --loader-kernel-resolver
+```
+
+The explicit flag selects fixed SDK kernel.c/nid.c and their headers for
+`__kernel_init` and current-process export lookup through the existing loader
+pipe/socket transport. All ten provisioned SDK files are hash-verified;
+the default link uses only the original three, while this variant adds the
+two C translation units and their headers. No patch.c, stock CRT or credential
+setter is linked. Missing loader kernel transport returns 128. Runtime v6
+normalizes syscall error flags and preserves mmap's MAP_FAILED convention.
+The manifest records `loader_kernel_resolver` and all inputs.
+
+The default minimal build remains available for environments where ordinary
+lookup already works. The recorded environment instead required the explicit
+resolver: ordinary write lookup failed, then kernel initialization and the
+diagnostic succeeded with final 2. Notification API success, durable logging
+and Rust entry were observed; wireless input and human-visible display still
+need confirmation. Panic termination remains Untested. See
+[HW1-REPAIR.md](HW1-REPAIR.md) and [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md).
 
 ## Desktop checks and freestanding archive
 

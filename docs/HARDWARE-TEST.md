@@ -9,14 +9,16 @@ synthetic controller metadata in a payload. Desktop fake packets have separate
 test-only source files.
 
 Physical access returned on 2026-10-24. **The next action is an HW-1 retest using
-the repaired `minimal-syscall-v5` ELF below. HW-2 has not started.**
-The optional query ELF is software-tested only and is not part of this first
-physical test.
+the `minimal-syscall-v6` HW-1 variant. Executable lifecycle now passed;
+notification display and wireless input still need confirmation. See
+[HW1-REPAIR.md](HW1-REPAIR.md). Active HW-2 traffic has not started.**
+The optional query ELF has also executed: export resolution succeeded, the
+single query returned -1, and final diagnostic status remained 2.
 
 ## Ready diagnostic: HW-1 entry, logging and return
 
-First target: **PS5 Slim, firmware 13.40, unverified**. The default `make`
-produces `build/ps5/ps5-bt.elf`. This is a hardware test candidate with no audio,
+Recorded target: **PS5 Slim, firmware 13.40, diagnostic lifecycle verified**.
+Use the explicit `make ps5-hw1` build for this environment; it produces `build/ps5/ps5-bt.elf`. This is a hardware test candidate with no audio,
 pairing, HCI command or USB operation. It uses the reviewed
 [minimal startup](RUNTIME-REVIEW.md); its matching manifest records the exact
 source commit, tool versions and SHA-256. Keep that manifest with the log.
@@ -32,7 +34,7 @@ This project supplies no loader installation or exploit procedure. Record the
 actual loader/version; a different entry ABI needs review before this test.
 
 1. Confirm wireless DualSense input works; leave the headset disconnected.
-2. Build from a clean committed state with `make`, or use the supplied ELF
+2. Build from a clean committed state with `make ps5-hw1`, or use the supplied ELF
    together with its manifest and corresponding source bundle. Check the ELF
    hash against the manifest. This instrumented candidate attempts to replace
    `/data/ps5-bt-hw1.log` with a mode-`0600` log for this run; it does not create
@@ -127,8 +129,9 @@ Interpret the lifecycle markers conservatively:
 
 Startup/results: 120 invalid arguments; 121 syscall bridge init failed; 122
 write unavailable; 123 exit unavailable; 124 incomplete stream log; 125
-unsupported direct-resolver/fixed-syscall contract; 126 persistent log open/write/close failure;
-127 notification lookup/send failure. A 125 stops before invoking the stub.
+reserved legacy guard status; 126 persistent log open/write/close failure;
+127 notification lookup/send failure; 128 loader kernel initialization failed.
+Runtime v6 never reads the syscall veneer's code bytes.
 Codes 120-125 remain primary even if lifecycle reporting is also unavailable.
 Do not provide library dumps or attempt alternate offsets. Panic result 101 is
 a separate failure investigation.

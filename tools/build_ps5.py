@@ -19,6 +19,13 @@ SDK_FILES = {
     "crt/syscall.c": "7c2f8120c8e5059d387aaed0a144258c140a5ba5360f6f23da2a3442470e24b2",
     "crt/syscall.h": "463fc16da04c2b7b98a41cbf71e0901faa32a4a9a19421a52bc27dfb52186577",
     "crt/payload.h": "e4803d043c38fbb60f2d027501d572db9b81a14af0b09b460129cbc84ecb617d",
+    "crt/kernel.c": "9aa60aa84544687041169d92f161dec1b58934459ea29a74dba09d838924e086",
+    "crt/kernel.h": "cea69374188ff1cf6daf5730ac519dd9a83fa6781e125d90c5c1b06717010dc8",
+    "crt/kernel_iommu.h": "bd7b329afc9a9bf6c50e4406ede46c88b4e871fe4541280f8a7d7746757d9768",
+    "crt/elf.h": "ac0b9c99600cfb82031eb845b4f68512dbbf09c2bc42a09a4aaa19a052c98358",
+    "crt/nid.c": "6bd670b05ec4a8816688e18cc4425353c2f764f574d0c7f3db5cc4e8c5b7a9dc",
+    "crt/nid.h": "f79fd2a5daacde8bae9e070d4bf8158b42b2fdd8fccd9ea5f868a7a099dcb365",
+    "crt/klog.h": "19fc44e52797d1a1f9959f5f7e6dee6006f600486f4bae451db862510a2cbe11",
 }
 
 
@@ -115,9 +122,12 @@ def self_test():
 def host_test(source):
     output = ROOT / "build/ps5/test-runtime"
     output.parent.mkdir(parents=True, exist_ok=True)
-    run([os.environ.get("HOST_CC", "cc"), "-std=c11", "-O1", "-fno-builtin",
+    command = [os.environ.get("HOST_CC", "cc"), "-std=c11", "-O1", "-fno-builtin",
          "-Wall", "-Wextra", "-Werror", "-Iplatform/ps5/include",
-         "-I" + str(source / "crt"), "platform/ps5/bootstrap/test_runtime.c", "-o", output])
+         "-I" + str(source / "crt"), "platform/ps5/bootstrap/test_runtime.c", "-o", output]
+    run(command)
+    run([output])
+    run([*command, "-DPS5_BT_LOADER_KERNEL_RESOLVER"])
     run([output])
     print("PASS synthetic host startup resolver/log/error/memory cases (not loader execution)")
 
@@ -149,6 +159,9 @@ def build(args):
     sources = [ROOT / "platform/ps5/bootstrap/start.S",
                ROOT / "platform/ps5/bootstrap/runtime.c", ROOT / "platform/ps5/main.c",
                ROOT / "platform/ps5/adapter_stub.c", source / "crt/syscall.c"]
+    sources.append(ROOT / "platform/ps5/bootstrap/syscall_checked.S")
+    if args.loader_kernel_resolver:
+        sources += [source / "crt/kernel.c", source / "crt/nid.c"]
     if args.native_query:
         sources.append(ROOT / "platform/ps5/diagnostics/native_query.c")
     objects = []
@@ -156,25 +169,29 @@ def build(args):
              "-fno-builtin", "-fPIC", "-fno-stack-protector", "-fno-plt",
              "-mno-red-zone", "-mgeneral-regs-only", "-ffunction-sections", "-fdata-sections",
              "-Wall", "-Wextra", "-Werror", "-Iplatform/ps5/include", "-I" + str(source / "crt")]
+    if args.loader_kernel_resolver:
+        flags += ["-DPS5_BT_LOADER_KERNEL_RESOLVER"]
     if args.native_query:
         flags.append("-DPS5_BT_NATIVE_QUERY")
     for index, path in enumerate(sources):
         obj = output / f"{stem}-{index}-{path.stem}.o"
-        run([tools["clang"], *flags, "-c", path, "-o", obj])
+        extra = ["-Wno-sign-compare"] if path.name == "kernel.c" else []
+        run([tools["clang"], *flags, *extra, "-c", path, "-o", obj])
         objects.append(obj)
     archive = ROOT / "target/x86_64-unknown-none/release/libps5_runtime.a"
     run([tools["ld.lld"], "-m", "elf_x86_64", "-pie", "--no-dynamic-linker",
          "-e", "_start", "-T", ROOT / "platform/ps5/bootstrap/minimal.ld", "-z", "max-page-size=0x4000",
          "--gc-sections", "--no-undefined", "--build-id=none", "--strip-debug", "--hash-style=gnu",
-         "--undefined=ps5_bootstrap_lookup",
+         "--undefined=ps5_bootstrap_lookup", "--undefined=__crt_syscall", "--wrap=__crt_syscall",
          "-Map=" + str(output / f"{stem}.map"), *objects, archive, "-o", elf])
     try:
-        report = inspect_bytes(elf.read_bytes())
+        report = inspect_bytes(elf.read_bytes(), allow_kernel_resolver=args.loader_kernel_resolver)
     except ValueError:
         elf.unlink(missing_ok=True)
         raise
-    report["runtime"] = "minimal-syscall-v5"
+    report["runtime"] = "minimal-syscall-v6"
     report["native_query"] = args.native_query
+    report["loader_kernel_resolver"] = args.loader_kernel_resolver
     report["rust"] = rust_version
     report["llvm"] = run([tools["clang"], "--version"], capture=True).strip()
     report["lld"] = run([tools["ld.lld"], "--version"], capture=True).strip()
@@ -210,6 +227,8 @@ if __name__ == "__main__":
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--native-query", action="store_true",
                         help="build separate single read-only native query diagnostic")
+    parser.add_argument("--loader-kernel-resolver", action="store_true",
+                        help="resolve own-process exports through existing loader kernel R/W")
     args = parser.parse_args()
     try:
         self_test() if args.self_test else build(args)

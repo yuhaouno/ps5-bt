@@ -20,6 +20,7 @@ REQUIRED_SOURCES = {
     "platform/ps5/bootstrap/start.S", "platform/ps5/bootstrap/runtime.c",
     "platform/ps5/main.c", "platform/ps5/adapter_stub.c",
     "platform/ps5/bootstrap/minimal.ld", "platform/ps5/bootstrap/bootstrap.h",
+    "platform/ps5/bootstrap/syscall_checked.S",
 }
 NATIVE_SOURCES = {"platform/ps5/diagnostics/native_query.c", "platform/ps5/diagnostics/native_query.h"}
 REQUIRED_FILES = REQUIRED_SOURCES | {
@@ -85,7 +86,7 @@ def validate_manifest(root, head, files, manifest_path):
         raise ValueError("manifest must identify the current clean committed HEAD; rebuild first")
     if manifest.get("sdk_revision") != SDK_REVISION or manifest.get("sdk_sources") != SDK_FILES:
         raise ValueError("manifest SDK revision/source hashes differ from the selected build inputs")
-    if manifest.get("runtime") != "minimal-syscall-v5":
+    if manifest.get("runtime") != "minimal-syscall-v6":
         raise ValueError("unsupported runtime in manifest")
     if not str(manifest.get("rust", "")).startswith("rustc 1.90.0 "):
         raise ValueError("manifest does not identify pinned Rust 1.90.0")
@@ -94,6 +95,8 @@ def validate_manifest(root, head, files, manifest_path):
     native_query = manifest.get("native_query", False)
     if type(native_query) is not bool:
         raise ValueError("manifest native_query must be a boolean")
+    if type(manifest.get("loader_kernel_resolver", False)) is not bool:
+        raise ValueError("manifest loader_kernel_resolver must be a boolean")
     stem = "ps5-bt-native-query" if native_query else "ps5-bt"
     if manifest_path.name != stem + ".manifest.json":
         raise ValueError("manifest filename differs from its selected build variant")
@@ -121,18 +124,19 @@ def validate_manifest(root, head, files, manifest_path):
 
 
 def source_readme(manifest, manifest_name):
-    target = "ps5-native-query" if manifest.get("native_query", False) else "ps5-link"
+    kernel_flag = " --loader-kernel-resolver" if manifest.get("loader_kernel_resolver", False) else ""
+    query_flag = " --native-query" if manifest.get("native_query", False) else ""
     return f"""PS5-BT diagnostic corresponding source
 
 Original project commit: {manifest['git_head']}
 Associated ELF SHA-256: {manifest['sha256']}
 SDK repository: https://github.com/ps5-payload-dev/sdk
 SDK revision: {SDK_REVISION}
-Runtime: minimal-syscall-v5; hardware entry remains unverified; adapter Unsupported.
+Runtime: minimal-syscall-v6; see project/docs/HW1-REPAIR.md for hardware evidence.
 
 Contents:
   project/                 Every tracked project file at the stated clean commit.
-  sdk/{SDK_REVISION}/  Exactly three unmodified selected SDK source files.
+  sdk/{SDK_REVISION}/  Hash-verified SDK inputs with their original notices.
   build-manifest.json      Original build provenance; no ELF or Rust archive included.
 
 The project LICENSE supplies GPL v3 text; original project work is
@@ -150,7 +154,7 @@ those tools/targets before going offline; the workspace has no registry crates.
   git add .
   git -c user.name='Source rebuild' -c user.email='rebuild@localhost' commit -qm 'Local source snapshot'
   PS5_SDK_SOURCE="$(pwd)/../sdk/{SDK_REVISION}" \\
-    LLVM_CONFIG=/absolute/path/to/llvm-18.1.8/bin/llvm-config make {target}
+    LLVM_CONFIG=/absolute/path/to/llvm-18.1.8/bin/llvm-config python3 tools/build_ps5.py{kernel_flag}{query_flag}
 
 The new local Git commit is only for the builder's provenance recording; it
 will differ from the original commit recorded above. Keep build-manifest.json
@@ -247,7 +251,7 @@ def self_test():
             manifest = {
                 "git_head": clean_head(root), "git_status": [], "sha256": sha256(elf.read_bytes()),
                 "sdk_revision": SDK_REVISION, "sdk_sources": SDK_FILES.copy(),
-                "runtime": "minimal-syscall-v5", "rust": "rustc 1.90.0 (fixture)",
+                "runtime": "minimal-syscall-v6", "rust": "rustc 1.90.0 (fixture)",
                 "llvm": "clang 18.1.8", "lld": "LLD 18.1.8",
                 "rust_archive_sha256": sha256(rust.read_bytes()),
                 "project_sources": {name: sha256(files[name][0]) for name in REQUIRED_SOURCES},
@@ -275,7 +279,8 @@ def self_test():
             query_elf.write_bytes(b"synthetic optional query ELF")
             query_sources = dict(manifest["project_sources"])
             query_sources.update({name: sha256(files[name][0]) for name in NATIVE_SOURCES})
-            query_manifest = dict(manifest, native_query=True, sha256=sha256(query_elf.read_bytes()),
+            query_manifest = dict(manifest, native_query=True, loader_kernel_resolver=True,
+                                  sha256=sha256(query_elf.read_bytes()),
                                   project_sources=query_sources)
             query_manifest_path = query_elf.with_suffix(".manifest.json")
             query_manifest_path.write_text(json.dumps(query_manifest))
@@ -284,7 +289,7 @@ def self_test():
             package(root, source, query_destination, query_manifest_path)
             with tarfile.open(query_destination) as archive:
                 readme = archive.extractfile(PREFIX + "README.source.txt").read().decode()
-                assert "make ps5-native-query" in readme
+                assert "python3 tools/build_ps5.py --loader-kernel-resolver --native-query" in readme
                 assert "project/build/ps5/ps5-bt-native-query.manifest.json" in readme
                 assert query_manifest["sha256"] in readme
                 assert json.load(archive.extractfile(PREFIX + "build-manifest.json")) == query_manifest

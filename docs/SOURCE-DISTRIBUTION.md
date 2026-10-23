@@ -3,7 +3,7 @@
 A diagnostic ELF handed to another person must be accompanied by the actual
 corresponding source and retained license notices. A GitHub link alone does not
 supply that package. This packaging workflow is for the reviewed
-`minimal-syscall-v5` diagnostic, whose adapter returns Unsupported; it establishes
+`minimal-syscall-v6` diagnostic, whose adapter returns Unsupported; it establishes
 no PS5, firmware, loader, controller or audio compatibility and is not a release.
 
 After the intended project changes are committed, rebuild the ELF from the clean
@@ -14,8 +14,8 @@ Keep the resulting ELF, manifest and Rust archive locally. Then run:
 python3 tools/package_source.py
 ```
 
-The offline command writes `build/ps5/ps5-bt-source.tar.gz`. It uses the three
-already available SDK sources in `.sdk/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/`,
+The offline command writes `build/ps5/ps5-bt-source.tar.gz`. It uses the ten hash-verified
+already available SDK inputs in `.sdk/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/`,
 or the same `PS5_SDK_SOURCE` directory used for the build. It never fetches files.
 For the separately built optional query artifact, select its manifest explicitly:
 
@@ -24,14 +24,15 @@ python3 tools/package_source.py --manifest build/ps5/ps5-bt-native-query.manifes
 ```
 
 This writes `build/ps5/ps5-bt-native-query-source.tar.gz`, binds the package to
-`ps5-bt-native-query.elf`, and supplies the `make ps5-native-query` rebuild target.
+`ps5-bt-native-query.elf`, and supplies an explicit rebuild command retaining the native-query and
+loader-kernel-resolver flags from the manifest.
 The default command remains bound to `ps5-bt.elf`. Run
 `python3 tools/package_source.py --self-test` for synthetic packaging tests.
 
 Packaging requires a clean Git worktree, including no untracked project files,
 and the same clean Git HEAD recorded in the build manifest. It verifies the ELF
 and Rust archive SHA-256, linked project source hashes, runtime review hash, SDK
-revision and all three selected SDK source hashes against the builder's pinned
+revision and all selected SDK source hashes against the builder's pinned
 inventory. A dirty or stale build fails; the previous source package is removed
 before validation, so a failure cannot leave a stale package as apparent output.
 Commit changes and rebuild instead of editing a manifest to bypass these checks.
@@ -44,8 +45,9 @@ The archive contains:
   `LICENSE`. Tracked file modes are retained; ignored and untracked files are
   excluded. Tracked files matching ignore rules, symlinks and submodules fail
   explicitly rather than silently including artifacts or losing source.
-- `ps5-bt-source/sdk/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/`: exactly
-  `crt/syscall.c`, `crt/syscall.h` and `crt/payload.h`, with their original bytes
+- `ps5-bt-source/sdk/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/`: the ten
+  files pinned by tools/build_ps5.py (syscall subset and optional kernel-resolver
+  sources/headers), with their original bytes
   and John Törnblom's copyright, GPL-3.0-or-later and warranty notices intact.
   No local SDK patches are applied. See [UPSTREAM.md](UPSTREAM.md).
 - `ps5-bt-source/build-manifest.json`: the original ELF build record, including
@@ -77,8 +79,9 @@ for any subsequent distribution obligations. The root GPL text does not replace
 file-specific terms. This is a technical source-delivery mechanism, not a final
 legal determination of every possible distribution arrangement.
 
-The build requires no Sony binary, firmware, key, exploit, permission patch,
-SDK stock CRT, kernel-memory helper or bundled loader. Existing permission and
+The build requires no Sony binary, firmware, key, exploit, SDK stock CRT or
+bundled loader. The explicit HW-1 variant includes the audited SDK kernel
+resolver described in RUNTIME-REVIEW.md. Existing permission and
 compatible-loader prerequisites and actual loader behavior remain external. The
 first PS5 Slim firmware 13.40 transfer reached an early startup failure; the
 repaired runtime remains hardware-untested. See [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md)

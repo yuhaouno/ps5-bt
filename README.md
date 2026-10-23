@@ -15,19 +15,16 @@ parsers, a Rust/C seam, and an adapter that explicitly returns
 existing payload. The final public name is undecided; repository and package
 collision checks must precede naming. All Cargo packages are `publish = false`.
 
-**HW-1 has reached its first hardware repair cycle.** Payload Manager v0.6.3 on
-a PS5 Slim / firmware 13.40 accepted and transferred the diagnostic ELF, but no
-payload notification or persistent log appeared. That is evidence of an early
-startup failure, not a successful payload run. Runtime `minimal-syscall-v5`
-accepts both loader contracts supported by the selected SDK—a verified direct
-resolver or the fixed `+0xa` syscall entry—and awaits a hardware retest of
-entry, logging, clean return and
-wireless DualSense operation using [HW-1](docs/HARDWARE-TEST.md). HW-2 has not
-started. A second macOS
-arm64 machine reproduced the earlier baseline ELF from a clean clone of
-`feat/mvp-bringup` with the documented toolchain and no repository changes.
-That reproduction is not PS5 execution. See the
-[wave closeout report](docs/WAVE-1-REPORT.md).
+**HW-1 now executes on the recorded Slim / firmware 13.40 environment.**
+The explicit `make ps5-hw1` build uses the existing loader's kernel-R/W
+transport to resolve its own exports, records Rust entry and final
+`2 (expected Unsupported)`, and sends start/finish notifications successfully
+at the API level. Human confirmation of the on-screen notifications and
+wireless DualSense remains required. The optional native query executes but
+returns -1; no controller capability or audio support follows from this.
+See [hardware repair evidence](docs/HW1-REPAIR.md).
+The earlier second-machine build reproduction remains in
+[the wave report](docs/WAVE-1-REPORT.md).
 
 ## Compatibility and measurements
 
@@ -40,11 +37,11 @@ That reproduction is not PS5 execution. See the
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |
 | SBC parameter selection and frame sizing | Implemented | portable validation tests; no encoder linked |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
-| Minimal PS5 diagnostic ELF | Experimental | transfer through Payload Manager verified; entry failed before observable lifecycle; repaired candidate needs retest |
-| Optional read-only native stack-version query | Experimental | separate ELF and host boundary tests; PS5 export/OID unknown |
+| PS5 diagnostic ELF with explicit loader kernel resolver | Verified on one environment | Slim/13.40: Rust entry, durable lifecycle and final 2; notifications returned success |
+| Optional read-only native stack-version query | Executed | sysctlbyname resolved; query returned -1; version and controller remain Unknown |
 | Live PS5 transport and capture | Unsupported | adapter explicitly returns Unsupported |
-| PS5 Fat / Slim / Pro | Unknown | one Slim/13.40 loader transfer; payload entry not verified |
-| Console firmware | Unknown | no version verified |
+| PS5 Fat / Slim / Pro | Limited hardware evidence | one Slim/13.40 diagnostic run path; other models and Bluetooth remain Unknown |
+| Console firmware | Limited hardware evidence | user-reported 13.40 diagnostic execution only |
 | Marvell/NXP and MediaTek controllers | Experimental research targets | upstream source inspected; no live backend |
 | Other controller families | Unknown | detection must fail explicitly |
 | DualSense wireless coexistence | Unknown; required release gate | shared HCI ownership unresolved |
@@ -65,6 +62,7 @@ Python 3.11+, Make and LLVM 18.1.8. Set `LLVM_CONFIG` to that installation's
 
 ```sh
 make                # build/ps5/ps5-bt.elf: diagnostic only, hardware untested
+make ps5-hw1        # explicit existing-loader kernel resolver; verified diagnostic path
 make check          # formatting, Rust check/tests/lints, C/Rust seam tests, cross archive
 make host-smoke     # C main -> Rust -> unsupported C adapter, on the desktop
 make rust-archive   # no_std x86-64 ELF archive; no SDK or console needed
@@ -80,24 +78,15 @@ unverified. Controller vendor, revision and capabilities will be detected rather
 than inferred from that model. See the [live MVP task board](docs/MVP-STATE.md)
 and [portable framing contract](docs/HCI-L2CAP.md).
 
-The ELF is designed to show start/finish notifications and mirror diagnostics to
-`/data/ps5-bt-hw1.log`, logs Rust startup and returns `Unsupported`; there is no
-end-user pairing procedure. The first hardware attempt produced neither the
-notification nor the file, identifying an early startup failure. The repaired
-candidate remains unverified until rerun. Once entry succeeds, the file is
-replaced on each run so an incomplete run is distinguishable by its missing exit
-marker. A reviewed minimal startup
-excludes the SDK's credential/permission-changing CRT. The first console test
-must establish actual entry, logging and clean return before controller
-diagnostics. Native HCI ownership still needs resolution. Builds never deploy
-to a console.
-Use the [exact first hardware test instructions](docs/HARDWARE-TEST.md) and
-return the log, loader identity and wireless DualSense result. No headset is
-needed for this stage. The [optional native query](docs/NATIVE-QUERY.md) reports
-a stack interface value, never controller capabilities or usable transport.
-After a clean committed build, `make source-bundle` packages the matching project
-and selected SDK sources with notices; distribute it with the ELF and manifest.
-See [source distribution](docs/SOURCE-DISTRIBUTION.md).
+The HW-1 ELF sends start/finish notifications and mirrors diagnostics to
+`/data/ps5-bt-hw1.log`, replaced per run. The tested path enters Rust and
+returns Unsupported. The default minimal build retains no kernel helper;
+the explicit HW-1 variant borrows the installed loader's kernel-R/W transport
+for initialization and own-process export resolution. It changes no process
+credentials or syscall bounds and includes no stock CRT or patch.c.
+See [runtime scope](docs/RUNTIME-REVIEW.md) and
+[build instructions](docs/BUILDING.md). Source bundles reproduce the selected
+variant and preserve SDK notices.
 
 ## Architecture
 
@@ -145,11 +134,13 @@ Third-party code retains its own terms. FFI is an architectural boundary, not
 an exemption from license obligations. Codec licensing/patents and distribution
 requirements must be reviewed before adoption.
 
-This is not a jailbreak project. A homebrew-capable console and existing ELF
-loader are prerequisites. We do not implement or distribute exploits, privilege
-escalation, DRM/license bypasses, Sony binaries, firmware, keys, or game content.
-If an operation needs permissions absent from the existing environment, report
-the blocker. There is no affiliation with or endorsement by Sony.
+A homebrew-capable console and existing ELF loader are prerequisites.
+Initial kernel access must come from that environment. Project rules permit
+reviewed, necessary changes to this payload's own permissions through the
+existing channel; the current diagnostic does not need those changes.
+No new exploit chain, DRM/license bypass, Sony binary, firmware, key or game
+content is implemented or distributed. See [repository rules](AGENTS.md).
+There is no affiliation with or endorsement by Sony.
 
 ## Translations
 

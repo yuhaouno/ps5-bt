@@ -1,8 +1,10 @@
 # Single read-only native presence query
 
 Status: original C diagnostic and hostile host tests implemented, 2026-10-23.
-**PS5 execution, firmware 13.40 symbol availability, OID availability and native
-controller association are Untested/Unknown.** `BluetoothTransport` stays
+**Executed on the recorded Slim/13.40 environment, 2026-10-24:** sysctlbyname
+resolved, the single query returned -1 with length 4, and the diagnostic returned
+its expected final 2. OID availability, errno, version and controller association
+remain Unknown. See [HW1-REPAIR.md](HW1-REPAIR.md). `BluetoothTransport` stays
 Unsupported. This helper is separate from the transport ABI and creates no
 session. See [native ownership research](NATIVE-HCI-RESEARCH.md) and the
 [runtime review](RUNTIME-REVIEW.md).
