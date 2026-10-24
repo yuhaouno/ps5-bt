@@ -9,7 +9,8 @@ Research snapshot: 2026-10-23. See [RESEARCH.md](RESEARCH.md) for evidence and
 Build an independent, Rust-first Bluetooth Audio stack with first-class PS5
 support. The product goal is captured PS5 audio over the built-in controller to
 ordinary Bluetooth Classic A2DP headphones while DualSense remains wireless.
-No model, firmware, controller, headset, codec, or latency is verified here yet.
+One Slim/13.40 environment has executed diagnostics, not audio. Headset playback,
+live codec behavior and latency remain unverified; see HW2-EVIDENCE.md.
 
 Homebrew capability and an ELF loader are prerequisites supplied by the user.
 Initial kernel access must be supplied by that environment. Reviewed changes
@@ -50,6 +51,7 @@ can implement the same traits without depending on any PS5 crate.
 | Crate | Initial responsibility | Dependency direction |
 | --- | --- | --- |
 | `bt-core` | `no_std` contracts, SBC parameters, PCM staging and nominal sample timeline | no dependencies |
+| `bt-codec` | `no_std` caller-storage encoder owner; real generic libsbc behind host-only feature | `bt-core`; C static archive only with `host-libsbc` |
 | `bt-hci` | `no_std` typed command/event/ACL framing and capability decoding | `bt-core`; no platform dependency |
 | `bt-l2cap` | `no_std` basic framing and bounded handle/epoch ACL reassembly | `bt-core`, `bt-hci`; no channel negotiation |
 | `bt-sdp` | `no_std` borrowed PDU/continuation framing and bounded data elements | no dependencies; no client/session |
@@ -58,12 +60,16 @@ can implement the same traits without depending on any PS5 crate.
 | `ps5-runtime` | diagnostic entry, C-callable Rust static library | platform wrapper and HCI |
 
 All packages are unpublished, temporary identifiers, not reserved public names.
-Keep L2CAP signaling, SDP discovery, AVDTP, A2DP, live audio, and codecs as future work; split
+Keep L2CAP signaling, SDP discovery, AVDTP, A2DP and live audio as future work; split
 them when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
 `no_std` on the freestanding target. Portable crates remain `no_std` everywhere.
-No async executor, allocator, codec, runtime dependency, GUI, or configuration
-framework is needed for the bootstrap.
+No async executor, allocator, GUI, or configuration framework is needed for the
+bootstrap. The optional offline codec is separate from the diagnostic runtime:
+`host-libsbc` requires TARGET == HOST and fails before invoking a host C compiler
+for a cross target. Its C-private state lives in caller-owned aligned storage,
+queried through integer/pointer ABI calls and borrowed exclusively by Rust.
+See SBC-IMPLEMENTATION.md for invariants, patches and target/distribution gates.
 
 ## ADR 001: C performs the final link
 
@@ -196,7 +202,8 @@ Later path: capture -> bounded PCM queue -> SBC -> RTP/AVDTP -> L2CAP -> HCI ACL
 Begin with conservative 48 kHz stereo SBC, first a generated tone, then capture.
 Offline buffering, sample-clock scheduling and recovery simulations may proceed
 before a live transport is available; that does not authorize active HCI or
-claim audible playback. No codec is implemented or linked yet.
+claim audible playback. The separate host-only `bt-codec` example now feeds a
+real generic SBC encoder from this queue; no codec is linked into the PS5 ELF.
 `bt_core::media` now provides caller-owned stereo i16 staging, absolute nominal
 sample deadlines and bounded, observable gap/expiry handling. It is not capture,
 f32 conversion, resampling, an encoder, an HCI queue or a live scheduling loop.

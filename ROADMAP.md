@@ -16,6 +16,9 @@ traffic. See [hardware evidence](docs/HW1-REPAIR.md) and
 [layered recovery](docs/AUDIO-RECOVERY.md). Subsequent target: 192.168.1.111.
 See [current USB/capture results](docs/HW2-EVIDENCE.md). The morning hardware
 window has ended; offline codec integration may continue independently.
+The first real offline PCM-to-SBC path is now host-tested: bounded queue,
+safe Rust owner, C caller-storage wrapper and pinned generic libsbc. This is
+not M3a: it has no A2DP session, RTP, headset output or PS5 codec execution.
 
 | Milestone | Deliverable | Exit evidence | Current state |
 | --- | --- | --- | --- |
@@ -43,7 +46,9 @@ the runtime is reviewed. Do not open artificial issues for each empty crate.
 
 Initial host validation: four Rust parser tests, 15 C/Rust seam scenarios, C stub
 contract checks, fmt/check/Clippy and the freestanding archive build/inspection.
-Current local checks: 44 Rust tests, four host PCM recovery scenarios,
+Current local checks: 44 baseline Rust tests plus eight host codec checks,
+208 encoder reference vectors, 12 decoder checks, replacement-archive linking,
+four host PCM recovery scenarios,
 descriptor/native-query C tests with ASan/UBSan, 15 ABI
 scenarios, fmt/check/Clippy and archive inspection pass. The minimal PS5 ELF
 links and passes structural/failure-path checks; the explicit HW-1 variant

@@ -14,6 +14,13 @@
 
 ## Unreleased
 
+- Connect bounded PCM staging to a safe no_std Rust SBC owner and a separately
+  rebuildable generic libsbc 2.2 archive on the host. Retain pristine LGPL source,
+  exact hashes/notices and generic/caller-storage patches. Pass 208 reference
+  encoder vectors, 12 decoder checks, sanitizers, replacement-archive linking
+  and eight Rust checks. The real example emits 77 SBC bytes from 128 stereo
+  PCM frames. PS5 ABI, live streaming and combined-ELF distribution remain gated.
+
 - Add separate bounded USB metadata and capture preflight/one-read diagnostics,
   current-process module export lookup, durable phase edges, host fault tests
   and matching source-package variants. Pin the 34-header USB SDK dependency

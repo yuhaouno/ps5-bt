@@ -146,6 +146,10 @@ This explicitly selects desktop formatting, Cargo checks/tests/Clippy, actual
 C/Rust host links and boundary tests, descriptor tests, then builds/inspects
 `target/x86_64-unknown-none/release/libps5_runtime.a`. It does not need the
 LLVM final-link tools or fetch SDK sources. Host binaries are in `build/host/`.
+The codec subcheck additionally needs `patch`, `ar`, `nm` and a C compiler with
+ASan/UBSan. It verifies and patches the vendored generic libsbc sources only in
+temporary directories. Its optional target-object probe is not a final PS5
+codec link; missing target headers are reported separately.
 The stub process intentionally exits 2 for Unsupported; the harness recognizes
 that as the expected stub outcome. Synthetic adapters remain test-only.
 
@@ -160,6 +164,15 @@ must not be reported as hardware tests.
 included in `make check`. It exercises normal capture, bounded short-gap silence,
 long-gap rebuffer and explicit expired-PCM discard after a sender stall. It does
 not play sound, encode, connect to hardware or estimate HCI credits.
+
+`make sbc-codec-test` separately selects the real host-only codec acceptance
+suite, also included in `make check`: 208 encoder reference vectors, 12 decoder
+checks, C sanitizer/bounds tests, static-archive replacement linking, safe Rust
+owner tests/lints and a real `PcmQueue` -> SBC example. The latter produces a
+77-byte joint-stereo bitpool-32 frame from 128 stereo frames; it does not play
+sound. `host-libsbc` intentionally refuses cross-compilation before invoking
+the host C compiler. Feature-off `bt-codec` remains portable `no_std`.
+See SBC-IMPLEMENTATION.md for exact commands and remaining PS5 ABI/link gates.
 
 These checks and the PS5 builder read Rust archives from Cargo's default
 `target/` directory. An inherited non-default `CARGO_TARGET_DIR` puts the

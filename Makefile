@@ -8,7 +8,7 @@ USB_TEST_FLAGS := -std=c11 -Wall -Wextra -Werror -pedantic -Iplatform/ps5/diagno
 NATIVE_QUERY_TEST_SOURCES := platform/ps5/diagnostics/native_query.c tests/platform/native_query_test.c
 USB_PROBE_TEST_SOURCES := platform/ps5/diagnostics/usb_probe.c platform/ps5/diagnostics/usb_descriptors.c tests/platform/usb_probe_test.c
 CAPTURE_PROBE_TEST_SOURCES := platform/ps5/diagnostics/capture_probe.c tests/platform/capture_probe_test.c
-.PHONY: usb-probe-test capture-probe-test ps5-usb-metadata ps5-capture-preflight ps5-capture-once
+.PHONY: usb-probe-test capture-probe-test sbc-codec-test ps5-usb-metadata ps5-capture-preflight ps5-capture-once
 
 all: ps5-link
 
@@ -23,6 +23,7 @@ check:
 	$(MAKE) native-query-test
 	$(MAKE) usb-probe-test
 	$(MAKE) capture-probe-test
+	$(MAKE) sbc-codec-test
 	$(MAKE) check-build-tools
 	$(MAKE) rust-archive
 
@@ -33,6 +34,13 @@ check-build-tools:
 
 media-recovery-test:
 	cargo run -p bt-core --example media_recovery --locked
+
+sbc-codec-test:
+	python3 tools/test_sbc.py --cc "$(HOST_CC)"
+	cargo test --locked --offline -p bt-codec --features host-libsbc
+	cargo clippy --locked --offline -p bt-codec --features host-libsbc --all-targets -- -D warnings
+	cargo run --locked --offline -p bt-codec --features host-libsbc --example pcm_to_sbc
+	cargo check --locked --offline -p bt-codec --target x86_64-unknown-none
 
 source-bundle:
 	python3 tools/package_source.py

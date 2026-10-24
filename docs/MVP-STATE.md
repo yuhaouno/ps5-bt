@@ -63,10 +63,10 @@ their historical software/transfer baselines and are not current runtime state.
 | E1a | DONE | sdp_framing + independent/lead review | bounded SDP PDU/continuation/data-element foundation, nine parser tests; no discovery client |
 | E1b | WAITING | connection worker | bounded Classic connection/pairing/key lifecycle and A2DP SDP discovery after packet interfaces |
 | F1 | WAITING | AVDTP/A2DP worker | typed SBC negotiation/open/start/close and RTP packetization after D1/E1 contracts |
-| G1a | DONE | sbc_audit + independent/lead review | validated shared SBC selections and LGPL/runtime audit; no encoder imported |
-| G1b | WAITING | codec worker | proven libsbc encoder behind narrow wrapper, after bounded initialization storage and relinking plan; per-frame allocation prohibited |
-| G2a | DONE (HOST) | lead | caller-owned stereo i16 PCM queue, absolute nominal sample deadlines, bounded counted silence/rebuffer/expiry; ten media tests and four synthetic scenarios; no codec/capture/transport integration |
-| T1 | WAITING | integration worker | hostile scripted transport/headset and PCM-to-SBC-to-RTP-to-ACL simulation once module contracts exist |
+| G1a | DONE | sbc_audit + independent/lead review | validated shared SBC selections and LGPL/runtime audit; implementation follows in G1b |
+| G1b | DONE (HOST) | codec worker + lead | real generic libsbc with caller-storage C ABI and safe Rust owner; 208 vectors, 12 decodes, replacement-archive linking; PS5 ABI/distribution remain gated |
+| G2a | DONE (HOST) | lead | caller-owned stereo i16 PCM queue, absolute nominal sample deadlines, bounded counted silence/rebuffer/expiry; ten media tests and four synthetic scenarios; codec example in T1, no live capture/transport |
+| T1 | PARTIAL (HOST) | integration worker | real PCM-to-SBC example emits one 77-byte frame; RTP/ACL packetization and hostile scripted headset/session remain |
 | H7 | HARDWARE | user + lead | 440 Hz SBC A2DP tone audible on real headset, after controller/connection/negotiation |
 | H8 | HARDWARE | user + lead | actual PS5 PCM audible through the proven tone pipeline |
 | I1a | DONE | build_docs_integration + lead | pinned build/source-package instructions and exact baseline loading/log checklist |
@@ -89,6 +89,7 @@ capture read, in a newly confirmed hardware window. Those have not executed.
 Native HCI command/event/ACL ownership and enforceable credits remain unresolved;
 existing upstream competing readers do not establish shared routing.
 The first offline PCM queue, nominal sample timeline and recovery simulation
-are implemented under AUDIO-RECOVERY.md. Next offline integration needs explicit
-capture conversion and codec/packet boundaries. Tone, pairing, capture and live audio
+are implemented under AUDIO-RECOVERY.md. The real host PCM-to-SBC path is now
+implemented under SBC-IMPLEMENTATION.md. Next offline work needs RTP/AVDTP
+packet/session boundaries and explicit capture conversion. Tone, pairing, captured PCM and live audio
 remain later milestones; simulation does not authorize a shared-reader backend.

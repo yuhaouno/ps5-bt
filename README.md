@@ -41,7 +41,8 @@ The earlier second-machine build reproduction remains in
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |
 | Opt-in read-only USB enumeration | Executed on one Slim/13.40 | own four-interface descriptor log; other node opens failed; transport remains Unsupported |
 | Opt-in Avcap2 capture diagnostic | Lifecycle executed | open/start/stop/close/terminate 0; immediate read Empty; no acquired PCM |
-| SBC parameter selection and frame sizing | Implemented | portable validation tests; no encoder linked |
+| SBC parameter selection and frame sizing | Implemented | portable validation tests and host encoder boundary |
+| Real PCM-to-SBC encoding | Host-only implementation | safe Rust owner, generic libsbc, 208 encoder/12 decoder vectors; not in PS5 ELF |
 | PCM staging, nominal sample timeline and bounded recovery | Host-only implementation | caller-owned stereo i16 queue; synthetic gaps/stalls; no resampler or live audio |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
 | PS5 diagnostic ELF with explicit loader kernel resolver | Verified on one environment | Slim/13.40: Rust entry, durable lifecycle and final 2; notifications returned success |
@@ -52,7 +53,7 @@ The earlier second-machine build reproduction remains in
 | Marvell/NXP and MediaTek controllers | Experimental research targets | upstream source inspected; no live backend |
 | Other controller families | Unknown | detection must fail explicitly |
 | DualSense wireless coexistence | Unknown; required release gate | shared HCI ownership unresolved |
-| SBC / high-quality SBC / SBC-XQ | Planned | no encoder or streaming implementation |
+| SBC / high-quality SBC / SBC-XQ | Host SBC subset only; others planned | 48 kHz stereo/joint, bitpool 2..53; no live streaming or quality claim |
 | AAC / additional codecs | Research only | technical and licensing review required |
 | Headphones | Unknown | no compatible or incompatible models verified here |
 | Latency, bitrate, CPU use, multi-hour stability | Unknown | no measurements yet |
@@ -72,13 +73,17 @@ make                # build/ps5/ps5-bt.elf: diagnostic only, hardware untested
 make ps5-hw1        # explicit existing-loader kernel resolver; verified diagnostic path
 make check          # formatting, Rust check/tests/lints, C/Rust seam tests, cross archive
 make host-smoke     # C main -> Rust -> unsupported C adapter, on the desktop
+make sbc-codec-test # real offline PCM -> Rust/C -> SBC; no PS5/audio output
 make rust-archive   # no_std x86-64 ELF archive; no SDK or console needed
 make ps5-native-query # separate opt-in query ELF; run only after baseline entry test
 ```
 
 See [build instructions](docs/BUILDING.md), [testing](docs/TESTING.md), the
 [research report](docs/RESEARCH.md), and the [bootstrap report](docs/BOOTSTRAP-REPORT.md).
-No third-party Rust packages are required.
+No third-party Rust packages are required. The optional host codec uses the
+vendored, hash-verified BlueZ libsbc selection; `make check` exercises it with
+the host C compiler, `patch`, `ar`, `nm` and ASan/UBSan. See
+[codec evidence and limits](docs/SBC-IMPLEMENTATION.md).
 Host checks and target compilation do not establish PS5 compatibility.
 Offline audio continuity work may progress independently of live transport:
 see [layered recovery policy](docs/AUDIO-RECOVERY.md). Raw HCI integrity/credits
@@ -113,7 +118,7 @@ Application / payload
 
 Rust owns the architecture. Proven platform adaptation may remain C. See
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
-The workspace contains `bt-core`, `bt-hci`, `bt-l2cap`, `bt-sdp`, `ps5-sys`,
+The workspace contains `bt-core`, `bt-codec`, `bt-hci`, `bt-l2cap`, `bt-sdp`, `ps5-sys`,
 `ps5-platform`, and `ps5-runtime`. L2CAP signaling, SDP discovery and media
 protocols remain future work.
 
@@ -139,6 +144,10 @@ their history and file-specific licenses when reusing code. No upstream
 Bluetooth protocol stack has been imported; the capture diagnostic adaptation
 has separate provenance. [UPSTREAM.md](docs/UPSTREAM.md)
 records exact revisions, licenses, behavior provenance, credits, and update rules.
+The optional host codec imports selected BlueZ libsbc 2.2 source under
+LGPL-2.1-or-later with two recorded patches. It is not linked into PS5 builds;
+target ABI validation and the codec-enabled ELF relinking/distribution workflow
+remain gates. See [vendored notices](third_party/sbc/VENDORED.md).
 
 Original bootstrap work is **GPL-3.0-or-later**, see [LICENSE](LICENSE).
 The capture diagnostic adaptation is conservatively GPL-3.0-only; its combined

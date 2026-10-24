@@ -3,6 +3,13 @@
 version = 4
 
 [[package]]
+name = "bt-codec"
+version = "0.0.1"
+dependencies = [
+ "bt-core",
+]
+
+[[package]]
 name = "bt-core"
 version = "0.0.1"
 

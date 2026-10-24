@@ -6,6 +6,12 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
 ## Current automated checks
 
+- Real host-only PCM -> Rust/C -> libsbc: eight Rust checks, including
+  compile-fail !Send/!Sync; exact lengths/storage, rejected-no-state-change,
+  raw backend errors and poisoning; 208 byte-identical encoder vectors and 12
+  reference decoder checks; C ASan/UBSan and allocator-import rejection;
+  separately rebuilt replacement archive linking. `make sbc-codec-test` also
+  runs the 77-byte real SBC example. No headset, capture or target execution.
 - USB probe callbacks: actual-name selection, node/entry limits, exactly-once
   cleanup, partial metadata, active-configuration/driver-name validation and
   main failure mapping. `make usb-probe-test` performs no real USB operation.

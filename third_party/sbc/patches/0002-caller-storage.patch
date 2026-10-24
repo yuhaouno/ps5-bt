@@ -1,0 +1,67 @@
+--- a/sbc/sbc.h
++++ b/sbc/sbc.h
+@@ -68,0 +69,7 @@
++/* Caller-storage extension; apply only with the recorded project patch. */
++size_t sbc_get_static_size(void);
++size_t sbc_get_static_alignment(void);
++int sbc_init_static(sbc_t *sbc, unsigned long flags,
++			void *storage, size_t storage_len);
++void sbc_finish_static(sbc_t *sbc);
++
+--- a/sbc/sbc.c
++++ b/sbc/sbc.c
+@@ -18,0 +19 @@
++#ifndef SBC_STATIC_ONLY
+@@ -19,0 +21 @@
++#endif
+@@ -1019,0 +1022,40 @@
++SBC_EXPORT size_t sbc_get_static_size(void)
++{
++	return sizeof(struct sbc_priv);
++}
++
++SBC_EXPORT size_t sbc_get_static_alignment(void)
++{
++	return SBC_ALIGN_MASK + 1;
++}
++
++SBC_EXPORT int sbc_init_static(sbc_t *sbc, unsigned long flags,
++				void *storage, size_t storage_len)
++{
++	if (!sbc || !storage)
++		return -EIO;
++
++	if (((uintptr_t) storage & SBC_ALIGN_MASK) != 0 ||
++			storage_len < sizeof(struct sbc_priv))
++		return -EINVAL;
++
++	memset(sbc, 0, sizeof(sbc_t));
++	sbc->priv = storage;
++	memset(sbc->priv, 0, sizeof(struct sbc_priv));
++	sbc_set_defaults(sbc, flags);
++
++	return 0;
++}
++
++SBC_EXPORT void sbc_finish_static(sbc_t *sbc)
++{
++	if (!sbc)
++		return;
++
++	if (sbc->priv && !sbc->priv_alloc_base)
++		memset(sbc->priv, 0, sizeof(struct sbc_priv));
++
++	memset(sbc, 0, sizeof(sbc_t));
++}
++
++#ifndef SBC_STATIC_ONLY
+@@ -1072,0 +1115 @@
++#endif
+@@ -1177,0 +1221 @@
++#ifndef SBC_STATIC_ONLY
+@@ -1194,0 +1239 @@
++#endif
+@@ -1375,0 +1421 @@
++#ifndef SBC_STATIC_ONLY
+@@ -1384,0 +1431 @@
++#endif

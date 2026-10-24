@@ -1,5 +1,11 @@
 # Proposed platform ABI v1
 
+The optional host-only codec has a separate integer/pointer boundary in
+`platform/codec/ps5_bt_sbc.h`, documented in SBC-IMPLEMENTATION.md. It queries
+caller storage size/alignment and retains only pointers inside that borrowed
+allocation until finish; it never retains PCM/output buffers. It neither
+changes this transport ABI nor establishes a PS5 codec link or audio ABI.
+
 The header `platform/ps5/include/ps5_bt.h` is the bootstrap source of truth.
 These are our symbols, not existing PS5 SDK functions. ABI value `0x00010000`
 is experimental major 1/minor 0; wrappers currently require an exact match.

@@ -1,0 +1,23 @@
+[package]
+name = "bt-codec"
+description = "Bounded no_std ownership wrapper for the selected SBC encoder"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+build = "build.rs"
+
+[features]
+default = []
+host-libsbc = []
+
+[dependencies]
+bt-core = { path = "../bt-core" }
+
+[[example]]
+name = "pcm_to_sbc"
+required-features = ["host-libsbc"]
+
+[lints]
+workspace = true

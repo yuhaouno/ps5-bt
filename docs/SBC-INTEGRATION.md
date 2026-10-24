@@ -2,8 +2,11 @@
 
 Audit date: 2026-10-23. Host evidence only; no PS5 codec execution, audio
 streaming or qualification. This document selects a candidate and proposes an
-interface. **No encoder source is imported or linked into this repository.**
-The pure shared parameter model is separately authorized in `bt-core`.
+interface. At that audit snapshot no encoder source was imported. The subsequent
+2026-10-24 host-only implementation is documented in SBC-IMPLEMENTATION.md and
+third_party/sbc/VENDORED.md; its source, caller-storage changes and tests now
+exist. No codec is linked into a PS5 ELF. The original audit below is historical
+design evidence, not the current implementation status.
 
 ## Authoritative source and license
 

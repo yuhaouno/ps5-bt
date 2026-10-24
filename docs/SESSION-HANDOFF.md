@@ -33,7 +33,7 @@ Do not enable a competing-reader backend or timed credit refill.
   `tests/platform/capture_probe_test.c`, `docs/CAPTURE-PROBE.md`.
 - Codec chat `01a16bd9-07f6-7b83-8038-6b4ddc7ac94d`: exclusive
   `third_party/sbc/`, `platform/codec/`, `tests/codec/`, `tools/test_sbc.py`,
-  `docs/SBC-IMPLEMENTATION.md`.
+  `docs/SBC-IMPLEMENTATION.md`, and `crates/bt-codec/`.
 - USB subagent `/root/usb_probe`: exclusive `usb_probe.{c,h}` (optional core),
   its tests and docs/USB-PROBE.md.
 - Workers do not stage/commit/deploy. Main must review all source/license/test
@@ -94,6 +94,34 @@ build passed in the previous wave. No playable audio exists yet.
 - Hardware user said ~40 minutes remained around 03:01 UTC (11:01 Shanghai).
   At 03:12 UTC they said quota is nearly exhausted: finish hardware tests now;
   offline development resumes in the afternoon. Do not start Web work now.
-- All current diagnostic builds record dirty shared-checkout state honestly.
-  Do not rewrite manifests to claim clean committed provenance. Worker source
-  is not yet integrated/committed. Source packages need a later clean rebuild.
+- The morning diagnostic builds recorded dirty shared-checkout state honestly.
+  Do not rewrite manifests to claim clean committed provenance. Source packages
+  need a later clean rebuild; integration status follows below.
+
+## Offline continuation after usage reset
+
+Both parallel chats completed their scoped work and are idle/frozen. The USB
+subagent is also finished. Diagnostic work is integrated as `44c902c`; the
+independent codec change follows in a `feat(codec)` commit. Inspect Git for
+the final HEAD rather than assuming this document's earlier baseline is current.
+
+- Capture: fail closed on nonzero module secondary results, distinguish no
+  export lookup from a successful zero status, aligned scratch, exact optional
+  100 ms wait, and consume-once cleanup; strict/sanitized host tests pass.
+- USB: active configuration/binding metadata and local-error distinction are
+  host-tested and target-compiled, not hardware verified. No active transport.
+- Codec: real `PcmQueue` -> safe Rust -> C -> generic libsbc works on the host.
+  Eight Rust checks, 208 encoder vectors, 12 decodes, sanitizers and replacement
+  archive linking pass. The example emits one 77-byte joint-stereo SBC frame.
+  Feature-on cross builds intentionally fail; no codec enters the PS5 ELF.
+- Review `docs/SBC-IMPLEMENTATION.md` for caller-storage/unsafe invariants,
+  source hashes, patches and remaining target/relink/distribution gates.
+- Earlier dirty hardware builds retain their original identities. Clean
+  rebuilt diagnostics/source packages do not inherit those hardware results.
+
+Next offline deliverable: bounded SBC/RTP packetization with negotiated MTU,
+sequence/sample timestamps and scripted rejection/stall tests, followed by
+AVDTP session/signaling and SDP discovery/connection. Keep the eventual minimal
+LAN control page thin and honest about implemented states. Next hardware window
+needs driver-binding metadata and one settled capture read first; nonempty PCM
+format/timing and HCI routing/credit ownership are still separate blockers.

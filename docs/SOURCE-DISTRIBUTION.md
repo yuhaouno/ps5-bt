@@ -50,6 +50,12 @@ A dirty or stale build fails; the previous source package is removed
 before validation, so a failure cannot leave a stale package as apparent output.
 Commit changes and rebuild instead of editing a manifest to bypass these checks.
 
+The complete project source now also contains the pristine host-only libsbc
+selection, its LGPL text/notices, patches and rebuild tests. No current PS5
+diagnostic links it. The diagnostic packager is not yet a codec-enabled ELF
+application-object/relink workflow; do not distribute such an ELF under this
+recipe until that separate gate in SBC-IMPLEMENTATION.md is implemented.
+
 The archive contains:
 
 - `ps5-bt-source/project/`: every tracked file from the clean project commit,

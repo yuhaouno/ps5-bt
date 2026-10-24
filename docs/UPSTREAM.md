@@ -4,6 +4,9 @@ Snapshot: 2026-10-24, Asia/Shanghai. Revisions below are immutable research
 and build pins. No upstream Bluetooth protocol stack has been imported. The
 capture diagnostic uses the inspected PlayPods/HearBridge capture ABI and
 conservatively retains GPL-3.0-only for its adaptation; see CAPTURE-PROBE.md.
+The optional host-only codec imports the independently audited BlueZ libsbc
+selection and recorded generic/caller-storage patches; see SBC-IMPLEMENTATION.md
+and third_party/sbc/VENDORED.md. No codec enters the PS5 diagnostic link.
 The Rust dependencies are workspace paths. The minimal diagnostic ELF uses
 three unmodified syscall inputs by default, plus the explicit kernel-resolver
 subset documented below for HW-1; stock CRT and patch.c remain excluded. No proprietary binary is required.
@@ -15,7 +18,7 @@ subset documented below for HW-1; stock CRT and patch.c remain excluded. No prop
 | [ps5-payload-dev/sdk](https://github.com/ps5-payload-dev/sdk) | `a7685ce8e97ce1f8a4f38253a41d54241c9124f1`, release `v0.45` | root LICENSE plus README: GPL-3.0-or-later default; FreeBSD headers BSD and other file notices apply | three selected external source files in reviewed minimal-runtime link; stock CRT excluded |
 | [FGGstore/FGG-PlayPods](https://github.com/FGGstore/FGG-PlayPods) | `d726e1c32568048aae66f3218c0540adc357e408`, main; latest release observed `1.0` is a separate artifact | root LICENSE is GPL v3; README says GPL-3.0, no project-wide later-version grant established | behavioral reference only |
 | [X-F1REBALL-X/HearBridge-PS5](https://github.com/X-F1REBALL-X/HearBridge-PS5) | `cd5b7fce1b8226d8850cdd306437550098c6a62b`, main; latest release observed `v1.3.6` | root LICENSE and NOTICE explicitly GPL-3.0-or-later | behavioral reference only |
-| [BlueZ libsbc](https://git.kernel.org/pub/scm/bluetooth/sbc.git) | `b3deb8a5dcfb42d8c10ba1f2f1ac9bd7bf7271cc`, **as recorded by PlayPods**, not an independent current-head audit | PlayPods `third_party/sbc/COPYING.LIB`, `VENDORED.md`: LGPL-2.1-or-later | transitive reference only; no encoder selected |
+| [BlueZ libsbc](https://git.kernel.org/pub/scm/bluetooth/sbc.git) | `b3deb8a5dcfb42d8c10ba1f2f1ac9bd7bf7271cc`, release 2.2; independently checked Git/archive and selected hashes | all seven selected code files explicitly LGPL-2.1-or-later; retained COPYING.LIB and AUTHORS | vendored pristine selection plus two recorded patches, optional host-only static encoder; no PS5 link |
 | [PS5Dev/PS5SDK](https://github.com/PS5Dev/PS5SDK) | repository README and LICENSE examined; no build pin selected | GPL v2 license text; exact per-file GPL-2.0-only vs later-version grants need review | historical ecosystem reference; no dependency |
 | [ps5-payload-dev/pacbrew-repo](https://github.com/ps5-payload-dev/pacbrew-repo) | `722187f0ee246c0d7d57401c8a97de1c7f4e2ff0` metadata | packages require individual license/source review | ecosystem discovery only; no package used |
 | [ps5-payload-dev/elfldr](https://github.com/ps5-payload-dev/elfldr) | release `v0.27`, tag and default head `2a8da002e5292481ea964daa7342bbf4855f4c33` | README and inspected `elfldr.c`, `pt.c`: GPL-3.0-or-later | external pre-existing loader contract research; no loader implementation imported |
@@ -67,9 +70,9 @@ field's behavior from the SDK typedef's name.
 
 ### Per-file reuse decision
 
-All entries are pinned to the inventory revisions. Only the SDK selection
-explicitly listed in the next section is used by the build. Other entries
-remain research/candidate decisions. Preserve copyright and license notices,
+All entries are pinned to the inventory revisions. The SDK subset below, capture
+diagnostic adaptation and optional host-only libsbc selection are implemented.
+Other entries remain research/candidate decisions. Preserve copyright and license notices,
 exact source, local changes and attribution when adopting further material.
 
 | Candidate files | Terms inspected | Recommendation and excluded behavior |

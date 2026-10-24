@@ -1,0 +1,49 @@
+--- a/sbc/sbc_primitives.c
++++ b/sbc/sbc_primitives.c
+@@ -20,5 +19,0 @@
+-#include "sbc_primitives_sse.h"
+-#include "sbc_primitives_mmx.h"
+-#include "sbc_primitives_iwmmxt.h"
+-#include "sbc_primitives_neon.h"
+-#include "sbc_primitives_armv6.h"
+@@ -576,17 +570,0 @@
+-}
+-
+-static void sbc_init_primitives_x86(struct sbc_encoder_state *state)
+-{
+-#if defined(__x86_64__) || defined(__i386__)
+-	__builtin_cpu_init();
+-
+-#ifdef SBC_BUILD_WITH_MMX_SUPPORT
+-	if (__builtin_cpu_supports("mmx"))
+-		sbc_init_primitives_mmx(state);
+-#endif
+-
+-#ifdef SBC_BUILD_WITH_SSE_SUPPORT
+-	if (__builtin_cpu_supports("sse4.2"))
+-		sbc_init_primitives_sse(state);
+-#endif
+-#endif
+@@ -618,21 +596 @@
+-	/* X86/AMD64 optimizations */
+-	sbc_init_primitives_x86(state);
+-
+-	/* ARM optimizations */
+-#ifdef SBC_BUILD_WITH_ARMV6_SUPPORT
+-	sbc_init_primitives_armv6(state);
+-#endif
+-#ifdef SBC_BUILD_WITH_IWMMXT_SUPPORT
+-	sbc_init_primitives_iwmmxt(state);
+-#endif
+-#ifdef SBC_BUILD_WITH_NEON_SUPPORT
+-	sbc_init_primitives_neon(state);
+-
+-	if (state->increment == 1) {
+-		state->sbc_analyze_8s = sbc_analyze_1b_8s_simd_odd;
+-		state->sbc_enc_process_input_4s_le = sbc_enc_process_input_4s_le;
+-		state->sbc_enc_process_input_4s_be = sbc_enc_process_input_4s_be;
+-		state->sbc_enc_process_input_8s_le = sbc_enc_process_input_8s_le;
+-		state->sbc_enc_process_input_8s_be = sbc_enc_process_input_8s_be;
+-	}
+-#endif
++	/* Architecture-specific dispatch is intentionally excluded. */
