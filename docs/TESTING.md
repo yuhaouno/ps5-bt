@@ -6,6 +6,11 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
 ## Current automated checks
 
+- PCM sample deadlines across five rates, capacity/wrap/stale/overflow rejection,
+  bounded concealment across block boundaries, atomic rebuffer, retained future
+  samples and exact expiry counts; 10,000 deterministic queue operations against
+  a reference. `make media-recovery-test` also asserts four synthetic gap/stall
+  scenarios, with no codec, RF, HCI credits or audible-quality claim.
 - HCI fixture decode and byte-order assertions; every truncation/trailing byte;
   foreign events/opcodes and failed controller status; exhaustive declared event
   lengths versus available lengths (256 x 258 framing cases).

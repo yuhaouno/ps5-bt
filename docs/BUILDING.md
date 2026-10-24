@@ -100,8 +100,8 @@ The default minimal build remains available for environments where ordinary
 lookup already works. The recorded environment instead required the explicit
 resolver: ordinary write lookup failed, then kernel initialization and the
 diagnostic succeeded with final 2. Notification API success, durable logging
-and Rust entry were observed; wireless input and human-visible display still
-need confirmation. Panic termination remains Untested. See
+and Rust entry were observed; the user confirmed wireless input and human-visible
+display. Panic termination remains Untested. See
 [HW1-REPAIR.md](HW1-REPAIR.md) and [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md).
 
 ## Desktop checks and freestanding archive
@@ -123,6 +123,11 @@ host C compiler is not pinned as a binary; record its version on failures.
 Ubuntu and macOS host CI are configured; configuration is not proof remote
 jobs ran. Desktop tests do not execute the real syscall bridge or loader and
 must not be reported as hardware tests.
+
+`make media-recovery-test` runs the deterministic host-only PCM example, also
+included in `make check`. It exercises normal capture, bounded short-gap silence,
+long-gap rebuffer and explicit expired-PCM discard after a sender stall. It does
+not play sound, encode, connect to hardware or estimate HCI credits.
 
 These checks and the PS5 builder read Rust archives from Cargo's default
 `target/` directory. An inherited non-default `CARGO_TARGET_DIR` puts the

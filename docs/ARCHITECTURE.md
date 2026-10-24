@@ -49,7 +49,7 @@ can implement the same traits without depending on any PS5 crate.
 
 | Crate | Initial responsibility | Dependency direction |
 | --- | --- | --- |
-| `bt-core` | `no_std` errors, packet kinds, transport/clock/PCM contracts | no dependencies |
+| `bt-core` | `no_std` contracts, SBC parameters, PCM staging and nominal sample timeline | no dependencies |
 | `bt-hci` | `no_std` typed command/event/ACL framing and capability decoding | `bt-core`; no platform dependency |
 | `bt-l2cap` | `no_std` basic framing and bounded handle/epoch ACL reassembly | `bt-core`, `bt-hci`; no channel negotiation |
 | `bt-sdp` | `no_std` borrowed PDU/continuation framing and bounded data elements | no dependencies; no client/session |
@@ -58,7 +58,7 @@ can implement the same traits without depending on any PS5 crate.
 | `ps5-runtime` | diagnostic entry, C-callable Rust static library | platform wrapper and HCI |
 
 All packages are unpublished, temporary identifiers, not reserved public names.
-Keep L2CAP signaling, SDP discovery, AVDTP, A2DP, audio, and codecs as future work; split
+Keep L2CAP signaling, SDP discovery, AVDTP, A2DP, live audio, and codecs as future work; split
 them when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
 `no_std` on the freestanding target. Portable crates remain `no_std` everywhere.
@@ -197,6 +197,10 @@ Begin with conservative 48 kHz stereo SBC, first a generated tone, then capture.
 Offline buffering, sample-clock scheduling and recovery simulations may proceed
 before a live transport is available; that does not authorize active HCI or
 claim audible playback. No codec is implemented or linked yet.
+`bt_core::media` now provides caller-owned stereo i16 staging, absolute nominal
+sample deadlines and bounded, observable gap/expiry handling. It is not capture,
+f32 conversion, resampling, an encoder, an HCI queue or a live scheduling loop.
+See [implemented media contract](AUDIO-RECOVERY.md#implemented-offline-foundation).
 Track capture discontinuities, queue occupancy/high-water marks, underruns,
 overruns, encode time, submissions, USB completions, controller completions,
 per-handle outstanding packets, pacing delay, connection epochs, and cleanup

@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Implement allocation-free PCM staging with absolute sample deadlines, atomic
+  capacity/stale rejection, counted bounded silence, explicit rebuffer and expired
+  unencoded-frame discard. Add ten media tests and four deterministic host-only
+  recovery scenarios to `make check`; no codec, HCI transport or audio is enabled.
+
 - Clarify layered media recovery: bounded PCM concealment, expired unsent-media
   discard and controlled rebuffer do not excuse HCI integrity loss or invent
   credits. Allow independent offline audio work and bounded initialization

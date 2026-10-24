@@ -39,6 +39,47 @@ same hardware/headset/workload: audible gaps per hour, longest gap, external
 end-to-end latency distribution, actual codec parameters and wireless pad
 behavior. No superiority claim follows from implementation language or tests.
 
+## Implemented offline foundation
+
+`bt_core::media` is safe `no_std` Rust without an allocator or transport access:
+
+- `SampleClock` derives absolute microsecond deadlines from nominal sample
+  indices, rounding upward once per deadline rather than accumulating rounded
+  block durations. Checked arithmetic reports overflow. It does not estimate
+  physical capture-clock drift or resample audio.
+- `PcmQueue` borrows caller storage for timestamped stereo i16 frames. This is
+  downstream of an eventual explicit f32-to-i16 conversion, not a replacement
+  for `PcmSource`. Capacity rejection never overwrites old input. Reordered,
+  overlapping and already-rendered input is rejected.
+- `render` operates on an explicitly chosen sample window. Real frames reset
+  the consecutive-missing counter; zero concealment is counted and bounded
+  across calls. An over-limit window returns `Rebuffer` without consuming input,
+  modifying output or advancing the timeline. The caller must wait or stop,
+  not retry-spin. This primitive does not promise click-free concealment.
+- `discard_before` drops only unencoded, unsent PCM with exact frame counts.
+  Successful forward rendering separately reports skipped timeline frames and
+  expired stored frames. Neither path releases HCI credit. Reconnect/new capture
+  epochs require new queue/timeline state; there is no implicit restart.
+
+`make media-recovery-test` is part of `make check`. Its 48 kHz, 128-frame
+quantum and 256-frame concealment limit are synthetic fixtures, not measured
+or recommended hardware settings. Each scenario spans 23,040 nominal frames:
+
+| Script | Asserted outcome |
+| --- | --- |
+| Steady capture | 23,040 source frames, no silence, expiry or rebuffer |
+| 256-frame capture gap (5.33 ms) | exactly 256 silence frames, no rebuffer |
+| 1,024-frame capture gap (21.33 ms) | 256 silence frames, six rebuffer returns, 768 timeline frames skipped on resume |
+| Sender blocked for 3,840 frames (80 ms) | 3,840 expired PCM frames discarded, 3,840 timeline frames skipped; queue high-water at most 2,048 frames |
+
+Six rebuffer returns are six polling outcomes, not six audible interruptions.
+Discarding old audio bounds backlog but loses that audio: the 80 ms stall is
+not made continuous. The script chooses readiness and nominal render positions;
+it does not model a real jitter buffer, encoder load, controller flow control,
+RF behavior or headset buffering. Ten media tests additionally check atomic
+failure, wraparound, future samples, concealment limits and clock arithmetic.
+The PS5 diagnostic does not invoke this module; live adapter status is unchanged.
+
 ## Current evidence and operating context
 
 The user confirmed visible HW-1 start/finish notifications and normal wireless

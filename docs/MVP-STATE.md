@@ -61,6 +61,7 @@ their historical software/transfer baselines and are not current runtime state.
 | F1 | WAITING | AVDTP/A2DP worker | typed SBC negotiation/open/start/close and RTP packetization after D1/E1 contracts |
 | G1a | DONE | sbc_audit + independent/lead review | validated shared SBC selections and LGPL/runtime audit; no encoder imported |
 | G1b | WAITING | codec worker | proven libsbc encoder behind narrow wrapper, after bounded initialization storage and relinking plan; per-frame allocation prohibited |
+| G2a | DONE (HOST) | lead | caller-owned stereo i16 PCM queue, absolute nominal sample deadlines, bounded counted silence/rebuffer/expiry; ten media tests and four synthetic scenarios; no codec/capture/transport integration |
 | T1 | WAITING | integration worker | hostile scripted transport/headset and PCM-to-SBC-to-RTP-to-ACL simulation once module contracts exist |
 | H7 | HARDWARE | user + lead | 440 Hz SBC A2DP tone audible on real headset, after controller/connection/negotiation |
 | H8 | HARDWARE | user + lead | actual PS5 PCM audible through the proven tone pipeline |
@@ -82,6 +83,7 @@ that firmware/loader compatibility.
 The next platform work is read-only USB metadata through a verified runtime.
 Native HCI command/event/ACL ownership and enforceable credits remain unresolved;
 existing upstream competing readers do not establish shared routing.
-Offline buffering, sample-clock pacing and recovery simulations may proceed
-independently under AUDIO-RECOVERY.md. Tone, pairing, capture and live audio
+The first offline PCM queue, nominal sample timeline and recovery simulation
+are implemented under AUDIO-RECOVERY.md. Next offline integration needs explicit
+capture conversion and codec/packet boundaries. Tone, pairing, capture and live audio
 remain later milestones; simulation does not authorize a shared-reader backend.

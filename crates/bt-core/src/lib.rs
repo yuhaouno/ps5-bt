@@ -3,6 +3,7 @@
 #![no_std]
 #![forbid(unsafe_code)]
 
+pub mod media;
 pub mod sbc;
 pub use sbc::{
     SbcAllocation, SbcBitpoolRange, SbcBlocks, SbcChannelMode, SbcParameters, SbcSampleRate,

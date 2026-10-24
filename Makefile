@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 .DEFAULT_GOAL := all
-.PHONY: all check host-smoke rust-archive ps5-link ps5-native-query usb-descriptors-test native-query-test check-c-sanitize check-build-tools source-bundle
+.PHONY: all check host-smoke rust-archive ps5-link ps5-native-query usb-descriptors-test native-query-test media-recovery-test check-c-sanitize check-build-tools source-bundle
 export LLVM_CONFIG PS5_SDK_SOURCE
 HOST_CC ?= cc
 USB_TEST_SOURCES := platform/ps5/diagnostics/usb_descriptors.c tests/platform/usb_descriptors_test.c
@@ -13,6 +13,7 @@ check:
 	cargo fmt --all -- --check
 	cargo check --workspace --all-targets --locked
 	cargo test --workspace --locked
+	$(MAKE) media-recovery-test
 	cargo clippy --workspace --all-targets --locked -- -D warnings
 	python3 tools/host_check.py
 	$(MAKE) usb-descriptors-test
@@ -24,6 +25,9 @@ check-build-tools:
 	python3 tools/test_syscall_checked.py
 	python3 tools/build_ps5.py --self-test
 	python3 tools/package_source.py --self-test
+
+media-recovery-test:
+	cargo run -p bt-core --example media_recovery --locked
 
 source-bundle:
 	python3 tools/package_source.py

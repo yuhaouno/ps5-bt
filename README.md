@@ -36,6 +36,7 @@ The earlier second-machine build reproduction remains in
 | C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |
 | SBC parameter selection and frame sizing | Implemented | portable validation tests; no encoder linked |
+| PCM staging, nominal sample timeline and bounded recovery | Host-only implementation | caller-owned stereo i16 queue; synthetic gaps/stalls; no resampler or live audio |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
 | PS5 diagnostic ELF with explicit loader kernel resolver | Verified on one environment | Slim/13.40: Rust entry, durable lifecycle and final 2; notifications returned success |
 | Optional read-only native stack-version query | Executed | sysctlbyname resolved; query returned -1; version and controller remain Unknown |
