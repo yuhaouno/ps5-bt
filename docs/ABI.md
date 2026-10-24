@@ -56,6 +56,10 @@ real C conformance tests when a real backend is selected.
 
 ## Future audio ABI (not implemented or frozen)
 
+The independent C-only capture diagnostic in CAPTURE-PROBE.md does not implement
+this future Rust audio ABI or expose native capture handles to Rust. It has its
+own injected metadata interface; no transport ABI version change follows.
+
 Proposed `ps5_audio_open`, `ps5_audio_read`, `ps5_audio_close` use a separate opaque
 token and caller-owned interleaved PCM buffer. Return format, actual whole frame
 count, monotonic timestamp with defined origin, and discontinuity flags through

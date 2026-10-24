@@ -1,7 +1,9 @@
 # Upstream inventory and synchronization
 
 Snapshot: 2026-10-24, Asia/Shanghai. Revisions below are immutable research
-and build pins. No upstream Bluetooth/audio implementation has been imported.
+and build pins. No upstream Bluetooth protocol stack has been imported. The
+capture diagnostic uses the inspected PlayPods/HearBridge capture ABI and
+conservatively retains GPL-3.0-only for its adaptation; see CAPTURE-PROBE.md.
 The Rust dependencies are workspace paths. The minimal diagnostic ELF uses
 three unmodified syscall inputs by default, plus the explicit kernel-resolver
 subset documented below for HW-1; stock CRT and patch.c remain excluded. No proprietary binary is required.
@@ -84,13 +86,22 @@ exact source, local changes and attribution when adopting further material.
 | elfldr `elfldr.c`, `pt.c`; websrv `src/ps5/elfldr.c`, `pt.c` | explicit GPL-3.0-or-later notices | external loader contract reference only; do not import process takeover, credential changes, kernel-memory operations or loader bootstrap |
 
 The shipped descriptor component is an original bounded C parser and metadata
-report with hostile-input host tests; it performs no live USB access. A later
-read-only enumeration probe can use external SDK headers and the existing
-Rust/C ABI. Keep upstream quirk decisions documented in C adaptation; no audio
+report with hostile-input host tests; the parser itself performs no USB access.
+The separate USB probe now uses SDK headers and checked syscalls, with actual
+read-only evidence in HW2-EVIDENCE.md. Keep upstream quirk decisions documented
+in C adaptation; no audio
 stack or application-wide C import is warranted. Any later parsing adaptation
 belongs in its own reviewable change with provenance and hostile-input tests.
 
 ## Selected SDK build inputs
+
+The opt-in USB build additionally selects the 34 original SDK headers pinned in
+`tools/usb_sdk_headers.json`, including syscall/directory/ioctl declarations and
+their type dependencies. Their per-file Berkeley, NetBSD and other notices are
+retained in source bundles; the project GPL text does not replace them. No SDK
+header is modified. The standalone provisioner expands upstream stdint.h's
+symlink to its original sys/stdint.h target bytes, with the same notices/hash.
+Capture adds no new SDK source, offset, module binary or privilege setter.
 
 [tools/build_ps5.py](../tools/build_ps5.py) selects only these paths from SDK
 revision `a7685ce8e97ce1f8a4f38253a41d54241c9124f1`. It verifies SHA-256 for

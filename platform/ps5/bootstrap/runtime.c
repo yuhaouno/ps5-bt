@@ -310,6 +310,35 @@ int64_t ps5_bootstrap_lookup(const char *name, void **out)
     return error ? error : *out ? 0 : PS5_BT_IO;
 }
 
+#ifdef PS5_BT_CAPTURE_PROBE
+int64_t ps5_bootstrap_module_lookup(int32_t module, const char *name, void **out)
+{
+    if (!out)
+        return PS5_BT_INVALID;
+    *out = 0;
+    if (module < 0 || !name || !name[0])
+        return PS5_BT_INVALID;
+    if (!resolver_ready)
+        return PS5_BT_IO;
+    long error = __crt_syscall(SYS_sprx_dlsym, module, name, out);
+    if (error || !*out) {
+        *out = 0;
+#ifdef PS5_BT_LOADER_KERNEL_RESOLVER
+        if (kernel_resolver_ready) {
+            /* Fixed current process (-1), existing audited SDK NID resolver.
+             * The caller supplies only its freshly loaded Avcap2 handle. */
+            unsigned long address = kernel_dynlib_dlsym(-1, (unsigned int)module, name);
+            if (address) {
+                *out = (void *)(uintptr_t)address;
+                return 0;
+            }
+        }
+#endif
+    }
+    return error ? error : *out ? 0 : PS5_BT_IO;
+}
+#endif
+
 void ps5_platform_log(const uint8_t *data, uint32_t len) { lifecycle_log(data, len); }
 
 _Noreturn void ps5_platform_abort(void)

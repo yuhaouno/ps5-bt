@@ -27,6 +27,10 @@ SDK_FILES = {
     "crt/nid.h": "f79fd2a5daacde8bae9e070d4bf8158b42b2fdd8fccd9ea5f868a7a099dcb365",
     "crt/klog.h": "19fc44e52797d1a1f9959f5f7e6dee6006f600486f4bae451db862510a2cbe11",
 }
+USB_SDK_HEADERS = json.loads((ROOT / "tools/usb_sdk_headers.json").read_text())
+# Expand the upstream stdint.h symlink into the identical, notice-bearing target
+# bytes when provisioning a standalone subset rather than a Git checkout.
+SDK_HEADER_ALIASES = {"include/freebsd/stdint.h": "include/freebsd/sys/stdint.h"}
 
 
 def digest(path):
@@ -39,13 +43,15 @@ def run(command, capture=False):
                           text=True, stdout=subprocess.PIPE if capture else None).stdout
 
 
-def sdk_sources(source=None):
+def sdk_sources(source=None, usb_metadata=False):
     """A fixed subset, not an SDK installation or unverified moving checkout."""
     directory = Path(source).resolve() if source else ROOT / ".sdk" / SDK_REVISION
-    for name, expected in SDK_FILES.items():
+    selected = SDK_FILES | (USB_SDK_HEADERS if usb_metadata else {})
+    for name, expected in selected.items():
         path = directory / name
         if not path.exists() and not source:
-            url = f"https://raw.githubusercontent.com/ps5-payload-dev/sdk/{SDK_REVISION}/{name}"
+            remote_name = SDK_HEADER_ALIASES.get(name, name)
+            url = f"https://raw.githubusercontent.com/ps5-payload-dev/sdk/{SDK_REVISION}/{remote_name}"
             print(f"Fetching pinned SDK source: {url}", flush=True)
             with urllib.request.urlopen(url, timeout=30) as response:
                 content = response.read(1024 * 1024)
@@ -105,7 +111,8 @@ def self_test():
         else:
             raise AssertionError("unsupported LLVM version accepted")
         suffixes = ("elf", "map", "manifest.json", "inspect.txt", "disasm.txt")
-        for stem in ("ps5-bt", "ps5-bt-native-query"):
+        for stem in ("ps5-bt", "ps5-bt-native-query", "ps5-bt-usb-metadata",
+                     "ps5-bt-capture-preflight", "ps5-bt-capture-once"):
             for suffix in suffixes:
                 (base / f"{stem}.{suffix}").write_text(stem)
         invalidate_output("ps5-bt-native-query", base)
@@ -116,6 +123,9 @@ def self_test():
         invalidate_output("ps5-bt", base)
         assert (base / "ps5-bt-native-query.elf").read_text() == "optional"
         assert not any((base / f"ps5-bt.{suffix}").exists() for suffix in suffixes)
+        assert (base / "ps5-bt-usb-metadata.elf").is_file()
+        invalidate_output("ps5-bt-usb-metadata", base)
+        assert not any((base / f"ps5-bt-usb-metadata.{suffix}").exists() for suffix in suffixes)
     print("PASS missing/modified SDK and missing toolchain failure paths")
 
 
@@ -129,6 +139,10 @@ def host_test(source):
     run([output])
     run([*command, "-DPS5_BT_LOADER_KERNEL_RESOLVER"])
     run([output])
+    run([*command, "-DPS5_BT_CAPTURE_PROBE"])
+    run([output])
+    run([*command, "-DPS5_BT_CAPTURE_PROBE", "-DPS5_BT_LOADER_KERNEL_RESOLVER"])
+    run([output])
     print("PASS synthetic host startup resolver/log/error/memory cases (not loader execution)")
 
 
@@ -139,10 +153,12 @@ def invalidate_output(stem, output=None):
 
 
 def build(args):
-    stem = "ps5-bt-native-query" if args.native_query else "ps5-bt"
+    stem = artifact_stem(args)
     invalidate_output(stem)
+    if (args.capture_preflight or args.capture_once) and not args.loader_kernel_resolver:
+        raise ValueError("capture diagnostics require the explicit existing-loader kernel resolver")
     tools = llvm_tools(args.llvm_config)
-    source = sdk_sources(args.sdk_source)
+    source = sdk_sources(args.sdk_source, args.usb_metadata)
     host_test(source)
     review = ROOT / "docs/RUNTIME-REVIEW.md"
     if not review.is_file():
@@ -164,6 +180,11 @@ def build(args):
         sources += [source / "crt/kernel.c", source / "crt/nid.c"]
     if args.native_query:
         sources.append(ROOT / "platform/ps5/diagnostics/native_query.c")
+    if args.usb_metadata:
+        sources += [ROOT / "platform/ps5/diagnostics/usb_probe.c",
+                    ROOT / "platform/ps5/diagnostics/usb_descriptors.c"]
+    if args.capture_preflight or args.capture_once:
+        sources.append(ROOT / "platform/ps5/diagnostics/capture_probe.c")
     objects = []
     flags = ["-target", "x86_64-sie-ps5", "-std=gnu11", "-O1", "-ffreestanding",
              "-fno-builtin", "-fPIC", "-fno-stack-protector", "-fno-plt",
@@ -173,9 +194,18 @@ def build(args):
         flags += ["-DPS5_BT_LOADER_KERNEL_RESOLVER"]
     if args.native_query:
         flags.append("-DPS5_BT_NATIVE_QUERY")
+    if args.usb_metadata:
+        flags.append("-DPS5_BT_USB_METADATA")
+    if args.capture_preflight or args.capture_once:
+        flags.append("-DPS5_BT_CAPTURE_PROBE")
+    if args.capture_preflight:
+        flags.append("-DPS5_BT_CAPTURE_PREFLIGHT")
     for index, path in enumerate(sources):
         obj = output / f"{stem}-{index}-{path.stem}.o"
         extra = ["-Wno-sign-compare"] if path.name == "kernel.c" else []
+        if args.usb_metadata and path.name == "usb_probe.c":
+            extra += ["-DPS5_BT_USB_PROBE_TARGET", "-isystem", source / "include/freebsd", "-isystem", source / "include",
+                      "-MD", "-MF", output / f"{stem}-usb-headers.d"]
         run([tools["clang"], *flags, *extra, "-c", path, "-o", obj])
         objects.append(obj)
     archive = ROOT / "target/x86_64-unknown-none/release/libps5_runtime.a"
@@ -191,6 +221,9 @@ def build(args):
         raise
     report["runtime"] = "minimal-syscall-v6"
     report["native_query"] = args.native_query
+    report["usb_metadata"] = args.usb_metadata
+    report["capture_preflight"] = args.capture_preflight
+    report["capture_once"] = args.capture_once
     report["loader_kernel_resolver"] = args.loader_kernel_resolver
     report["rust"] = rust_version
     report["llvm"] = run([tools["clang"], "--version"], capture=True).strip()
@@ -208,6 +241,18 @@ def build(args):
     if args.native_query:
         name = "platform/ps5/diagnostics/native_query.h"
         report["project_sources"][name] = digest(ROOT / name)
+    if args.capture_preflight or args.capture_once:
+        name = "platform/ps5/diagnostics/capture_probe.h"
+        report["project_sources"][name] = digest(ROOT / name)
+    if args.usb_metadata:
+        for name in ("usb_probe.h", "usb_descriptors.h"):
+            path = ROOT / "platform/ps5/diagnostics" / name
+            report["project_sources"][str(path.relative_to(ROOT))] = digest(path)
+        dependencies = (output / f"{stem}-usb-headers.d").read_text().replace("\\\n", " ").split()
+        report["sdk_headers"] = {str(Path(name).relative_to(source)): digest(Path(name))
+                                 for name in dependencies if Path(name).is_relative_to(source / "include")}
+        if report["sdk_headers"] != USB_SDK_HEADERS:
+            raise ValueError("USB SDK header dependency inventory differs from the reviewed pin")
     report["runtime_review_sha256"] = digest(review)
     (output / f"{stem}.manifest.json").write_text(json.dumps(report, indent=2) + "\n")
     inspection = run([tools["llvm-readobj"], "--file-headers", "--program-headers",
@@ -220,13 +265,30 @@ def build(args):
     print("UNTESTED on PS5; no live Bluetooth adapter, deployment or firmware compatibility claim.")
 
 
+def artifact_stem(args):
+    if args.capture_preflight:
+        return "ps5-bt-capture-preflight"
+    if args.capture_once:
+        return "ps5-bt-capture-once"
+    if args.usb_metadata:
+        return "ps5-bt-usb-metadata"
+    return "ps5-bt-native-query" if args.native_query else "ps5-bt"
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sdk-source", default=os.environ.get("PS5_SDK_SOURCE"))
     parser.add_argument("--llvm-config", default=os.environ.get("LLVM_CONFIG", "llvm-config-18"))
     parser.add_argument("--self-test", action="store_true")
-    parser.add_argument("--native-query", action="store_true",
+    variants = parser.add_mutually_exclusive_group()
+    variants.add_argument("--native-query", action="store_true",
                         help="build separate single read-only native query diagnostic")
+    variants.add_argument("--usb-metadata", action="store_true",
+                          help="build separate read-only USB metadata diagnostic")
+    variants.add_argument("--capture-preflight", action="store_true",
+                          help="load capture prerequisites and resolve exports only")
+    variants.add_argument("--capture-once", action="store_true",
+                          help="perform one bounded metadata-only capture cycle")
     parser.add_argument("--loader-kernel-resolver", action="store_true",
                         help="resolve own-process exports through existing loader kernel R/W")
     args = parser.parse_args()
@@ -234,5 +296,5 @@ if __name__ == "__main__":
         self_test() if args.self_test else build(args)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         if not args.self_test:
-            invalidate_output("ps5-bt-native-query" if args.native_query else "ps5-bt")
+            invalidate_output(artifact_stem(args))
         parser.exit(1, f"PS5 build failed: {error}\n")

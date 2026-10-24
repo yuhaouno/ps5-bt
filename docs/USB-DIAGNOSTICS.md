@@ -1,5 +1,10 @@
 # USB descriptor diagnostics foundation
 
+The parser/report foundation described below remains I/O-free. A separate
+opt-in read-only probe is now implemented in USB-PROBE.md and its first actual
+console results are recorded in HW2-EVIDENCE.md. The former integration proposal
+below is retained as design history, not a claim that no probe exists.
+
 Status: **host-tested parser and report encoder only**. No USB node is opened,
 no ioctl is issued and no PS5 hardware result is claimed. The target remains
 PS5 Slim firmware 13.40 with an existing, independently reviewed runtime.

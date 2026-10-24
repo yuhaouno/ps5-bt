@@ -94,7 +94,28 @@ OID once, returned -1 and preserved final 2. No errno was captured by that helpe
 
 ## Remaining gates
 
-Wireless DualSense input/haptics before/during/after, human-visible notification,
-deliberate panic handling and repeated long-run stability require confirmation.
-Bluetooth controller identity, native traffic ownership, HCI/ACL credits,
-pairing, tone, capture and audio are not implemented by this diagnostic.
+The user confirmed visible notifications and normal wireless input during the
+diagnostics. Haptics workload, deliberate panic handling and long-run stability
+remain untested. The baseline still has no Bluetooth transport or capture.
+
+The separate USB metadata diagnostic uses only read-only SDK-defined metadata
+ioctls. The capture-only module helper accepts a nonnegative current-process
+module handle, never a PID or arbitrary address, and falls back to the same
+audited SDK NID resolver with PID fixed to -1. It clears failed output pointers
+and performs no credential or permission setter. Main passes only the handle
+returned for its own loaded Avcap2 module. Four host startup variants exercise
+this helper's ordinary, null, dirty-failure and kernel-fallback paths.
+
+The capture preflight loads already-installed Ipmi then Avcap2 through a
+resolved libkernel export; no proprietary module is copied or redistributed.
+The one-read variant calls the inspected private capture ABI, whose buffer and
+lifecycle invariants are in CAPTURE-PROBE.md. A later optional settling callback
+resolves SDK-declared `int usleep(useconds_t)` with a u32 argument and permits
+exactly one 100000-us call; lookup/wait failures remain visible and trigger
+cleanup without a read. OS calls themselves are trusted synchronous boundaries,
+not hard real-time guarantees. Modules are not blindly unloaded.
+
+Own USB descriptors and capture no-delay lifecycle now have recorded evidence
+in HW2-EVIDENCE.md. Native traffic ownership, HCI/ACL credits, pairing, tone,
+nonempty captured PCM and audio playback remain unverified. A descriptor's
+second HCI-class interface is not a proven independent transport.

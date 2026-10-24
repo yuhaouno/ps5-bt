@@ -17,15 +17,22 @@ python3 tools/package_source.py
 The offline command writes `build/ps5/ps5-bt-source.tar.gz`. It uses the ten hash-verified
 already available SDK inputs in `.sdk/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/`,
 or the same `PS5_SDK_SOURCE` directory used for the build. It never fetches files.
-For the separately built optional query artifact, select its manifest explicitly:
+For a separately built optional diagnostic, select its manifest explicitly:
 
 ```sh
 python3 tools/package_source.py --manifest build/ps5/ps5-bt-native-query.manifest.json
+python3 tools/package_source.py --manifest build/ps5/ps5-bt-usb-metadata.manifest.json
+python3 tools/package_source.py --manifest build/ps5/ps5-bt-capture-preflight.manifest.json
+python3 tools/package_source.py --manifest build/ps5/ps5-bt-capture-once.manifest.json
 ```
 
-This writes `build/ps5/ps5-bt-native-query-source.tar.gz`, binds the package to
-`ps5-bt-native-query.elf`, and supplies an explicit rebuild command retaining the native-query and
-loader-kernel-resolver flags from the manifest.
+Each writes its corresponding `build/ps5/<artifact-stem>-source.tar.gz`, binds
+the package to that exact stem's ELF, and supplies an explicit rebuild command
+retaining the selected diagnostic flag and loader-kernel-resolver flag from
+the manifest. Diagnostic selections are mutually exclusive and must be booleans.
+Capture variants require the existing-loader kernel resolver, matching their
+builder contract. Including a capture diagnostic in this packaging workflow
+is not evidence that capture opened or read PCM successfully.
 The default command remains bound to `ps5-bt.elf`. Run
 `python3 tools/package_source.py --self-test` for synthetic packaging tests.
 
@@ -33,7 +40,13 @@ Packaging requires a clean Git worktree, including no untracked project files,
 and the same clean Git HEAD recorded in the build manifest. It verifies the ELF
 and Rust archive SHA-256, linked project source hashes, runtime review hash, SDK
 revision and all selected SDK source hashes against the builder's pinned
-inventory. A dirty or stale build fails; the previous source package is removed
+inventory. The USB variant also requires `sdk_headers` to equal the exact
+relative-path/hash map in `tools/usb_sdk_headers.json`, currently 34 headers,
+and verifies all those original files locally before bundling them. Missing,
+modified, extra or absolute/escaping manifest header paths fail; only the
+reviewed pinned map drives filesystem reads. No SDK Git checkout is required
+for a bundled rebuild: original selected file hashes establish source identity.
+A dirty or stale build fails; the previous source package is removed
 before validation, so a failure cannot leave a stale package as apparent output.
 Commit changes and rebuild instead of editing a manifest to bypass these checks.
 
@@ -50,6 +63,12 @@ The archive contains:
   sources/headers), with their original bytes
   and John Törnblom's copyright, GPL-3.0-or-later and warranty notices intact.
   No local SDK patches are applied. See [UPSTREAM.md](UPSTREAM.md).
+  The USB metadata variant additionally includes the exact pinned SDK header
+  dependency closure, including `sys/dirent.h`, `sys/syscall.h` and the USB
+  descriptor/ioctl headers. Their original bytes and file-specific BSD and other
+  copyright, license and disclaimer notices remain intact. The root GPL text
+  does not replace those terms. Default, native-query and capture packages do
+  not include these additional SDK headers.
 - `ps5-bt-source/build-manifest.json`: the original ELF build record, including
   its SHA-256 and the original clean project commit. The ELF, Rust archive,
   tools, SDK binaries, console files and Git history are not bundled.
@@ -83,10 +102,19 @@ The build requires no Sony binary, firmware, key, exploit, SDK stock CRT or
 bundled loader. The explicit HW-1 variant includes the audited SDK kernel
 resolver described in RUNTIME-REVIEW.md. Existing permission and
 compatible-loader prerequisites and actual loader behavior remain external. The
-first PS5 Slim firmware 13.40 transfer reached an early startup failure; the
-repaired runtime remains hardware-untested. See [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md)
+repaired diagnostic runtime reached Rust and final expected Unsupported on the
+recorded Slim/13.40 environment; that does not establish USB/capture behavior.
+See [HW1-REPAIR.md](HW1-REPAIR.md), [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md)
 and [HARDWARE-TEST.md](HARDWARE-TEST.md). There is no project installation bypass
 or console deployment procedure. If a distribution arrangement requires further
 installation information, resolve that obligation for its actual environment
 before distribution; the package does not claim an exemption or supply unknown
 firmware-specific facts.
+
+The packaging self-test uses synthetic SDK/header fixtures and real temporary
+Git repositories. It verifies deterministic archives and exact contents/rebuild
+flags for all five diagnostic variants; retained original header bytes; missing
+variant-source rejection; boolean/exclusivity rules; capture resolver gates;
+missing/modified header files and pins; header/project manifest path escapes;
+and removal of stale outputs after failure. It never downloads sources,
+executes target payloads or accesses a PS5.

@@ -6,6 +6,13 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
 ## Current automated checks
 
+- USB probe callbacks: actual-name selection, node/entry limits, exactly-once
+  cleanup, partial metadata, active-configuration/driver-name validation and
+  main failure mapping. `make usb-probe-test` performs no real USB operation.
+- Capture preflight/lifecycle callbacks: resolve/load/open/read failures, raw
+  status preservation, phase tracing, optional one-shot settling wait, byte/frame
+  bounds and consume-once cleanup. `make capture-probe-test` uses synthetic
+  callbacks; see HW2-EVIDENCE.md for the distinct real no-delay lifecycle.
 - PCM sample deadlines across five rates, capacity/wrap/stale/overflow rejection,
   bounded concealment across block boundaries, atomic rebuffer, retained future
   samples and exact expiry counts; 10,000 deterministic queue operations against
@@ -41,8 +48,9 @@ are regression coverage, not a coverage-guided fuzz campaign or ownership proof.
 
 ## Runtime v6 verification
 
-The builder compiles/runs startup tests both with and without the explicit
-loader-kernel-resolver flag. Synthetic cases cover fallback lookup, kernel-init
+The builder compiles/runs startup tests with and without each of the explicit
+loader-kernel-resolver and capture flags. Synthetic cases cover module-handle
+lookup, dirty/null/failed symbols, current-process fallback, kernel-init
 failure, missing loader transport, durable log errors and unavailable stderr.
 `make check-build-tools` also runs the actual x86-64 syscall wrapper against a
 fake bridge: all six arguments, stack alignment, carry-set positive errno,

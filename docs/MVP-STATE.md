@@ -14,8 +14,11 @@ failed with -1. The native query resolved its export, called once and returned
 observed diagnostic path.
 
 The user confirmed on-screen notifications and wireless DualSense during the
-diagnostic. Next: independent offline media continuity work and bounded read-only
-USB enumeration. Future target is 192.168.1.111; live testing is paused tonight.
+diagnostic. Own USB enumeration has now read 1286:2059 with HCI-class interface
+groups 0 and 2. Capture preflight resolved all seven exports; the first full
+capture lifecycle completed with one immediate Empty read and clean shutdown.
+No PCM was acquired. See HW2-EVIDENCE.md and its complete numeric logs.
+Future target is 192.168.1.111; the hardware window has ended. Continue offline.
 Active HCI operations remain gated on native traffic ownership
 and credits. See HW1-REPAIR.md and RUNTIME-REVIEW.md. Earlier reports describe
 their historical software/transfer baselines and are not current runtime state.
@@ -51,11 +54,12 @@ their historical software/transfer baselines and are not current runtime state.
 | D1b | DONE | hci_l2cap + lead review | bounded L2CAP framing/reassembly in caller storage, tied to explicit handle/epoch; no signaling/channel establishment |
 | A2 | DONE | native_hci_research + lead review | source-backed single read-only native stack-version query; no PS5 broker found in bounded inventory; see NATIVE-HCI-RESEARCH.md |
 | C1a | DONE | platform_descriptors + lead review | bounded descriptor parser/report, hostile host tests and ASan/UBSan; no live USB access |
-| C1b | WAITING | platform worker | actual read-only descriptor probe after verified runtime operations/SDK headers; no endpoint takeover |
+| C1b | EXECUTED (PARTIAL) | lead + user | own 1286:2059 four-interface descriptor log, clean close and normal pad; three other opens failed; binding extension unverified |
 | C2 | BLOCKER | lead + platform worker | native HCI command/event/ACL ownership and enforceable credits; upstream read competition is not routing |
 | C3 | EXECUTED | lead | export resolved on Slim/13.40; single query returned -1; version/controller remain Unknown |
 | H1 | LIFECYCLE PASS | user + lead | loader kernel init 0, Rust entry and final 2 on Slim/13.40; user confirmed visible notifications and normal wireless input |
-| H2 | HARDWARE | user + lead | HW-2 descriptor/HCI data and DualSense before/during/after; requires C1/C2 |
+| H2 | PARTIAL | user + lead | USB descriptors and normal pad confirmed; HCI queries/ownership/credits remain unverified and gated by C2 |
+| C4 | LIFECYCLE PASS | capture worker + lead + user | Ipmi/Avcap2 load, seven resolves, initialize/open/start/cleanup succeed; one immediate Empty read; settled-read test requires hardware |
 | E1a | DONE | sdp_framing + independent/lead review | bounded SDP PDU/continuation/data-element foundation, nine parser tests; no discovery client |
 | E1b | WAITING | connection worker | bounded Classic connection/pairing/key lifecycle and A2DP SDP discovery after packet interfaces |
 | F1 | WAITING | AVDTP/A2DP worker | typed SBC negotiation/open/start/close and RTP packetization after D1/E1 contracts |
@@ -80,7 +84,8 @@ environment. Human-visible notifications and wireless DualSense were confirmed;
 deliberate panic and audio coexistence remain untested. Source/host evidence does not generalize
 that firmware/loader compatibility.
 
-The next platform work is read-only USB metadata through a verified runtime.
+The next platform checks are the read-only binding extension and settled
+capture read, in a newly confirmed hardware window. Those have not executed.
 Native HCI command/event/ACL ownership and enforceable credits remain unresolved;
 existing upstream competing readers do not establish shared routing.
 The first offline PCM queue, nominal sample timeline and recovery simulation

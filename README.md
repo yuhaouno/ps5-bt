@@ -23,6 +23,10 @@ at the API level. The user also confirmed visible notifications and normal
 wireless DualSense operation during the diagnostic. The optional native query executes but
 returns -1; no controller capability or audio support follows from this.
 See [hardware repair evidence](docs/HW1-REPAIR.md).
+Own read-only USB enumeration has since confirmed `1286:2059` with HCI-class
+interfaces 0 and 2. The capture diagnostic completed open/start/cleanup, but
+its immediate read returned Empty; no PCM or audio playback is established.
+See [USB/capture evidence](docs/HW2-EVIDENCE.md).
 The earlier second-machine build reproduction remains in
 [the wave report](docs/WAVE-1-REPORT.md).
 
@@ -35,6 +39,8 @@ The earlier second-machine build reproduction remains in
 | SDP framing and bounded data-element parsing | Implemented | synthetic parser tests; no discovery client |
 | C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |
+| Opt-in read-only USB enumeration | Executed on one Slim/13.40 | own four-interface descriptor log; other node opens failed; transport remains Unsupported |
+| Opt-in Avcap2 capture diagnostic | Lifecycle executed | open/start/stop/close/terminate 0; immediate read Empty; no acquired PCM |
 | SBC parameter selection and frame sizing | Implemented | portable validation tests; no encoder linked |
 | PCM staging, nominal sample timeline and bounded recovery | Host-only implementation | caller-owned stereo i16 queue; synthetic gaps/stalls; no resampler or live audio |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
@@ -130,10 +136,13 @@ for each independently reviewable change; see [repository development rules](AGE
 FGG-PlayPods, HearBridge PS5, the PS5 Payload SDK, PS5SDK, and BlueZ/libsbc are
 important research references. Credit their authors and contributors; preserve
 their history and file-specific licenses when reusing code. No upstream
-Bluetooth/audio implementation has been imported. [UPSTREAM.md](docs/UPSTREAM.md)
+Bluetooth protocol stack has been imported; the capture diagnostic adaptation
+has separate provenance. [UPSTREAM.md](docs/UPSTREAM.md)
 records exact revisions, licenses, behavior provenance, credits, and update rules.
 
 Original bootstrap work is **GPL-3.0-or-later**, see [LICENSE](LICENSE).
+The capture diagnostic adaptation is conservatively GPL-3.0-only; its combined
+diagnostic uses GPL v3. See [capture provenance](docs/CAPTURE-PROBE.md).
 Third-party code retains its own terms. FFI is an architectural boundary, not
 an exemption from license obligations. Codec licensing/patents and distribution
 requirements must be reviewed before adoption.

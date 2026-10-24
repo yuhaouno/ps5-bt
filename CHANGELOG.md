@@ -14,6 +14,15 @@
 
 ## Unreleased
 
+- Add separate bounded USB metadata and capture preflight/one-read diagnostics,
+  current-process module export lookup, durable phase edges, host fault tests
+  and matching source-package variants. Pin the 34-header USB SDK dependency
+  closure with retained notices and standalone provisioning.
+- Record own Slim/13.40 USB enumeration, including HCI-class interfaces 0 and 2,
+  and capture lifecycle success with one Empty read. Preserve three complete
+  numeric logs and exact tested artifact hashes. The delayed-read and binding
+  extension remain hardware-unverified; no live HCI or audible audio is claimed.
+
 - Implement allocation-free PCM staging with absolute sample deadlines, atomic
   capacity/stale rejection, counted bounded silence, explicit rebuffer and expired
   unencoded-frame discard. Add ten media tests and four deterministic host-only

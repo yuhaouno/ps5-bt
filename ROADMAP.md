@@ -10,16 +10,18 @@ Slim/13.40 environment: existing-loader kernel initialization, Rust entry,
 durable log and final Unsupported 2. The native query ran but returned -1.
 The user confirmed visible notifications and wireless DualSense operation.
 Host-only PCM staging, nominal sample timing and bounded recovery are implemented
-with deterministic gap/stall scenarios. Advance these independently of the next
-read-only USB enumeration; native HCI ownership/credits still gate active
+with deterministic gap/stall scenarios. Own USB metadata and Avcap2 lifecycle
+have executed; capture read returned Empty. Native HCI ownership/credits still gate active
 traffic. See [hardware evidence](docs/HW1-REPAIR.md) and
 [layered recovery](docs/AUDIO-RECOVERY.md). Subsequent target: 192.168.1.111.
+See [current USB/capture results](docs/HW2-EVIDENCE.md). The morning hardware
+window has ended; offline codec integration may continue independently.
 
 | Milestone | Deliverable | Exit evidence | Current state |
 | --- | --- | --- | --- |
 | M0 — research/bootstrap | source/license inventory, architecture, bounded ABI, desktop tests, freestanding Rust archive | reproducible host checks and artifact inspection; explicit unknowns | bootstrap implemented; validation below |
-| M1 — Rust on PS5 / controller information | audited C startup, Rust entry, minimal metadata backend, bounded HCI queries only after routing gate | real console log with build hashes, USB IDs, HCI/LMP version, actual commands/features/buffers where accessible; clean return and DualSense before/during/after | Rust lifecycle, final 2 and user-observed normal wireless input verified on one Slim/13.40 environment; own USB/controller data remain |
-| M2 — platform transport and capture | safe command/event/ACL transport, vendor detection, capture open/read/close | fault/cleanup tests, no hidden loss, proven native traffic routing, capture format/timing report | planned |
+| M1 — Rust on PS5 / controller information | audited C startup, Rust entry, minimal metadata backend, bounded HCI queries only after routing gate | real console log with build hashes, USB IDs, HCI/LMP version, actual commands/features/buffers where accessible; clean return and DualSense before/during/after | Rust lifecycle, own USB descriptors and user-observed normal wireless input verified on one Slim/13.40; HCI capabilities and routing remain Unknown |
+| M2 — platform transport and capture | safe command/event/ACL transport, vendor detection, capture open/read/close | fault/cleanup tests, no hidden loss, proven native traffic routing, capture format/timing report | capture diagnostic lifecycle executed with Empty read; nonempty PCM and live transport unverified |
 | M3a — minimal A2DP tone | Rust L2CAP/SDP/AVDTP/A2DP/RTP, explicit pairing/key storage, conservative SBC | reproducible 48 kHz stereo tone on named headset/controller/firmware, correct credits and negotiated limits | planned |
 | M3b — captured audio | PS5 PCM through bounded queues to the demonstrated sink | game/menu/silence tests, capture discontinuity and queue telemetry, clean stop | planned |
 | M4 — stability | bounded reconnect, starvation/overflow handling, diagnostics | staged 1 h then 8 h playback per declared target; no crashes or monotonic memory growth; no sustained underruns; headset power cycles, pad reconnects, Wi-Fi/RF load, cleanup logs | planned |

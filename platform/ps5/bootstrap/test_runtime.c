@@ -120,6 +120,12 @@ int __kernel_init(payload_args_t *args)
 
 unsigned long kernel_dynlib_dlsym(int pid, unsigned int handle, const char *name)
 {
+#ifdef PS5_BT_CAPTURE_PROBE
+    if (handle == 7) {
+        assert(pid == -1 && !strcmp(name, "module_symbol"));
+        return mode == MODE_KERNEL_FALLBACK ? (unsigned long)(uintptr_t)fake_write : 0;
+    }
+#endif
     assert(pid == -1 && (handle == 1 || handle == 0x2001));
     if (mode != MODE_KERNEL_FALLBACK)
         return 0;
@@ -174,6 +180,15 @@ long __crt_syscall(long number, ...)
     const char *name = va_arg(args, const char *);
     void *out = va_arg(args, void *);
     va_end(args);
+#ifdef PS5_BT_CAPTURE_PROBE
+    if (module == 7) {
+        assert(!strcmp(name, "module_symbol"));
+        if (mode == MODE_WRITE_RESOLVE_NULL)
+            return 0;
+        *(void **)out = (void *)fake_write;
+        return mode == MODE_OK ? 0 : 13;
+    }
+#endif
     assert(module == 1 || module == 0x2001);
     ++resolutions;
     if (mode == MODE_KERNEL_FALLBACK)
@@ -321,5 +336,26 @@ int main(void)
     assert(ps5_bootstrap_lookup("write", &symbol) == 13 && !symbol);
     mode = MODE_WRITE_RESOLVE_NULL;
     assert(ps5_bootstrap_lookup("write", &symbol) == PS5_BT_IO && !symbol);
+#ifdef PS5_BT_CAPTURE_PROBE
+    resolver_ready = 0;
+    symbol = (void *)1;
+    assert(ps5_bootstrap_module_lookup(7, "module_symbol", &symbol) == PS5_BT_IO && !symbol);
+    assert(ps5_bootstrap_module_lookup(-1, "module_symbol", &symbol) == PS5_BT_INVALID && !symbol);
+    assert(ps5_bootstrap_module_lookup(7, 0, &symbol) == PS5_BT_INVALID && !symbol);
+    assert(ps5_bootstrap_module_lookup(7, "", &symbol) == PS5_BT_INVALID && !symbol);
+    assert(ps5_bootstrap_module_lookup(7, "module_symbol", 0) == PS5_BT_INVALID);
+    resolver_ready = 1;
+    mode = MODE_OK;
+    assert(ps5_bootstrap_module_lookup(7, "module_symbol", &symbol) == 0 && symbol);
+    mode = MODE_WRITE_RESOLVE_ERROR;
+    assert(ps5_bootstrap_module_lookup(7, "module_symbol", &symbol) == 13 && !symbol);
+    mode = MODE_WRITE_RESOLVE_NULL;
+    assert(ps5_bootstrap_module_lookup(7, "module_symbol", &symbol) == PS5_BT_IO && !symbol);
+#ifdef PS5_BT_LOADER_KERNEL_RESOLVER
+    kernel_resolver_ready = 1;
+    mode = MODE_KERNEL_FALLBACK;
+    assert(ps5_bootstrap_module_lookup(7, "module_symbol", &symbol) == 0 && symbol);
+#endif
+#endif
     return 0;
 }

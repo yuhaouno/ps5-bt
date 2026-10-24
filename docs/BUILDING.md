@@ -3,7 +3,8 @@
 The public project/package name is not selected. Crate names are local and
 unpublished. Builds never contact or deploy to a console. The PS5 output is a
 real diagnostic ELF linking C -> Rust -> an Unsupported adapter; the explicit HW-1 variant has executed on Slim/13.40, but it does not provide
-working Bluetooth or controller information.
+working Bluetooth or HCI controller capability information. The separate USB
+diagnostic below has read device descriptors on one console.
 
 ## Minimal PS5 ELF
 
@@ -105,6 +106,37 @@ display. Panic termination remains Untested. See
 [HW1-REPAIR.md](HW1-REPAIR.md) and [RUNTIME-REVIEW.md](RUNTIME-REVIEW.md).
 
 ## Desktop checks and freestanding archive
+
+### Independent USB and capture diagnostics
+
+These never enable the Bluetooth transport and keep the baseline artifact:
+
+```sh
+make ps5-usb-metadata
+make ps5-capture-preflight
+make ps5-capture-once
+```
+
+Each target selects a separate `build/ps5/ps5-bt-<variant>.elf` and manifest.
+Set LLVM_CONFIG as above. USB additionally provisions 34 hash-pinned SDK headers
+listed in `tools/usb_sdk_headers.json`; no SDK libc or import library is linked.
+The upstream stdint.h symlink is expanded into identical notice-bearing target
+bytes in the standalone subset. A full pinned SDK source tree may be supplied
+through PS5_SDK_SOURCE. The manifest checks the exact header dependency closure.
+
+Capture diagnostics require the explicit existing-loader kernel resolver.
+Preflight loads Ipmi then Avcap2 and resolves exports only. Capture-once opens
+one session, optionally waits once for 100 ms through libkernel usleep, issues
+one nonblocking read, then cleans up. No audio data is stored or logged.
+The no-delay lifecycle executed with an Empty read; the later settling change
+is **Requires hardware**, not a successful PCM test. See HW2-EVIDENCE.md.
+Capture adaptation is GPL-3.0-only; retain its provenance and GPL v3 terms.
+Build and source-package commands never connect to a console.
+
+`make usb-probe-test` and `make capture-probe-test` exercise injected host
+callbacks; both are included in `make check` and `make check-c-sanitize`.
+
+### Complete local checks
 
 ```sh
 make check

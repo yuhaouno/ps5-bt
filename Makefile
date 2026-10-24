@@ -6,6 +6,9 @@ HOST_CC ?= cc
 USB_TEST_SOURCES := platform/ps5/diagnostics/usb_descriptors.c tests/platform/usb_descriptors_test.c
 USB_TEST_FLAGS := -std=c11 -Wall -Wextra -Werror -pedantic -Iplatform/ps5/diagnostics
 NATIVE_QUERY_TEST_SOURCES := platform/ps5/diagnostics/native_query.c tests/platform/native_query_test.c
+USB_PROBE_TEST_SOURCES := platform/ps5/diagnostics/usb_probe.c platform/ps5/diagnostics/usb_descriptors.c tests/platform/usb_probe_test.c
+CAPTURE_PROBE_TEST_SOURCES := platform/ps5/diagnostics/capture_probe.c tests/platform/capture_probe_test.c
+.PHONY: usb-probe-test capture-probe-test ps5-usb-metadata ps5-capture-preflight ps5-capture-once
 
 all: ps5-link
 
@@ -18,6 +21,8 @@ check:
 	python3 tools/host_check.py
 	$(MAKE) usb-descriptors-test
 	$(MAKE) native-query-test
+	$(MAKE) usb-probe-test
+	$(MAKE) capture-probe-test
 	$(MAKE) check-build-tools
 	$(MAKE) rust-archive
 
@@ -31,6 +36,31 @@ media-recovery-test:
 
 source-bundle:
 	python3 tools/package_source.py
+
+usb-probe-test:
+	mkdir -p build/host/usb-probe
+	$(HOST_CC) $(USB_TEST_FLAGS) $(USB_PROBE_TEST_SOURCES) -o build/host/usb-probe/test
+	build/host/usb-probe/test
+	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include -DPS5_BT_USB_METADATA tests/platform/usb_main_test.c -o build/host/usb-probe/main-test
+	build/host/usb-probe/main-test
+
+capture-probe-test:
+	mkdir -p build/host/capture-probe
+	$(HOST_CC) $(USB_TEST_FLAGS) $(CAPTURE_PROBE_TEST_SOURCES) -o build/host/capture-probe/test
+	build/host/capture-probe/test
+	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include -DPS5_BT_CAPTURE_PROBE tests/platform/capture_main_test.c -o build/host/capture-probe/main-test
+	build/host/capture-probe/main-test
+	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include -DPS5_BT_CAPTURE_PROBE -DPS5_BT_CAPTURE_PREFLIGHT tests/platform/capture_main_test.c -o build/host/capture-probe/preflight-main-test
+	build/host/capture-probe/preflight-main-test
+
+ps5-usb-metadata:
+	python3 tools/build_ps5.py --usb-metadata --loader-kernel-resolver
+
+ps5-capture-preflight:
+	python3 tools/build_ps5.py --capture-preflight --loader-kernel-resolver
+
+ps5-capture-once:
+	python3 tools/build_ps5.py --capture-once --loader-kernel-resolver
 
 usb-descriptors-test:
 	mkdir -p build/host/usb-diagnostics
@@ -47,6 +77,15 @@ native-query-test:
 	build/host/native-query/baseline-main-test
 
 check-c-sanitize:
+	mkdir -p build/host/usb-probe build/host/capture-probe
+	$(HOST_CC) $(USB_TEST_FLAGS) -fsanitize=address,undefined -fno-omit-frame-pointer $(USB_PROBE_TEST_SOURCES) -o build/host/usb-probe/test-sanitized
+	build/host/usb-probe/test-sanitized
+	$(HOST_CC) $(USB_TEST_FLAGS) -fsanitize=address,undefined -fno-omit-frame-pointer $(CAPTURE_PROBE_TEST_SOURCES) -o build/host/capture-probe/test-sanitized
+	build/host/capture-probe/test-sanitized
+	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include -DPS5_BT_CAPTURE_PROBE -fsanitize=address,undefined -fno-omit-frame-pointer tests/platform/capture_main_test.c -o build/host/capture-probe/main-test-sanitized
+	build/host/capture-probe/main-test-sanitized
+	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include -DPS5_BT_CAPTURE_PROBE -DPS5_BT_CAPTURE_PREFLIGHT -fsanitize=address,undefined -fno-omit-frame-pointer tests/platform/capture_main_test.c -o build/host/capture-probe/preflight-main-test-sanitized
+	build/host/capture-probe/preflight-main-test-sanitized
 	mkdir -p build/host/usb-diagnostics
 	$(HOST_CC) $(USB_TEST_FLAGS) -fsanitize=address,undefined -fno-omit-frame-pointer $(USB_TEST_SOURCES) -o build/host/usb-diagnostics/test-sanitized
 	build/host/usb-diagnostics/test-sanitized
