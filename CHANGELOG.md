@@ -14,6 +14,13 @@
 
 ## Unreleased
 
+- Re-audit native HCI ownership after the executed `-1` query and own dual-HCI
+  USB descriptors. Keep active transport Unsupported: FreeBSD-shaped SDK socket
+  headers do not establish a PS5 broker, ACL-send route or bounded ownership.
+  Select the read-only binding diagnostic as the next executable evidence step
+  and record a strict one-command/credit acceptance experiment for any future
+  source-proven dispatcher.
+
 - Add allocation-free complete-frame SBC-over-RTP/A2DP packetization with
   negotiated MTU enforcement, explicit marker state, atomic backpressure and
   sequence/sample-timestamp wrap tests. Extend the real host codec proof through

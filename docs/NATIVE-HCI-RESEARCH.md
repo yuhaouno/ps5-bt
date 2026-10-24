@@ -1,13 +1,63 @@
 # Native Bluetooth ownership research
 
-Snapshot: 2026-10-23. Target reported by the user: PS5 Slim, firmware 13.40.
-No runtime query in this report has been executed on that console. Controller
-vendor and function ownership remain Unknown; neither follows from the model.
+Snapshot: 2026-10-23; hardware-result audit updated 2026-10-25. Target reported
+by the user: PS5 Slim, firmware 13.40. The optional native presence query has now
+executed: its export resolved and the single call returned -1. Own USB metadata
+also found two HCI-class interface groups on `1286:2059`. Neither result
+establishes controller ownership, command/event routing or credits.
 
 **Result:** this bounded public-source search establishes a read-only native
 stack presence query worth testing, but no usable PS5 command/event/ACL broker.
 Keep `BluetoothTransport` Unsupported. The query below can narrow the next
 investigation without consuming USB input or submitting HCI commands.
+
+## Post-HW2 ownership decision and next bounded experiment
+
+The runtime facts do not reveal a usable broker. The native query's resolved
+symbol plus `-1` result proves that this specific call path executed, not that a
+FreeBSD Bluetooth stack or controller node is available. USB interface 2 has a
+second set of HCI-shaped endpoints, but descriptor class and endpoint numbers do
+not establish a separate command state, event route, connection-handle domain or
+ACL credit pool. The deployed binding extension was not confirmed as launched.
+
+The pinned SDK headers expose the FreeBSD-shaped `AF_BLUETOOTH`, raw HCI protocol
+134 and `SIOC_HCI_RAW_NODE_LIST_NAMES`. They also mark Netgraph list-names as a
+read-only message. That is compile-time interface evidence only. No inspected
+PS5 source establishes that firmware 13.40 implements this socket/ioctl path,
+that its ioctl has a bounded/cancellable wait, or that opening it preserves the
+native owner's traffic. In the pinned FreeBSD source, raw HCI receive data is
+copied to matching sockets, but outbound raw HCI accepts command packets rather
+than providing this project's required command-and-ACL transport. A monitor or
+command socket would still lack owned handles and enforceable ACL reservations.
+Therefore no raw-socket or direct-USB active candidate is authorized now.
+
+The next executable ownership-related experiment is the already built,
+independently selectable **USB binding metadata** diagnostic, not an HCI read:
+
+1. Use a fresh clean-HEAD artifact and manifest. Manually launch it once with a
+   15-second external observation ceiling; it performs no endpoint I/O.
+2. Retrieve `/data/ps5-bt-hw1.log` before any later candidate overwrites it.
+   Require complete active-configuration and driver-binding results for every
+   reported interface plus final cleanup/lifecycle markers.
+3. Confirm wireless DualSense input before, during and after. Stop on any input
+   anomaly, incomplete inventory or uncertain cleanup.
+4. A nonempty binding confirms only that a native driver reports attachment. An
+   empty or different binding still does not prove an independent radio or free
+   endpoints. Either outcome remains `transport=Unsupported`; it selects the
+   next source investigation and must not trigger an HCI command automatically.
+
+If later source evidence identifies an actual dispatcher/broker, its first
+active acceptance diagnostic must be separately named and keep these bounds:
+one registered owner, one ordered receive stream, one Read Local Version command,
+a one-second command deadline and ten-second whole-test ceiling, no retry/reset,
+no inquiry/pairing/scan/event-mask changes, and exactly-once deregistration and
+resource cleanup. It must log command routing, every foreign packet disposition,
+initial owned ACL allowance, submissions and Number Of Completed Packets by
+owned handle/epoch. Unknown/foreign completions, queue loss, timeout or credit
+underflow are terminal failures; elapsed time never restores credit. Wireless
+pad input and reconnection are checked before/during/after. This design is ready
+for a proven broker, but implementing it against today's headers would guess the
+very ownership contract it is meant to test.
 
 ## Evidence and interpretation
 

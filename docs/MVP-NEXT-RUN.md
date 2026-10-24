@@ -100,6 +100,10 @@ to ask them to repeat their final reports.
 
 1. Review the transport ownership options first and choose a concrete experiment.
    Missing APIs/offsets stay Unknown; do not invent or silently relax the gate.
+   The 2026-10-25 audit in NATIVE-HCI-RESEARCH.md selects the existing read-only
+   USB binding diagnostic as the next executable evidence step. It rejects a raw
+   socket/direct endpoint experiment until a bounded PS5 dispatcher contract is
+   proven, and records the exact later one-command/credit acceptance bounds.
 2. Implement/test the independent tracks. Keep Rust protocols/media policy and
    the proven C platform/codec adaptation; a C rewrite adds no acceptance value.
 3. Build baseline, USB binding and settled capture candidates now. Add further
