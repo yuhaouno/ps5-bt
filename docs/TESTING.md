@@ -6,6 +6,11 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
 ## Current automated checks
 
+- LAN control boundary: exact four-route HTTP/1.1 parsing, byte/header/line
+  ceilings, bearer/Host/Origin/custom-header enforcement, duplicate/smuggling/
+  body rejection, single pending command ownership, stale completion rejection,
+  failure/cancel state and atomic redacted status JSON. These are host tests of a
+  protocol model; there is no listener, browser page or PS5 command execution.
 - Real host-only PCM -> Rust/C -> libsbc: eight Rust checks, including
   compile-fail !Send/!Sync; exact lengths/storage, rejected-no-state-change,
   raw backend errors and poisoning; 208 byte-identical encoder vectors and 12

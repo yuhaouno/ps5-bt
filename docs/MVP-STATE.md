@@ -71,7 +71,7 @@ their historical software/transfer baselines and are not current runtime state.
 | H7 | HARDWARE | user + lead | 440 Hz SBC A2DP tone audible on real headset, after controller/connection/negotiation |
 | H8 | HARDWARE | user + lead | actual PS5 PCM audible through the proven tone pipeline |
 | I1a | DONE | lead | pinned build/source-package instructions plus a clean-manifest, hash-checked binding/settled-capture kit; deployment defaults to dry-run and never launches |
-| I1b | READY (MVP) | control/integration worker | thin LAN control/status interface with real unavailable states and bounded commands; no false pairing/audio capability |
+| I1b | PARTIAL (HOST) | lead | bounded authenticated request parser, one-command ownership and redacted actual-state JSON; listener/static page and PS5 owner integration remain; no false pairing/audio capability |
 
 Completed waves: upstream/runtime research and real minimal ELF; portable HCI,
 L2CAP, SBC selections and SDP framing; host-only descriptor diagnostics; separate

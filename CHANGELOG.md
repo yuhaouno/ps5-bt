@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add a no_std bounded LAN control/status contract: strict authenticated HTTP
+  routing for status/connect/start/stop, exact same-origin checks for mutations,
+  one pending command owned by the Bluetooth loop, stale-completion rejection
+  and atomic identity-free status JSON. No listener, page or PS5 operation is
+  claimed.
+
 - Complete the 2026-10-25 relay with durable commit/check/worker state, final
   offline kit rebuild instructions and the remaining protocol, target-codec,
   capture, control and HCI ownership gates. No console window or playback result

@@ -20,6 +20,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "bt-control"
+version = "0.0.1"
+
+[[package]]
 name = "bt-core"
 version = "0.0.1"
 

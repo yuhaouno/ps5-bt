@@ -3,6 +3,7 @@ members = [
     "crates/bt-a2dp",
     "crates/bt-core",
     "crates/bt-codec",
+    "crates/bt-control",
     "crates/bt-hci",
     "crates/bt-l2cap",
     "crates/bt-sdp",

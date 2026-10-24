@@ -53,6 +53,7 @@ can implement the same traits without depending on any PS5 crate.
 | `bt-a2dp` | `no_std` bounded complete-frame SBC-over-RTP packetization | `bt-core`; no session or transport dependency |
 | `bt-core` | `no_std` contracts, SBC parameters, PCM staging and nominal sample timeline | no dependencies |
 | `bt-codec` | `no_std` caller-storage encoder owner; real generic libsbc behind host-only feature | `bt-core`; C static archive only with `host-libsbc` |
+| `bt-control` | `no_std` bounded authenticated request parsing, serialized command tickets and redacted status | no dependencies; no listener or transport owner |
 | `bt-hci` | `no_std` typed command/event/ACL framing and capability decoding | `bt-core`; no platform dependency |
 | `bt-l2cap` | `no_std` basic framing, bounded handle/epoch ACL reassembly and initiator-side Classic Basic-mode signaling | `bt-core`, `bt-hci`; no live transport or responder allocator |
 | `bt-sdp` | `no_std` borrowed PDU/continuation framing and bounded data elements | no dependencies; no client/session |
@@ -67,9 +68,10 @@ authorized MVP implementation targets, not implemented capabilities. Split them
 when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
 `no_std` on the freestanding target. Portable crates remain `no_std` everywhere.
-No async executor, allocator, GUI, or configuration framework is needed for the
-minimal bootstrap. This does not prohibit bounded engine initialization or the
-now-authorized thin LAN control page. The optional offline codec is separate
+No async executor, allocator, GUI framework, or configuration framework is needed
+for the minimal bootstrap. This does not prohibit bounded engine initialization
+or the thin LAN page. Its portable request/state contract is implemented without
+a listener; socket/static-page integration remains pending. The optional offline codec is separate
 from the diagnostic runtime:
 `host-libsbc` requires TARGET == HOST and fails before invoking a host C compiler
 for a cross target. Its C-private state lives in caller-owned aligned storage,
