@@ -35,7 +35,7 @@ The earlier second-machine build reproduction remains in
 | Area | Status | Evidence |
 | --- | --- | --- |
 | Portable contracts, HCI command/ACL framing and capability event decoders | Implemented | host packet/malformed-input tests |
-| L2CAP basic framing and bounded ACL reassembly | Implemented | synthetic handle/epoch/bounds tests; no channel negotiation |
+| L2CAP basic framing, bounded ACL reassembly and Classic channel signaling | Implemented on host | scripted Connection/MTU Configuration/Disconnection plus handle/epoch/bounds tests; no live transport |
 | SDP framing and bounded data-element parsing | Implemented | synthetic parser tests; no discovery client |
 | C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |
@@ -119,8 +119,9 @@ Application / payload
 Rust owns the architecture. Proven platform adaptation may remain C. See
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
 The workspace contains `bt-core`, `bt-codec`, `bt-hci`, `bt-l2cap`, `bt-sdp`, `ps5-sys`,
-`ps5-platform`, and `ps5-runtime`. L2CAP signaling, SDP discovery and media
-protocols remain future work.
+`ps5-platform`, and `ps5-runtime`. The first initiator-side L2CAP Basic-mode
+channel machine is host-tested; SDP discovery and media protocols remain future
+work, and no live channel is enabled.
 These remaining MVP components and a thin LAN control/status page are now
 authorized for independent implementation; they are not current capabilities.
 See [next-session work and hardware run order](docs/MVP-NEXT-RUN.md).

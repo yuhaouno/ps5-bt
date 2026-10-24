@@ -1,8 +1,9 @@
 # Portable HCI and L2CAP framing
 
-Status: HCI and bounded L2CAP basic framing implemented and tested on the host.
-No hardware, controller ownership, connection or audio support is established
-by these parsers.
+Status: HCI framing plus bounded L2CAP basic framing, recombination and an
+initiator-side Classic Basic-mode channel machine are implemented and tested on
+the host. No hardware, controller ownership, live connection or audio support
+is established by these components.
 
 ## HCI contract
 
@@ -49,14 +50,11 @@ dispatcher or active transport is implemented here.
 `bt-l2cap` is safe, `no_std` and allocation-free, depending only on portable
 `bt-core` and `bt-hci`. `BasicFrame` frames one PDU with a little-endian payload
 length and destination CID, checks exact length, and rejects the null CID.
-Other raw CID values are retained: a future channel layer must reject unassigned
-or reserved CIDs for its link type, establish channel ownership/mode and enforce
-the negotiated receive MTU. A parsed basic header does not prove Basic mode or
-validity of the enclosed signaling/data. No signaling, channel allocation,
-configuration, SDP, AVDTP, pairing, credit ledger or outbound ACL fragmenter is
-implemented. The encoder checks capacity before writing and preserves output
-on rejection. Wire payloads are at most 65,535 bytes, excluding the four-byte
-basic header.
+Other raw CID values are retained: the caller must select the applicable link
+type and channel context before dispatch. A parsed basic header does not prove
+Basic mode or validity of the enclosed signaling/data. The encoder checks
+capacity before writing and preserves output on rejection. Wire payloads are at
+most 65,535 bytes, excluding the four-byte basic header.
 
 `Reassembler` recombines one received point-to-point PDU at a time in a mutable
 caller buffer, including its basic header. Its state is constant-sized; memory
@@ -86,6 +84,44 @@ retry or recovery policy. In particular, it reports a start that interrupts an
 unfinished PDU rather than silently replacing it after a possible flush/loss.
 Reliable operation and explicit flush recovery remain future policy work.
 
+## Classic signaling and channel contract
+
+The same crate parses and encodes exactly one BR/EDR signaling command for
+Connection, Configuration and Disconnection request/response codes. Identifiers
+must be nonzero, dynamic CIDs start at `0x0040`, and PSM bit rules are checked.
+Configuration supports the Basic-mode MTU option only: absent means the 672-byte
+default, values below 48 are rejected, and continuation flags, duplicate MTUs
+and all unimplemented options fail explicitly. This deliberately does not
+pretend to support ERTM, streaming mode, QoS, flush timeout or extended windows.
+Short output and malformed input do not partially write a command.
+
+`ClassicChannel` owns one initiator-side channel for an explicit HCI handle and
+connection epoch. It emits one Connection Request, correlates the exact response
+identifier and source CID, emits one MTU Configuration Request, accepts the
+peer's reciprocal configuration, then opens only after both directions succeed.
+Its `peer_mtu` is therefore a parsed signaling result for that synthetic session,
+not a controller or headset capability claim. It can initiate or answer one
+Disconnection exchange and preserves the request CID order in the response.
+
+The caller owns time and serialization. `timeout` applies only to the exact
+pending identifier; there is no timer, retry or hidden reopen. Connection and
+disconnection timeouts close local state. A configuration timeout retains the
+known remote CID so the caller can explicitly cancel with a Disconnection
+Request. Rejections are visible events. A newer connection can replace an old
+context only through a strictly increasing epoch. Foreign handles/epochs, stale
+identifiers, wrong CIDs, invalid transitions and constructed invalid commands
+leave channel state unchanged. Output-capacity failures also preserve the
+identifier counter, so retry emits the same transaction rather than creating a
+phantom gap.
+
+This is not a signaling multiplexer, responder-side channel allocator, outbound
+ACL fragmenter, SDP client, AVDTP session or pairing implementation. The caller
+must wrap encoded commands in CID `0x0001`, enforce signaling and data MTUs,
+apply explicit deadlines, and never send them until HCI ownership and credits
+are established. At most one locally initiated transaction is pending in this
+minimal machine; a separate bounded dispatcher must split and order compound
+signaling packets.
+
 ## Provenance and validation
 
 Original specification implementation; no upstream code was copied or adapted.
@@ -98,7 +134,13 @@ and retention of foreign completion entries. No fuzz campaign or hardware test
 is claimed. L2CAP tests cover every maximum-frame truncation, every declared
 length against a fixed available length, all two/three-fragment boundaries of a
 synthetic PDU (including split/empty headers), exact capacity, interleaved
-handles, epoch changes, and unchanged storage/state on rejection.
+handles, epoch changes, and unchanged storage/state on rejection. Six additional
+scripted signaling tests cover exact connection/configuration/disconnection
+bytes, reciprocal MTU configuration, peer and local disconnects, every
+truncation of a configuration command, unsupported options/continuations,
+short-output atomicity, rejection, timeout/cancel, stale identifiers/CIDs,
+foreign epochs and constructed-invalid commands. These are synthetic peers,
+not interoperability results.
 
 Baseline inspected on 2026-10-23: [Bluetooth Core 6.0](https://www.bluetooth.com/specifications/specs/core-specification-6-0/).
 [Vol 4, Part E, HCI functional specification](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Core-60/out/en/host-controller-interface/host-controller-interface-functional-specification.html):
@@ -117,6 +159,8 @@ Baseline inspected on 2026-10-23: [Bluetooth Core 6.0](https://www.bluetooth.com
 - 3 and 3.1: basic header, length, byte order and Basic mode payload.
 - 7.2.1–7.2.2: ordered fragments per logical link, interleaving across links,
   recombination and length integrity checks.
+- Signaling packet formats and channel configuration state requirements for
+  Connection, Configuration and Disconnection commands.
 
 These references specify the framing baseline, not conformance or qualification.
 Native command/event routing, enforceable ACL ownership/capacity, transport loss

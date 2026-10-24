@@ -53,15 +53,16 @@ can implement the same traits without depending on any PS5 crate.
 | `bt-core` | `no_std` contracts, SBC parameters, PCM staging and nominal sample timeline | no dependencies |
 | `bt-codec` | `no_std` caller-storage encoder owner; real generic libsbc behind host-only feature | `bt-core`; C static archive only with `host-libsbc` |
 | `bt-hci` | `no_std` typed command/event/ACL framing and capability decoding | `bt-core`; no platform dependency |
-| `bt-l2cap` | `no_std` basic framing and bounded handle/epoch ACL reassembly | `bt-core`, `bt-hci`; no channel negotiation |
+| `bt-l2cap` | `no_std` basic framing, bounded handle/epoch ACL reassembly and initiator-side Classic Basic-mode signaling | `bt-core`, `bt-hci`; no live transport or responder allocator |
 | `bt-sdp` | `no_std` borrowed PDU/continuation framing and bounded data elements | no dependencies; no client/session |
 | `ps5-sys` | `no_std` declarations matching our own C header | no SDK struct bindings |
 | `ps5-platform` | `no_std` safe C adapter wrapper, exclusive session ownership | `bt-core`, `ps5-sys` |
 | `ps5-runtime` | diagnostic entry, C-callable Rust static library | platform wrapper and HCI |
 
 All packages are unpublished, temporary identifiers, not reserved public names.
-L2CAP signaling, SDP discovery, AVDTP/A2DP/RTP and connection work are now
-authorized MVP implementation targets, not implemented capabilities. Split them
+The first bounded L2CAP channel-signaling machine is host-tested; SDP discovery,
+AVDTP/A2DP/RTP and baseband connection work remain authorized MVP implementation
+targets, not implemented capabilities. Split them
 when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
 `no_std` on the freestanding target. Portable crates remain `no_std` everywhere.

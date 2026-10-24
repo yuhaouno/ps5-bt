@@ -62,7 +62,7 @@ their historical software/transfer baselines and are not current runtime state.
 | H2 | PARTIAL | user + lead | USB descriptors and normal pad confirmed; HCI queries/ownership/credits remain unverified and gated by C2 |
 | C4 | LIFECYCLE PASS | capture worker + lead + user | Ipmi/Avcap2 load, seven resolves, initialize/open/start/cleanup succeed; one immediate Empty read; settled-read test requires hardware |
 | E1a | DONE | sdp_framing + independent/lead review | bounded SDP PDU/continuation/data-element foundation, nine parser tests; no discovery client |
-| E1b | READY (HOST) | connection worker | bounded Classic connection/pairing/key lifecycle, L2CAP channels and A2DP SDP discovery; implement against scripted transport now, live activation still gated |
+| E1b | PARTIAL (HOST) | lead | bounded initiator-side Classic L2CAP Connection/MTU Configuration/Disconnection state machine passes scripted peers; responder allocation, ACL fragmentation, SDP discovery, Classic baseband connection/pairing/key lifecycle and live activation remain |
 | F1 | READY (HOST) | AVDTP/A2DP worker | typed SBC negotiation/open/start/close and RTP packetization; host development need not wait for live discovery |
 | G1a | DONE | sbc_audit + independent/lead review | validated shared SBC selections and LGPL/runtime audit; implementation follows in G1b |
 | G1b | DONE (HOST) | codec worker + lead | real generic libsbc with caller-storage C ABI and safe Rust owner; 208 vectors, 12 decodes, replacement-archive linking; PS5 ABI/distribution remain gated |

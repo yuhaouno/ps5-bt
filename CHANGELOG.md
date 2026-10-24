@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add allocation-free Classic L2CAP Connection, MTU Configuration and
+  Disconnection signaling plus an epoch-bound initiator channel machine. Cover
+  exact scripted-peer bytes, malformed commands, short-output atomicity,
+  rejection, timeout/cancel, stale identifiers/CIDs and peer/local disconnect;
+  live transport remains gated on HCI ownership and credits.
+
 - Authorize parallel conservative-SBC MVP protocol/platform implementation and
   a thin LAN control page before live transport succeeds. Scope bootstrap-only
   allocation/SIMD rules correctly, permit explicitly experimental audio adapters
