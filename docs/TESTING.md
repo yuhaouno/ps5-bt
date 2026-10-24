@@ -11,7 +11,13 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
   raw backend errors and poisoning; 208 byte-identical encoder vectors and 12
   reference decoder checks; C ASan/UBSan and allocator-import rejection;
   separately rebuilt replacement archive linking. `make sbc-codec-test` also
-  runs the 77-byte real SBC example. No headset, capture or target execution.
+  runs the 77-byte real SBC example and the complete 90-byte RTP/A2DP ->
+  94-byte L2CAP -> 98-byte synthetic ACL framing example. No headset, capture,
+  transport or target execution.
+- SBC-over-RTP packetization: exact RTP/A2DP header bytes, one/three complete
+  frames, negotiated MTU and output backpressure, retained marker and state on
+  failure, frame count/length/sync rejection, dynamic payload/SSRC validation,
+  and sequence/sample-timestamp wrap. No AVDTP session or timing claim.
 - USB probe callbacks: actual-name selection, node/entry limits, exactly-once
   cleanup, partial metadata, active-configuration/driver-name validation and
   main failure mapping. `make usb-probe-test` performs no real USB operation.

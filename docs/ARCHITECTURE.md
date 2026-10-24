@@ -50,6 +50,7 @@ can implement the same traits without depending on any PS5 crate.
 
 | Crate | Initial responsibility | Dependency direction |
 | --- | --- | --- |
+| `bt-a2dp` | `no_std` bounded complete-frame SBC-over-RTP packetization | `bt-core`; no session or transport dependency |
 | `bt-core` | `no_std` contracts, SBC parameters, PCM staging and nominal sample timeline | no dependencies |
 | `bt-codec` | `no_std` caller-storage encoder owner; real generic libsbc behind host-only feature | `bt-core`; C static archive only with `host-libsbc` |
 | `bt-hci` | `no_std` typed command/event/ACL framing and capability decoding | `bt-core`; no platform dependency |
@@ -60,9 +61,9 @@ can implement the same traits without depending on any PS5 crate.
 | `ps5-runtime` | diagnostic entry, C-callable Rust static library | platform wrapper and HCI |
 
 All packages are unpublished, temporary identifiers, not reserved public names.
-The first bounded L2CAP channel-signaling machine is host-tested; SDP discovery,
-AVDTP/A2DP/RTP and baseband connection work remain authorized MVP implementation
-targets, not implemented capabilities. Split them
+The first bounded L2CAP channel-signaling machine and SBC-over-RTP packetizer are
+host-tested; SDP discovery, AVDTP session and baseband connection work remain
+authorized MVP implementation targets, not implemented capabilities. Split them
 when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
 `no_std` on the freestanding target. Portable crates remain `no_std` everywhere.
@@ -209,8 +210,9 @@ Later path: capture -> bounded PCM queue -> SBC -> RTP/AVDTP -> L2CAP -> HCI ACL
 Begin with conservative 48 kHz stereo SBC, first a generated tone, then capture.
 Offline buffering, sample-clock scheduling and recovery simulations may proceed
 before a live transport is available; that does not authorize active HCI or
-claim audible playback. The separate host-only `bt-codec` example now feeds a
-real generic SBC encoder from this queue; no codec is linked into the PS5 ELF.
+claim audible playback. One host-only `bt-codec` example feeds a real generic SBC
+encoder from this queue; a second wraps the frame in RTP/A2DP, L2CAP and one
+synthetic HCI ACL packet. No codec is linked into the PS5 ELF.
 `bt_core::media` now provides caller-owned stereo i16 staging, absolute nominal
 sample deadlines and bounded, observable gap/expiry handling. It is not capture,
 f32 conversion, resampling, an encoder, an HCI queue or a live scheduling loop.

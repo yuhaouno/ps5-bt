@@ -15,8 +15,17 @@ host-libsbc = []
 [dependencies]
 bt-core = { path = "../bt-core" }
 
+[dev-dependencies]
+bt-a2dp = { path = "../bt-a2dp" }
+bt-hci = { path = "../bt-hci" }
+bt-l2cap = { path = "../bt-l2cap" }
+
 [[example]]
 name = "pcm_to_sbc"
+required-features = ["host-libsbc"]
+
+[[example]]
+name = "pcm_to_sbc_rtp_acl"
 required-features = ["host-libsbc"]
 
 [lints]

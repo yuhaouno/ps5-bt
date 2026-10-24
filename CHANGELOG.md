@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add allocation-free complete-frame SBC-over-RTP/A2DP packetization with
+  negotiated MTU enforcement, explicit marker state, atomic backpressure and
+  sequence/sample-timestamp wrap tests. Extend the real host codec proof through
+  90-byte RTP, 94-byte L2CAP and 98-byte synthetic ACL framing without claiming
+  a live AVDTP session or playback.
+
 - Add allocation-free Classic L2CAP Connection, MTU Configuration and
   Disconnection signaling plus an epoch-bound initiator channel machine. Cover
   exact scripted-peer bytes, malformed commands, short-output atomicity,

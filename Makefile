@@ -40,6 +40,7 @@ sbc-codec-test:
 	cargo test --locked --offline -p bt-codec --features host-libsbc
 	cargo clippy --locked --offline -p bt-codec --features host-libsbc --all-targets -- -D warnings
 	cargo run --locked --offline -p bt-codec --features host-libsbc --example pcm_to_sbc
+	cargo run --locked --offline -p bt-codec --features host-libsbc --example pcm_to_sbc_rtp_acl
 	cargo check --locked --offline -p bt-codec --target x86_64-unknown-none
 
 source-bundle:

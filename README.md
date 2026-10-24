@@ -43,6 +43,7 @@ The earlier second-machine build reproduction remains in
 | Opt-in Avcap2 capture diagnostic | Lifecycle executed | open/start/stop/close/terminate 0; immediate read Empty; no acquired PCM |
 | SBC parameter selection and frame sizing | Implemented | portable validation tests and host encoder boundary |
 | Real PCM-to-SBC encoding | Host-only implementation | safe Rust owner, generic libsbc, 208 encoder/12 decoder vectors; not in PS5 ELF |
+| SBC-over-RTP/A2DP packetization | Implemented on host | fixed negotiated MTU/frame boundaries, atomic backpressure, sequence/sample timestamps and wrap tests; no AVDTP/live stream |
 | PCM staging, nominal sample timeline and bounded recovery | Host-only implementation | caller-owned stereo i16 queue; synthetic gaps/stalls; no resampler or live audio |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
 | PS5 diagnostic ELF with explicit loader kernel resolver | Verified on one environment | Slim/13.40: Rust entry, durable lifecycle and final 2; notifications returned success |
@@ -73,7 +74,7 @@ make                # build/ps5/ps5-bt.elf: diagnostic only, hardware untested
 make ps5-hw1        # explicit existing-loader kernel resolver; verified diagnostic path
 make check          # formatting, Rust check/tests/lints, C/Rust seam tests, cross archive
 make host-smoke     # C main -> Rust -> unsupported C adapter, on the desktop
-make sbc-codec-test # real offline PCM -> Rust/C -> SBC; no PS5/audio output
+make sbc-codec-test # real offline PCM -> SBC -> RTP/L2CAP/ACL; no PS5/audio output
 make rust-archive   # no_std x86-64 ELF archive; no SDK or console needed
 make ps5-native-query # separate opt-in query ELF; run only after baseline entry test
 ```
@@ -108,7 +109,7 @@ variant and preserve SDK notices.
 ```text
 Application / payload
     -> Rust audio engine (planned)
-    -> Rust A2DP / AVDTP / RTP (planned)
+    -> Rust A2DP / AVDTP / RTP (bounded RTP packetization implemented; session planned)
     -> Rust SDP / L2CAP framing (session/signaling planned)
     -> Rust HCI representation and state
     -> portable platform traits
@@ -118,10 +119,10 @@ Application / payload
 
 Rust owns the architecture. Proven platform adaptation may remain C. See
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
-The workspace contains `bt-core`, `bt-codec`, `bt-hci`, `bt-l2cap`, `bt-sdp`, `ps5-sys`,
+The workspace contains `bt-a2dp`, `bt-core`, `bt-codec`, `bt-hci`, `bt-l2cap`, `bt-sdp`, `ps5-sys`,
 `ps5-platform`, and `ps5-runtime`. The first initiator-side L2CAP Basic-mode
-channel machine is host-tested; SDP discovery and media protocols remain future
-work, and no live channel is enabled.
+channel machine and SBC-over-RTP packetizer are host-tested; SDP discovery and
+AVDTP session work remain future work, and no live channel is enabled.
 These remaining MVP components and a thin LAN control/status page are now
 authorized for independent implementation; they are not current capabilities.
 See [next-session work and hardware run order](docs/MVP-NEXT-RUN.md).

@@ -230,8 +230,10 @@ The lead/integration owner should resume in this order:
    Keep codec failures visible; do not add hidden buffering, silence insertion,
    retry, bitpool fallback, RTP, or transport behavior in C.
 7. After AVDTP negotiation exists, require the peer's negotiated range to
-   contain the selected bitpool. RTP timestamps advance by 128 samples per SBC
-   frame. Packetization and expired-unsent-media policy remain Rust concerns.
+   contain the selected bitpool. The new Rust `bt-a2dp` packetizer advances RTP
+   timestamps by the shared parameter model's 128 PCM frames for this selection
+   and rejects MTU/short-output errors atomically. AVDTP session binding, pacing
+   and expired-unsent-media policy remain Rust concerns.
 8. Separately measure initialization/encode time and run repeated init/finish
    on actual PS5 before changing `Requires hardware`. Live A2DP remains blocked
    on transport ownership/credits and must not be inferred from these tests.

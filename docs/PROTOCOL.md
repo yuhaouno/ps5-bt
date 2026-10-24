@@ -18,8 +18,9 @@ Next implement command-credit-aware dispatch and capability queries only after
 the platform can preserve native traffic. Then bounded ACL reassembly by owned
 handle/epoch; Classic L2CAP signaling/configuration and MTUs; SDP data elements,
 continuations and A2DP sink discovery; AVDTP transaction labels, endpoint/media
-codec capabilities and typed negotiation/open/start/suspend/close states; RTP
-sequence/timestamp/frame boundaries; and A2DP Source with SBC. Specification
+codec capabilities and typed negotiation/open/start/suspend/close states; and
+A2DP Source session binding with SBC. Bounded RTP sequence/timestamp/frame
+packetization is now implemented separately in `bt-a2dp`. Specification
 revision/section and tests accompany each addition. For AVDTP/RTP do not confuse
 control signaling packets with the media transport channel.
 

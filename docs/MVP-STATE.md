@@ -63,11 +63,11 @@ their historical software/transfer baselines and are not current runtime state.
 | C4 | LIFECYCLE PASS | capture worker + lead + user | Ipmi/Avcap2 load, seven resolves, initialize/open/start/cleanup succeed; one immediate Empty read; settled-read test requires hardware |
 | E1a | DONE | sdp_framing + independent/lead review | bounded SDP PDU/continuation/data-element foundation, nine parser tests; no discovery client |
 | E1b | PARTIAL (HOST) | lead | bounded initiator-side Classic L2CAP Connection/MTU Configuration/Disconnection state machine passes scripted peers; responder allocation, ACL fragmentation, SDP discovery, Classic baseband connection/pairing/key lifecycle and live activation remain |
-| F1 | READY (HOST) | AVDTP/A2DP worker | typed SBC negotiation/open/start/close and RTP packetization; host development need not wait for live discovery |
+| F1 | PARTIAL (HOST) | lead | bounded complete-frame SBC-over-RTP packetization passes MTU/backpressure/sequence/sample timestamp tests; AVDTP negotiation/open/start/stop and media binding remain |
 | G1a | DONE | sbc_audit + independent/lead review | validated shared SBC selections and LGPL/runtime audit; implementation follows in G1b |
 | G1b | DONE (HOST) | codec worker + lead | real generic libsbc with caller-storage C ABI and safe Rust owner; 208 vectors, 12 decodes, replacement-archive linking; PS5 ABI/distribution remain gated |
 | G2a | DONE (HOST) | lead | caller-owned stereo i16 PCM queue, absolute nominal sample deadlines, bounded counted silence/rebuffer/expiry; ten media tests and four synthetic scenarios; codec example in T1, no live capture/transport |
-| T1 | PARTIAL (HOST) | integration worker | real PCM-to-SBC example emits one 77-byte frame; RTP/ACL packetization and hostile scripted headset/session remain |
+| T1 | PARTIAL (HOST) | lead | real PCM-to-SBC example emits one 77-byte frame and wraps it in 90-byte RTP/A2DP, 94-byte L2CAP and 98-byte synthetic ACL; pacing, fragmentation and hostile scripted headset/session remain |
 | H7 | HARDWARE | user + lead | 440 Hz SBC A2DP tone audible on real headset, after controller/connection/negotiation |
 | H8 | HARDWARE | user + lead | actual PS5 PCM audible through the proven tone pipeline |
 | I1a | DONE | build_docs_integration + lead | pinned build/source-package instructions and exact baseline loading/log checklist |
