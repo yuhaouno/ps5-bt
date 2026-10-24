@@ -28,9 +28,23 @@ ABI, build and testing documents before changing those areas.
 
 - Rust owns portable protocols and audio policy. Keep valuable PS5-specific C
   adaptation behind the small documented ABI. Do not rewrite for language purity.
-- No codecs, GUI or full stack expansion before their authorized milestone.
-  Prove controller capabilities and native traffic ownership; do not guess HCI
-  credits, hide transport loss with retries or claim mock tests as hardware tests.
+- Offline audio buffering, sample-clock pacing, recovery simulations and codec
+  boundary work may advance independently of hardware transport bring-up. Keep
+  live HCI/audio activation gated on the relevant ownership and ABI evidence;
+  no GUI or unrelated full-stack expansion before its authorized milestone.
+  Do not guess HCI credits or claim simulation as hardware verification.
+- Separate protocol integrity from media continuity. Lost control events,
+  unknown handle ownership and unreconciled credits require explicit transport
+  failure/reconciliation. Bounded PCM concealment, dropping expired unsent
+  media before fragmentation and controlled rebuffer/reconnect may be used when
+  their cause, bounds and outcome are observable. Never discard partially sent
+  PDUs or restore credits from elapsed time. Recovery is bounded and cancellable,
+  not an invisible retry loop.
+- Keep transport single-owner; that does not prohibit separate capture/encode
+  stages communicating through bounded queues. Fallible bounded initialization
+  allocation is allowed; per-frame allocation is not. Bootstrap no-heap/no-SIMD
+  flags are not permanent audio-engine rules: optimized modules need their own
+  reviewed ABI, dependency and hardware-state validation.
 - Elevate this payload's own process credentials and syscall-origin permissions
   only by using kernel read/write the installed jailbreak/loader environment
   already provides, and only as far as owning the Bluetooth transport and audio

@@ -13,8 +13,10 @@ failed with -1. The native query resolved its export, called once and returned
 -1; controller/version remain Unknown. No credential setter is required by the
 observed diagnostic path.
 
-Next: human notification/wireless DualSense confirmation, then bounded read-only
-USB enumeration. Active HCI operations remain gated on native traffic ownership
+The user confirmed on-screen notifications and wireless DualSense during the
+diagnostic. Next: independent offline media continuity work and bounded read-only
+USB enumeration. Future target is 192.168.1.111; live testing is paused tonight.
+Active HCI operations remain gated on native traffic ownership
 and credits. See HW1-REPAIR.md and RUNTIME-REVIEW.md. Earlier reports describe
 their historical software/transfer baselines and are not current runtime state.
 
@@ -52,7 +54,7 @@ their historical software/transfer baselines and are not current runtime state.
 | C1b | WAITING | platform worker | actual read-only descriptor probe after verified runtime operations/SDK headers; no endpoint takeover |
 | C2 | BLOCKER | lead + platform worker | native HCI command/event/ACL ownership and enforceable credits; upstream read competition is not routing |
 | C3 | EXECUTED | lead | export resolved on Slim/13.40; single query returned -1; version/controller remain Unknown |
-| H1 | LIFECYCLE PASS | user + lead | loader kernel init 0, Rust entry and final 2 on Slim/13.40; visible notifications and wireless input await user confirmation |
+| H1 | LIFECYCLE PASS | user + lead | loader kernel init 0, Rust entry and final 2 on Slim/13.40; user confirmed visible notifications and normal wireless input |
 | H2 | HARDWARE | user + lead | HW-2 descriptor/HCI data and DualSense before/during/after; requires C1/C2 |
 | E1a | DONE | sdp_framing + independent/lead review | bounded SDP PDU/continuation/data-element foundation, nine parser tests; no discovery client |
 | E1b | WAITING | connection worker | bounded Classic connection/pairing/key lifecycle and A2DP SDP discovery after packet interfaces |
@@ -73,12 +75,13 @@ Do not declare hardware completion from desktop simulation or an ELF link.
 ## Persistent blockers and next integration target
 
 The baseline diagnostic has passed its executable lifecycle gate on one
-environment. Human-visible notifications, wireless DualSense and deliberate
-panic still require confirmation. Source/host evidence does not generalize
+environment. Human-visible notifications and wireless DualSense were confirmed;
+deliberate panic and audio coexistence remain untested. Source/host evidence does not generalize
 that firmware/loader compatibility.
 
 The next platform work is read-only USB metadata through a verified runtime.
 Native HCI command/event/ACL ownership and enforceable credits remain unresolved;
 existing upstream competing readers do not establish shared routing.
-Tone, pairing, capture and audio remain later milestones. No active protocol
-expansion is required for this runtime repair.
+Offline buffering, sample-clock pacing and recovery simulations may proceed
+independently under AUDIO-RECOVERY.md. Tone, pairing, capture and live audio
+remain later milestones; simulation does not authorize a shared-reader backend.

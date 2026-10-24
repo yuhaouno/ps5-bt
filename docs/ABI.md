@@ -35,7 +35,11 @@ queue is full. Success is not a controller completion. Receive must validate
 USB lengths before copying, must not write beyond capacity, and must not combine
 packets or silently truncate them. A short destination leaves the queued frame
 available and returns `-4` with output length zero. Queue overflow/framing loss
-is a sticky integrity error, not a dropped-packet counter followed by success.
+is a sticky transport integrity error, not a dropped-packet counter followed by
+success. This refers to the raw HCI receive queue, not a PCM playout buffer:
+bounded concealment/rebuffer and expired unsent media policy live above this ABI.
+Those policies never acknowledge missing HCI completions or discard partially
+sent L2CAP PDUs. See AUDIO-RECOVERY.md; no C ABI change is introduced.
 Timeout zero polls; positive waits are bounded in milliseconds. Timeout returns
 `-8` with zero outputs and maps to `Ok(None)` in Rust receive.
 

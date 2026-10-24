@@ -130,10 +130,13 @@ command/response routing and may consume native events.
 Separate USB submission/completion from controller Number Of Completed Packets.
 Do not invent HCI credits from elapsed time, count foreign handles as ours, or
 reset the controller to recover a local failure. Shared capacity is not a
-reservation. Packet loss, malformed transport framing, unknown session handles,
-queue overflow, or unreconciled credits cause a visible terminal transport
-error. Reconnect may follow an owned headset disconnection; it must not hide
-transport integrity loss by blindly reopening the radio.
+reservation. Lost protocol events, malformed transport framing, unknown session
+handles, raw receive-queue loss or unreconciled credits cause a visible transport
+failure and require explicit reconciliation or session teardown. This does not
+make ordinary PCM starvation or expired unsent audio a terminal HCI error.
+Bounded, observable concealment/rebuffer is a media-layer policy; controlled
+reconnect is cancellable and preserves ownership/epoch rules. Never drop a
+partially transmitted PDU or restore credit from time. See AUDIO-RECOVERY.md.
 
 ## ADR 003: small, versioned C contract
 
@@ -169,7 +172,9 @@ Its timestamp and discontinuity semantics must be validated before capture is
 implemented. Errors distinguish unavailable, busy, invalid, capacity, loss,
 disconnected, I/O, timeout, and unknown backend codes.
 
-These are synchronous contracts for the initial single-owner event loop, not a
+Transport remains single-owner, but capture, encode and transport may be separate
+execution stages connected by bounded queues. These are synchronous contracts,
+not a restriction to one blocking loop or a
 promise that every platform API is nonblocking. Real adapter calls must honor
 documented deadlines; the clock contract must be implemented before timed HCI
 discovery is enabled. C audio open/read/close remain a **proposal** until capture
@@ -189,7 +194,9 @@ branding or Bluetooth version. Read results do not establish headset throughput.
 
 Later path: capture -> bounded PCM queue -> SBC -> RTP/AVDTP -> L2CAP -> HCI ACL.
 Begin with conservative 48 kHz stereo SBC, first a generated tone, then capture.
-No codec is implemented or selected as a dependency in this assignment.
+Offline buffering, sample-clock scheduling and recovery simulations may proceed
+before a live transport is available; that does not authorize active HCI or
+claim audible playback. No codec is implemented or linked yet.
 Track capture discontinuities, queue occupancy/high-water marks, underruns,
 overruns, encode time, submissions, USB completions, controller completions,
 per-handle outstanding packets, pacing delay, connection epochs, and cleanup

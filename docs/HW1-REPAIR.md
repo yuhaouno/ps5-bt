@@ -21,7 +21,10 @@ The explicit existing-loader kernel resolver then initialized with code 0,
 resolved callable exports, entered Rust, closed its log and returned 2.
 The loader does not provide usable stderr: this is now a recorded warning when
 the persistent log is healthy. Both notification API calls returned success;
-the user's visual confirmation and wireless DualSense check remain outstanding.
+the user subsequently confirmed both on-screen notifications and normal
+wireless DualSense operation. This is a short functional check, not an audio
+coexistence soak test. Subsequent target address is 192.168.1.111; the address
+above records the original run, not the current target.
 
 Baseline lifecycle:
 

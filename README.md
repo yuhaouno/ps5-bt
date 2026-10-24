@@ -19,8 +19,8 @@ collision checks must precede naming. All Cargo packages are `publish = false`.
 The explicit `make ps5-hw1` build uses the existing loader's kernel-R/W
 transport to resolve its own exports, records Rust entry and final
 `2 (expected Unsupported)`, and sends start/finish notifications successfully
-at the API level. Human confirmation of the on-screen notifications and
-wireless DualSense remains required. The optional native query executes but
+at the API level. The user also confirmed visible notifications and normal
+wireless DualSense operation during the diagnostic. The optional native query executes but
 returns -1; no controller capability or audio support follows from this.
 See [hardware repair evidence](docs/HW1-REPAIR.md).
 The earlier second-machine build reproduction remains in
@@ -73,6 +73,9 @@ See [build instructions](docs/BUILDING.md), [testing](docs/TESTING.md), the
 [research report](docs/RESEARCH.md), and the [bootstrap report](docs/BOOTSTRAP-REPORT.md).
 No third-party Rust packages are required.
 Host checks and target compilation do not establish PS5 compatibility.
+Offline audio continuity work may progress independently of live transport:
+see [layered recovery policy](docs/AUDIO-RECOVERY.md). Raw HCI integrity/credits
+remain strict; bounded PCM concealment/rebuffer is a separate policy.
 The first hardware bring-up target is PS5 Slim on firmware 13.40; support is
 unverified. Controller vendor, revision and capabilities will be detected rather
 than inferred from that model. See the [live MVP task board](docs/MVP-STATE.md)

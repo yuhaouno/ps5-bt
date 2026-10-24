@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Clarify layered media recovery: bounded PCM concealment, expired unsent-media
+  discard and controlled rebuffer do not excuse HCI integrity loss or invent
+  credits. Allow independent offline audio work and bounded initialization
+  allocation. Record user-confirmed diagnostic notifications/wireless input
+  and the subsequent 192.168.1.111 target; no new hardware test is claimed.
+
 - Record the first PS5 Slim / firmware 13.40 load attempt: Payload Manager v0.6.3
   transferred the complete ELF repeatedly, while the payload produced no start
   notification or persistent log. Repair the over-constrained startup guard by

@@ -8,9 +8,11 @@ The current dependency graph, worker ownership and blockers are tracked in
 Current wave: runtime v6 completed HW-1 executable lifecycle on the recorded
 Slim/13.40 environment: existing-loader kernel initialization, Rust entry,
 durable log and final Unsupported 2. The native query ran but returned -1.
-Confirm visible notifications/wireless DualSense, then proceed to bounded
-read-only USB enumeration. Native HCI ownership/credits still gate active
-traffic. See [hardware evidence](docs/HW1-REPAIR.md).
+The user confirmed visible notifications and wireless DualSense operation.
+Advance offline audio buffering/timing/recovery independently of the next
+read-only USB enumeration; native HCI ownership/credits still gate active
+traffic. See [hardware evidence](docs/HW1-REPAIR.md) and
+[layered recovery](docs/AUDIO-RECOVERY.md). Subsequent target: 192.168.1.111.
 
 | Milestone | Deliverable | Exit evidence | Current state |
 | --- | --- | --- | --- |
