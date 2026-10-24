@@ -77,6 +77,7 @@ make host-smoke     # C main -> Rust -> unsupported C adapter, on the desktop
 make sbc-codec-test # real offline PCM -> SBC -> RTP/L2CAP/ACL; no PS5/audio output
 make rust-archive   # no_std x86-64 ELF archive; no SDK or console needed
 make ps5-native-query # separate opt-in query ELF; run only after baseline entry test
+python3 tools/mvp_test_kit.py # dry-run next-window plan; no network/deployment
 ```
 
 See [build instructions](docs/BUILDING.md), [testing](docs/TESTING.md), the

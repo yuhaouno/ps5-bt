@@ -51,6 +51,10 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
   inspect every object as little-endian ELF64 x86-64 relocatable code.
 - Build-tool failure paths and source-package clean-state, provenance, content
   and deterministic-output tests; `make check-build-tools` needs no SDK download.
+- MVP kit plan self-tests pin `.111`, reject the historical target and path
+  escapes, enforce bounded candidate metadata and verify hashing. Assembly is
+  separately exercised against real clean-HEAD diagnostic manifests after the
+  final commit; dry-run deployment performs no network operation.
 
 None proves C can safely access hardware. The Rust wrapper depends on C obeying
 pointer/capacity/lifetime rules; validation after FFI cannot undo an invalid

@@ -70,7 +70,7 @@ their historical software/transfer baselines and are not current runtime state.
 | T1 | PARTIAL (HOST) | lead | real PCM-to-SBC example emits one 77-byte frame and wraps it in 90-byte RTP/A2DP, 94-byte L2CAP and 98-byte synthetic ACL; pacing, fragmentation and hostile scripted headset/session remain |
 | H7 | HARDWARE | user + lead | 440 Hz SBC A2DP tone audible on real headset, after controller/connection/negotiation |
 | H8 | HARDWARE | user + lead | actual PS5 PCM audible through the proven tone pipeline |
-| I1a | DONE | build_docs_integration + lead | pinned build/source-package instructions and exact baseline loading/log checklist |
+| I1a | DONE | lead | pinned build/source-package instructions plus a clean-manifest, hash-checked binding/settled-capture kit; deployment defaults to dry-run and never launches |
 | I1b | READY (MVP) | control/integration worker | thin LAN control/status interface with real unavailable states and bounded commands; no false pairing/audio capability |
 
 Completed waves: upstream/runtime research and real minimal ELF; portable HCI,

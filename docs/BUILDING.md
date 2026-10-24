@@ -174,6 +174,44 @@ sound. `host-libsbc` intentionally refuses cross-compilation before invoking
 the host C compiler. Feature-off `bt-codec` remains portable `no_std`.
 See SBC-IMPLEMENTATION.md for exact commands and remaining PS5 ABI/link gates.
 
+### Bounded hardware-test kit
+
+After the intended changes are committed and the worktree is clean, rebuild the
+two next-window candidates and their corresponding source packages:
+
+```sh
+LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-usb-metadata
+python3 tools/package_source.py \
+  --manifest build/ps5/ps5-bt-usb-metadata.manifest.json
+LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-capture-once
+python3 tools/package_source.py \
+  --manifest build/ps5/ps5-bt-capture-once.manifest.json
+python3 tools/mvp_test_kit.py --assemble
+```
+
+The assembler rejects dirty/stale manifests, wrong diagnostic variants,
+artifact hash/size mismatches, missing source bundles and unexpected target or
+path values. It writes ignored `build/ps5/mvp-test-kit/` with both ELF files,
+their exact build manifests/source bundles, a hash manifest and an ordered
+runbook. It performs no network operation.
+
+Deployment is a separate explicit action and defaults to dry-run:
+
+```sh
+python3 tools/mvp_test_kit.py --deploy
+# Only after the user confirms the hardware window and reviews the dry-run:
+python3 tools/mvp_test_kit.py --deploy --execute
+```
+
+The execute mode connects only to `192.168.1.111:2121`, validates each existing
+PayloadManager local slot's bounded `meta.json`, uploads to a unique temporary
+name, checks remote size, then renames to the exact slot filename. It never
+creates a slot, launches a payload, deletes a durable log or touches another
+payload. Create/confirm the exact `ps5-bt-usb-binding` and
+`ps5-bt-capture-settled` slots manually in PayloadManager first. A slot metadata
+mismatch aborts before upload. Retrieve `/data/ps5-bt-hw1.log` before every
+manual launch because the next run overwrites it.
+
 These checks and the PS5 builder read Rust archives from Cargo's default
 `target/` directory. An inherited non-default `CARGO_TARGET_DIR` puts the
 archive somewhere else, and the current host check fails when

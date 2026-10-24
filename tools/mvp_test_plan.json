@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "target_host": "192.168.1.111",
+  "ftp_port": 2121,
+  "remote_root": "/data/pldmgr/payloads/local",
+  "remote_log": "/data/ps5-bt-hw1.log",
+  "candidates": [
+    {
+      "id": "usb-binding",
+      "order": 1,
+      "artifact": "build/ps5/ps5-bt-usb-metadata.elf",
+      "build_manifest": "build/ps5/ps5-bt-usb-metadata.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-usb-metadata-source.tar.gz",
+      "slot": "ps5-bt-usb-binding",
+      "remote_filename": "ps5-bt-usb-metadata.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "usb_probe_v1 access=readonly transport=Unsupported",
+        "usb_probe operation=active_configuration",
+        "usb_probe operation=interface_driver",
+        "event=payload_return"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "inventory or cleanup is incomplete",
+        "any endpoint I/O is reported"
+      ]
+    },
+    {
+      "id": "capture-settled",
+      "order": 2,
+      "artifact": "build/ps5/ps5-bt-capture-once.elf",
+      "build_manifest": "build/ps5/ps5-bt-capture-once.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-capture-once-source.tar.gz",
+      "slot": "ps5-bt-capture-settled",
+      "remote_filename": "ps5-bt-capture-once.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=capture_phase phase=wait edge=begin",
+        "event=capture_phase phase=wait edge=end",
+        "capture_probe_v1",
+        "cleanup_uncertain=0",
+        "event=payload_return"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "wait/read exceeds the external timeout",
+        "stop, close or terminate is missing or cleanup is uncertain"
+      ]
+    }
+  ]
+}

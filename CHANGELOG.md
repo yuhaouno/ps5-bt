@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Add a manifest-driven next-window kit for the binding and settled-capture
+  diagnostics. Assembly requires clean-HEAD artifact/source identity; deployment
+  is dry-run by default, explicit upload validates existing PayloadManager slots,
+  and the helper never launches a payload or deletes the per-run log.
+
 - Re-audit native HCI ownership after the executed `-1` query and own dual-HCI
   USB descriptors. Keep active transport Unsupported: FreeBSD-shaped SDK socket
   headers do not establish a PS5 broker, ACL-send route or bounded ownership.
