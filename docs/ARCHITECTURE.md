@@ -60,12 +60,15 @@ can implement the same traits without depending on any PS5 crate.
 | `ps5-runtime` | diagnostic entry, C-callable Rust static library | platform wrapper and HCI |
 
 All packages are unpublished, temporary identifiers, not reserved public names.
-Keep L2CAP signaling, SDP discovery, AVDTP, A2DP and live audio as future work; split
-them when code and dependencies justify it. Do not create empty protocol crates.
+L2CAP signaling, SDP discovery, AVDTP/A2DP/RTP and connection work are now
+authorized MVP implementation targets, not implemented capabilities. Split them
+when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
 `no_std` on the freestanding target. Portable crates remain `no_std` everywhere.
 No async executor, allocator, GUI, or configuration framework is needed for the
-bootstrap. The optional offline codec is separate from the diagnostic runtime:
+minimal bootstrap. This does not prohibit bounded engine initialization or the
+now-authorized thin LAN control page. The optional offline codec is separate
+from the diagnostic runtime:
 `host-libsbc` requires TARGET == HOST and fails before invoking a host C compiler
 for a cross target. Its C-private state lives in caller-owned aligned storage,
 queried through integer/pointer ABI calls and borrowed exclusively by Rust.
@@ -79,9 +82,12 @@ custom target and avoids assuming PS5 is an ordinary FreeBSD installation.
 Its C ABI supports integer/pointer calls with System V conventions; its default
 soft-float behavior makes floating-point values by value inappropriate for the
 boundary. PCM crosses later through buffers, never float-valued C arguments.
-No `std`, OS calls, TLS, heap, unwinding, Rust dynamic library, or Rust linker
-driver runs on PS5. No cross-language LTO; the SDK and rustc may use different
-LLVM versions. Do not enable CPU-specific optimizations before measuring them.
+The minimal Rust diagnostic has no `std`, direct OS calls, TLS, heap, unwinding,
+Rust dynamic library or Rust linker driver. These bootstrap properties do not
+ban bounded fallible initialization allocation in a separately reviewed audio
+module. Keep unwinding out of FFI. No cross-language LTO; the SDK and rustc may
+use different LLVM versions. Keep generic/no-SIMD as the baseline; optimized
+modules require reviewed ABI/state handling and measured hardware acceptance.
 
 ```text
 cargo build -p ps5-runtime --release --target x86_64-unknown-none
@@ -211,7 +217,10 @@ See [implemented media contract](AUDIO-RECOVERY.md#implemented-offline-foundatio
 Track capture discontinuities, queue occupancy/high-water marks, underruns,
 overruns, encode time, submissions, USB completions, controller completions,
 per-handle outstanding packets, pacing delay, connection epochs, and cleanup
-errors. Structured internal records feed a simple log first. No web UI.
+errors. Structured internal records feed a simple log first. A thin LAN page
+may expose the same actual state plus bounded connect/start/stop commands;
+it is not a second transport owner or proof that playback exists. Rich UI and
+additional codecs remain outside this MVP. See MVP-NEXT-RUN.md.
 
 Measure complete capture-to-headphone latency using a repeatable external
 measurement as well as per-stage software timings. Receiver buffering cannot be

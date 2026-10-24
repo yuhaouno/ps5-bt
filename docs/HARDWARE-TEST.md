@@ -8,10 +8,12 @@ deliberately returns Unsupported once reached. Do not replace that result with
 synthetic controller metadata in a payload. Desktop fake packets have separate
 test-only source files.
 
-Physical access returned on 2026-10-24. **The next action is an HW-1 retest using
-the `minimal-syscall-v6` HW-1 variant. Executable lifecycle now passed;
-notification display and wireless input still need confirmation. See
-[HW1-REPAIR.md](HW1-REPAIR.md). Active HW-2 traffic has not started.**
+Subsequent 2026-10-24 tests passed the `minimal-syscall-v6` lifecycle, and the
+user confirmed visible notifications and normal wireless input. Own USB
+enumeration and the capture lifecycle have also executed; the read was Empty.
+The opening startup failure above is historical, not the current blocker.
+See [HW1-REPAIR.md](HW1-REPAIR.md), [HW2-EVIDENCE.md](HW2-EVIDENCE.md) and
+[the next-window plan](MVP-NEXT-RUN.md). Active HCI traffic has not started.
 The optional query ELF has also executed: export resolution succeeded, the
 single query returned -1, and final diagnostic status remained 2.
 
@@ -157,8 +159,11 @@ identity from external USB devices. Report observed VID/PID/device revision,
 interface/endpoint descriptors and permission errors. No USB FS input reads,
 controller detach, reset or alternate-interface mutation during enumeration.
 Node names and endpoint numbers from upstream are candidate observations only.
-If descriptor access requires extra privileges, return the exact platform code
-and record a blocker.
+If descriptor access requires extra privileges, preserve the exact platform
+code. Necessary own-process permissions may be addressed only within AGENTS.md's
+existing-loader scope, in a separately audited opt-in variant; never silently
+escalate or change the metadata-only baseline. No change was needed for the
+recorded first USB/capture runs.
 
 ## H2: bounded HCI information
 

@@ -41,7 +41,8 @@ their historical software/transfer baselines and are not current runtime state.
   environment documented in BOOTSTRAP-REPORT.md until tooling is made durable.
 - License review precedes source reuse. Existing-loader access and necessary
   own-process permission changes follow AGENTS.md; no new exploit chain,
-  proprietary binary/key, unauthorized codec, GUI or other MVP expansion.
+  proprietary binary/key or unrelated expansion. The thin LAN control page and
+  the conservative-SBC protocol/platform work in MVP-NEXT-RUN.md are authorized.
 
 ## Task graph
 
@@ -61,8 +62,8 @@ their historical software/transfer baselines and are not current runtime state.
 | H2 | PARTIAL | user + lead | USB descriptors and normal pad confirmed; HCI queries/ownership/credits remain unverified and gated by C2 |
 | C4 | LIFECYCLE PASS | capture worker + lead + user | Ipmi/Avcap2 load, seven resolves, initialize/open/start/cleanup succeed; one immediate Empty read; settled-read test requires hardware |
 | E1a | DONE | sdp_framing + independent/lead review | bounded SDP PDU/continuation/data-element foundation, nine parser tests; no discovery client |
-| E1b | WAITING | connection worker | bounded Classic connection/pairing/key lifecycle and A2DP SDP discovery after packet interfaces |
-| F1 | WAITING | AVDTP/A2DP worker | typed SBC negotiation/open/start/close and RTP packetization after D1/E1 contracts |
+| E1b | READY (HOST) | connection worker | bounded Classic connection/pairing/key lifecycle, L2CAP channels and A2DP SDP discovery; implement against scripted transport now, live activation still gated |
+| F1 | READY (HOST) | AVDTP/A2DP worker | typed SBC negotiation/open/start/close and RTP packetization; host development need not wait for live discovery |
 | G1a | DONE | sbc_audit + independent/lead review | validated shared SBC selections and LGPL/runtime audit; implementation follows in G1b |
 | G1b | DONE (HOST) | codec worker + lead | real generic libsbc with caller-storage C ABI and safe Rust owner; 208 vectors, 12 decodes, replacement-archive linking; PS5 ABI/distribution remain gated |
 | G2a | DONE (HOST) | lead | caller-owned stereo i16 PCM queue, absolute nominal sample deadlines, bounded counted silence/rebuffer/expiry; ten media tests and four synthetic scenarios; codec example in T1, no live capture/transport |
@@ -70,7 +71,7 @@ their historical software/transfer baselines and are not current runtime state.
 | H7 | HARDWARE | user + lead | 440 Hz SBC A2DP tone audible on real headset, after controller/connection/negotiation |
 | H8 | HARDWARE | user + lead | actual PS5 PCM audible through the proven tone pipeline |
 | I1a | DONE | build_docs_integration + lead | pinned build/source-package instructions and exact baseline loading/log checklist |
-| I1b | WAITING | documentation worker | pairing/configuration/audio workflow only when those capabilities exist |
+| I1b | READY (MVP) | control/integration worker | thin LAN control/status interface with real unavailable states and bounded commands; no false pairing/audio capability |
 
 Completed waves: upstream/runtime research and real minimal ELF; portable HCI,
 L2CAP, SBC selections and SDP framing; host-only descriptor diagnostics; separate

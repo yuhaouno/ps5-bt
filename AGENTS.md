@@ -30,8 +30,12 @@ ABI, build and testing documents before changing those areas.
   adaptation behind the small documented ABI. Do not rewrite for language purity.
 - Offline audio buffering, sample-clock pacing, recovery simulations and codec
   boundary work may advance independently of hardware transport bring-up. Keep
-  live HCI/audio activation gated on the relevant ownership and ABI evidence;
-  no GUI or unrelated full-stack expansion before its authorized milestone.
+  live HCI/audio activation gated on the relevant ownership and ABI evidence.
+  The current MVP authorizes L2CAP channels, SDP discovery, connection/pairing,
+  AVDTP/A2DP/RTP, capture adaptation, target SBC integration, deployment helpers
+  and a thin LAN control/status page. Implement and test these independently;
+  unresolved hardware evidence does not block offline implementation. Do not
+  expand into additional codecs, a rich GUI or unrelated features.
   Do not guess HCI credits or claim simulation as hardware verification.
 - Separate protocol integrity from media continuity. Lost control events,
   unknown handle ownership and unreconciled credits require explicit transport
@@ -62,3 +66,27 @@ ABI, build and testing documents before changing those areas.
 - Prefer safe Rust. Document unsafe invariants, enforce buffer/lifetime bounds,
   and preserve errors. Mark unverified claims Unknown, Untested or Requires
   hardware. Never invent APIs, offsets, compatibility or measurements.
+
+## Active MVP execution
+
+- Milestones gate activation, claims and acceptance, not all implementation.
+  Experimental versioned adapters may be implemented behind explicit features
+  after source/layout/lifetime review; do not freeze unknown audio units or
+  replace the established diagnostic with an untested production backend.
+- Prepare independently selectable, bounded hardware tests before the next
+  console window. Every test needs a timeout/stop condition, exactly-once owned
+  cleanup, artifact identity, durable outcome and controller-coexistence check.
+  A bounded Empty-read observation is not an invisible retry or a PCM success.
+- The minimal LAN page may be developed now. It must expose actual capability,
+  connect/start/stop state and errors; unavailable operations stay unavailable.
+  Bound requests and resources, serialize commands through the single owner,
+  validate state-changing requests against cross-site/unauthorized use, and
+  expose neither keys nor arbitrary memory/file/command execution.
+- The user authorized parallel agent work for this MVP. Use disjoint file
+  ownership and one integration/commit/deployment owner; reuse known workers
+  when useful, update the durable handoff before quota exhaustion, and do not
+  assume an old hardware window or an idle worker is still active.
+- Prioritize a usable conservative-SBC path and executable test candidates over
+  repeated research-only reports. A real ownership/permission/ABI blocker must
+  have concrete evidence and the next bounded experiment; never waive the
+  invariant or promise tomorrow's playback without a real headset test.

@@ -121,6 +121,9 @@ Rust owns the architecture. Proven platform adaptation may remain C. See
 The workspace contains `bt-core`, `bt-codec`, `bt-hci`, `bt-l2cap`, `bt-sdp`, `ps5-sys`,
 `ps5-platform`, and `ps5-runtime`. L2CAP signaling, SDP discovery and media
 protocols remain future work.
+These remaining MVP components and a thin LAN control/status page are now
+authorized for independent implementation; they are not current capabilities.
+See [next-session work and hardware run order](docs/MVP-NEXT-RUN.md).
 
 ## Roadmap and contribution
 

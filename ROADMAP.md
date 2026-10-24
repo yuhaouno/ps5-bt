@@ -19,6 +19,9 @@ window has ended; offline codec integration may continue independently.
 The first real offline PCM-to-SBC path is now host-tested: bounded queue,
 safe Rust owner, C caller-storage wrapper and pinned generic libsbc. This is
 not M3a: it has no A2DP session, RTP, headset output or PS5 codec execution.
+The next implementation and 2026-10-25 hardware preparation plan is
+[MVP-NEXT-RUN.md](docs/MVP-NEXT-RUN.md). Milestones gate evidence and activation,
+not independent host protocol, target-adapter or minimal-control-page development.
 
 | Milestone | Deliverable | Exit evidence | Current state |
 | --- | --- | --- | --- |

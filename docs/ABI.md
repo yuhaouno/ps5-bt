@@ -74,4 +74,8 @@ Do not expose Avcap2 handles, private parameter blocks, NIDs or SDK structs.
 48 kHz stereo float is an initial request based on upstream, not an established
 capture contract. Determine bytes vs frames, time origin, finite sample handling,
 permissions, empty/overrun/ended statuses, and cleanup through hardware tests
-before implementing this ABI. No speculative C audio functions are shipped.
+before freezing this ABI or claiming captured-audio support. Source-reviewed,
+explicitly experimental versioned adapters and host conformance tests may be
+implemented beforehand, with unknown format/timing fields remaining unknown.
+Do not infer format from audio content or enable a production path on guessed
+units. The established one-read diagnostic remains independently selectable.

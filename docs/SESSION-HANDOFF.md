@@ -9,6 +9,10 @@ after the usage reset. Do not connect to or deploy to PS5 without a renewed
 hardware window. Parallel chats remain authorized for the scoped work below.
 Target is **192.168.1.111**, never the historical .10 address.
 Prioritize finishing diagnostics/build tests and the real Rust-to-SBC offline path.
+That baseline is complete at `62e3c39`. The user has now requested a new lead
+chat to continue implementation and prepare the 2026-10-25 PS5 window. Read
+MVP-NEXT-RUN.md for the authoritative relay plan and worker continuation roster.
+This request does not confirm that the console is available now.
 No change was approved to the native HCI ownership/credit integrity gate.
 Do not enable a competing-reader backend or timed credit refill.
 
@@ -104,6 +108,10 @@ Both parallel chats completed their scoped work and are idle/frozen. The USB
 subagent is also finished. Diagnostic work is integrated as `44c902c`; the
 independent codec change follows in a `feat(codec)` commit. Inspect Git for
 the final HEAD rather than assuming this document's earlier baseline is current.
+That codec commit is `62e3c39`. Clean-source diagnostic/source-package builds
+passed there; USB/capture-once bundles independently reproduced identical ELF
+bytes. The rule/relay documentation update comes after that build, so rebuild
+manifests from the new clean HEAD before packaging/deployment.
 
 - Capture: fail closed on nonzero module secondary results, distinguish no
   export lookup from a successful zero status, aligned scratch, exact optional

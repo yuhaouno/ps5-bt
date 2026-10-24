@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Authorize parallel conservative-SBC MVP protocol/platform implementation and
+  a thin LAN control page before live transport succeeds. Scope bootstrap-only
+  allocation/SIMD rules correctly, permit explicitly experimental audio adapters
+  before ABI freeze, correct stale hardware instructions, and record the next
+  console-window acceptance sequence without promising unverified playback.
+
 - Connect bounded PCM staging to a safe no_std Rust SBC owner and a separately
   rebuildable generic libsbc 2.2 archive on the host. Retain pristine LGPL source,
   exact hashes/notices and generic/caller-storage patches. Pass 208 reference
