@@ -5,6 +5,12 @@ Prepared: 2026-10-24, Asia/Shanghai. Target hardware day requested by the user:
 and a preparation/run plan, not a claim that playback will work on that date.
 Read AGENTS.md, SESSION-HANDOFF.md and MVP-STATE.md before work.
 
+Relay progress on 2026-10-25: L2CAP Classic signaling (`0e32102`), bounded
+SBC-over-RTP plus the real host RTP/L2CAP/ACL scenario (`0c2ecf5`), the concrete
+ownership blocker/experiment audit (`4ef1d00`) and the dry-run-first hardware
+kit (`40b6127`) are committed. SESSION-HANDOFF.md records final checks, worker
+state and remaining work. Rebuild the kit if a later handoff commit changes HEAD.
+
 ## Outcome and critical path
 
 Deliver the shortest real path to conservative SBC headphone playback with

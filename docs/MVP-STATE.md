@@ -1,6 +1,6 @@
 # MVP orchestration state
 
-Last updated: 2026-10-24. The explicit HW-1 diagnostic now executes on the
+Last updated: 2026-10-25. The explicit HW-1 diagnostic now executes on the
 recorded Slim/13.40 environment. MVP audio is not operational.
 
 ## Current milestone and baseline
@@ -91,6 +91,8 @@ Native HCI command/event/ACL ownership and enforceable credits remain unresolved
 existing upstream competing readers do not establish shared routing.
 The first offline PCM queue, nominal sample timeline and recovery simulation
 are implemented under AUDIO-RECOVERY.md. The real host PCM-to-SBC path is now
-implemented under SBC-IMPLEMENTATION.md. Next offline work needs RTP/AVDTP
-packet/session boundaries and explicit capture conversion. Tone, pairing, captured PCM and live audio
-remain later milestones; simulation does not authorize a shared-reader backend.
+implemented under SBC-IMPLEMENTATION.md. Complete-frame RTP packetization is now
+done; next media work is AVDTP session binding, SDP discovery,
+pacing/fragmentation and explicit capture conversion. Tone, pairing, captured
+PCM and live audio remain later milestones; simulation does not authorize a
+shared-reader backend.

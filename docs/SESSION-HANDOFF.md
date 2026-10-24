@@ -1,6 +1,60 @@
 # Active hardware window and durable handoff
 
-Updated: 2026-10-24. Read AGENTS.md and docs/MVP-STATE.md first.
+Updated: 2026-10-25. Read AGENTS.md and docs/MVP-STATE.md first.
+
+## 2026-10-25 relay completion
+
+The new lead completed and committed four independent increments after
+`ba93307`:
+
+- `0e32102`: allocation-free Classic L2CAP Connection, MTU Configuration and
+  Disconnection signaling with an epoch-bound initiator channel and six
+  scripted-peer tests.
+- `0c2ecf5`: `bt-a2dp` complete-frame SBC-over-RTP packetization plus a real
+  host path from 128 stereo PCM frames through 77 SBC bytes, 90 RTP/A2DP bytes,
+  94 L2CAP bytes and 98 synthetic ACL bytes.
+- `4ef1d00`: post-HW2 HCI ownership audit. The executed native query returned
+  -1 and FreeBSD-shaped SDK socket headers still do not prove a PS5 broker,
+  ACL-send route, bounded dispatcher or credits. Active transport remains
+  Unsupported; the binding diagnostic is the next executable evidence step.
+- `40b6127`: clean-manifest hardware-test kit assembly and guarded FTP upload.
+  The plan pins `.111`, binding before settled capture, 15-second external
+  ceilings and log/controller stop rules. It is dry-run by default and never
+  launches a payload.
+
+Last green checks at `40b6127`: `make check`, `make check-c-sanitize`,
+`make sbc-codec-test`, `make check-build-tools`, the `bt-a2dp` freestanding
+check, and Git diff/format checks. The workspace suite has 56 ordinary Rust
+tests; the host codec feature adds eight Rust checks plus 208 encoder vectors,
+12 decoder checks, sanitizers, forbidden-import inspection and replacement
+archive relinking. These are host/build results, not PS5 playback evidence.
+
+The binding and settled-capture candidates, manifests and corresponding-source
+packages were rebuilt from the clean kit commit and assembled under ignored
+`build/ps5/mvp-test-kit/`. Rebuild them once more if HEAD changes after this
+handoff update; never edit a manifest. The kit's `kit-manifest.json` is the
+authoritative final hash list. Run `python3 tools/mvp_test_kit.py --deploy` for
+a network-free dry run. Only after the user confirms the console window and the
+two exact PayloadManager slots exist with matching schema-2 metadata may the
+lead consider `--deploy --execute`; it uploads only and still does not launch.
+
+The three temporary collaboration workers created by the relay turn are no
+longer live. The L2CAP worker left an untested partial edit when the user resumed;
+the lead reviewed/fixed it, added the missing tests/docs and committed it. The
+RTP and HCI-audit workers produced no separately usable filesystem increment;
+the lead completed those tracks directly. Do not assume `/root/rtp_packetizer`,
+`/root/l2cap_signaling` or `/root/hci_ownership` can be resumed. The two older
+local worker chat IDs below remain historical references; no new message was
+needed for this completed relay.
+
+Remaining offline critical path: A2DP SDP discovery client; AVDTP SBC
+capability/stream state; Classic baseband connection, explicit pairing and key
+storage; outbound L2CAP-to-ACL fragmentation/pacing; reviewed target libsbc
+archive/self-test and its relink distribution materials; experimental capture
+format/timestamp adapter; then the thin bounded LAN status/command surface.
+HCI activation still requires a source-proven single-owner dispatcher and the
+one-command/credit acceptance experiment in NATIVE-HCI-RESEARCH.md. No raw USB
+reader, timed credit refill or guessed socket broker is an alternative.
 
 ## Current authority and priorities
 

@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Complete the 2026-10-25 relay with durable commit/check/worker state, final
+  offline kit rebuild instructions and the remaining protocol, target-codec,
+  capture, control and HCI ownership gates. No console window or playback result
+  is inferred from the date.
+
 - Add a manifest-driven next-window kit for the binding and settled-capture
   diagnostics. Assembly requires clean-HEAD artifact/source identity; deployment
   is dry-run by default, explicit upload validates existing PayloadManager slots,
