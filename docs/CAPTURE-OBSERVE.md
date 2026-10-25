@@ -1,29 +1,71 @@
-# Bounded capture observation
+# Bounded capture observation candidate
 
-Status: portable C state machine implemented and host-tested. It is not yet a
-linked PS5 diagnostic and has not observed console audio.
+Status: host-tested and target-compiled; Requires hardware. The separate
+100 ms settled capture-once candidate returned 8,192 bytes on one Slim / 13.40
+run with clean lifecycle cleanup. This candidate has not run on PS5 and does
+not inherit that result.
 
-The existing `capture-once` diagnostic deliberately performs one settled,
-nonblocking read. `capture_observe` is a separate helper for a later named
-candidate when that read is still Empty. It never opens, starts, stops or closes
-capture itself. The caller must already own a started handle and retains all
-native callbacks, waiting and timekeeping.
+## Purpose and bounds
 
-One `step` performs at most one nonblocking read. The caller supplies an
-absolute monotonic deadline, a finite call count no greater than 256 and a
-buffer no larger than 64 KiB. Empty and Overrun are counted while budget
-remains. The first Data, other native result, invalid byte count, cancellation,
-deadline or exact call limit terminates observation. Sample bytes are neither
-retained nor interpreted, and an Overrun is recorded as a discontinuity.
+`ps5_capture_probe_observe` distinguishes an immediately available buffer from
+a short, explicitly bounded sequence of Empty or Overrun results. It reuses the
+reviewed Avcap2 lookup, Initialize/Open/Start and exactly-once
+Stop/Close/Terminate path. It does not change capture parameters, infer a PCM
+format, retain samples or retry a terminal error.
 
-A successful `begin` creates one cleanup obligation. Once observation stops,
-`take_cleanup` transfers that obligation exactly once to the integrator, which
-must guard the existing Stop/Close/Terminate sequence. Reuse before taking the
-old token is rejected. Local validation and clock-regression failures leave the
-state unchanged.
+After Start it obtains one caller-supplied monotonic microsecond value and makes
+the first `READ_NOWAIT` call immediately. Empty or Overrun permits one external
+100,000 us wait, followed by a new monotonic timestamp and at most one further
+read. Observation stops on the first data or other error, at 20 reads, or at the
+exclusive two-second deadline. There is no internal timer, sleep, thread or
+unbounded loop. The result reports stop reason, read/Empty/Overrun counts, the
+start-relative monotonic timestamp sampled immediately before the final actual
+read, final raw read value and cleanup outcome. That timestamp excludes native
+read duration and every later wait or cleanup; it is not a total-duration
+measurement.
 
-Host tests cover the classifications and every stop boundary under strict C11
-and ASan/UBSan. The core also compiles freestanding for `x86_64-sie-ps5`
-without extra runtime imports. Hardware integration still needs a source-backed
-monotonic clock, bounded wait adapter, native READ_NOWAIT bridge, durable report
-and the existing exactly-once lifecycle cleanup.
+Data remains only in the existing 8,192-byte scratch and is wiped before
+return. A positive value no greater than that capacity is recorded as bytes;
+the observation path intentionally does not divide by an assumed frame size.
+Overrun sets discontinuity. Empty/Overrun exhaustion is a bounded observation,
+not PCM success. Zero and unknown native errors terminate as read errors.
+
+## Required parent hooks
+
+The observation candidate requires both callbacks in
+`ps5_capture_probe_ops`:
+
+```c
+int wait_before_read(uint32_t microseconds);
+int now_us(uint64_t *out_monotonic_us);
+```
+
+`wait_before_read` must synchronously wait exactly the supplied interval and
+return zero only on success. `now_us` must read a monotonic clock, reject
+invalid seconds/nanoseconds and conversion overflow, and return zero only after
+writing microseconds. Failed output is ignored. The runner never resolves a
+clock API itself and never falls back to a wall clock.
+
+The intended parent adapter uses the already source-reviewed SDK
+`clock_gettime(CLOCK_MONOTONIC, struct timespec *)` declaration. Its ABI and
+conversion remain parent-owned: this module accepts only the checked integer
+microseconds. Both callbacks are synchronous and non-reentrant.
+
+The lower `capture_observe` state machine creates a cleanup obligation after a
+successful begin. Every runner exit terminates that state and takes the token
+once before entering the existing cleanup block. Failure to take it is an
+internal failure; native Stop/Close/Terminate ownership rules remain unchanged.
+
+## Host acceptance
+
+Strict C11 and ASan/UBSan tests cover immediate data, Empty/Overrun/data,
+20-read exhaustion, the two-second deadline, wait and clock failures, terminal
+read error, cleanup failure and one-time cleanup ownership. The generic state
+tests additionally cover cancellation, regressing clocks, invalid arguments,
+oversized native lengths and atomic state on local rejection. Both the state
+machine and runner compile with the reviewed freestanding PS5 target flags.
+
+Hardware acceptance requires the exact artifact hash and source HEAD, durable
+phase markers, data versus bounded-empty outcome, Stop/Close/Terminate status,
+`cleanup_uncertain=0`, and normal wireless controller input before/during/after.
+No result establishes the PCM sample format, clock rate or audible output.

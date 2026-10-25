@@ -116,6 +116,7 @@ make ps5-usb-metadata
 make ps5-capture-preflight
 make ps5-capture-once
 make ps5-sbc-selftest
+make ps5-capture-observe
 ```
 
 Each target selects a separate `build/ps5/ps5-bt-<variant>.elf` and manifest.
@@ -129,10 +130,20 @@ Capture diagnostics require the explicit existing-loader kernel resolver.
 Preflight loads Ipmi then Avcap2 and resolves exports only. Capture-once opens
 one session, optionally waits once for 100 ms through libkernel usleep, issues
 one nonblocking read, then cleans up. No audio data is stored or logged.
-The no-delay lifecycle executed with an Empty read; the later settling change
-is **Requires hardware**, not a successful PCM test. See HW2-EVIDENCE.md.
+The no-delay lifecycle executed with an Empty read; the later settled read
+returned 8,192 bytes with clean cleanup. Native PCM format/timing remain
+unverified. See HW2-EVIDENCE.md and HW3-EVIDENCE.md.
 Capture adaptation is GPL-3.0-only; retain its provenance and GPL v3 terms.
 Build and source-package commands never connect to a console.
+
+Capture-observe is separately selected: it reads immediately, then waits 100 ms
+only between Empty/Overrun results. It stops at first data/error, 20 reads or
+the exclusive two-second monotonic deadline, followed by the same cleanup.
+`clock_gettime` lookup/conversion errors fail closed. Its clock ABI follows the
+pinned SDK's `time.h`, `sys/_timespec.h` and `x86/_types.h`: CLOCK_MONOTONIC=4,
+32-bit clock ID and two signed 64-bit timespec fields. The adapter checks native
+status, negative/invalid fields and microsecond overflow. Its runtime clock
+availability and behavior must be tested independently; see CAPTURE-OBSERVE.md.
 
 The SBC self-test links the separately built generic BlueZ libsbc archive with
 caller storage and no allocator/SIMD/host SDK headers. Its numeric report must
@@ -188,7 +199,7 @@ See SBC-IMPLEMENTATION.md for exact commands and remaining PS5 ABI/link gates.
 ### Bounded hardware-test kit
 
 After the intended changes are committed and the worktree is clean, rebuild the
-two next-window candidates and their corresponding source packages:
+four independently selected candidates and their corresponding source packages:
 
 ```sh
 LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-usb-metadata
@@ -197,12 +208,18 @@ python3 tools/package_source.py \
 LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-capture-once
 python3 tools/package_source.py \
   --manifest build/ps5/ps5-bt-capture-once.manifest.json
+LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-sbc-selftest
+python3 tools/package_source.py \
+  --manifest build/ps5/ps5-bt-sbc-selftest.manifest.json
+LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-capture-observe
+python3 tools/package_source.py \
+  --manifest build/ps5/ps5-bt-capture-observe.manifest.json
 python3 tools/mvp_test_kit.py --assemble
 ```
 
 The assembler rejects dirty/stale manifests, wrong diagnostic variants,
 artifact hash/size mismatches, missing source bundles and unexpected target or
-path values. It writes ignored `build/ps5/mvp-test-kit/` with both ELF files,
+path values. It writes ignored `build/ps5/mvp-test-kit/` with all selected ELF files,
 their exact build manifests/source bundles, a hash manifest and an ordered
 runbook. It performs no network operation.
 

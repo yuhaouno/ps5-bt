@@ -11,6 +11,16 @@ static unsigned stage, sleeps, traces;
 static int64_t lookup_status;
 static int null_symbol, wait_status, encode_failure;
 static enum ps5_capture_probe_status probe_status;
+#ifdef PS5_BT_CAPTURE_OBSERVE
+static int fake_clock_status;
+static int64_t fake_seconds = 2, fake_nanoseconds = 345678000;
+static int fake_clock(int32_t id, struct target_timespec *out) {
+  assert(id == 4);
+  int64_t values[2] = {fake_seconds, fake_nanoseconds};
+  memcpy(out, values, sizeof values);
+  return fake_clock_status;
+}
+#endif
 
 static int fake_sleep(uint32_t microseconds) {
   assert(microseconds == 100000);
@@ -19,7 +29,16 @@ static int fake_sleep(uint32_t microseconds) {
 }
 
 int64_t ps5_bootstrap_lookup(const char *name, void **out) {
-  assert(!strcmp(name, "usleep") && out && !*out);
+  assert(out && !*out);
+#ifdef PS5_BT_CAPTURE_OBSERVE
+  if (strcmp(name, "clock_gettime") == 0) {
+    int (*function)(int32_t, struct target_timespec *) = fake_clock;
+    if (!null_symbol)
+      memcpy(out, &function, sizeof function);
+    return lookup_status;
+  }
+#endif
+  assert(!strcmp(name, "usleep"));
   int (*function)(uint32_t) = fake_sleep;
   _Static_assert(sizeof function == sizeof *out, "host callable pointer ABI");
   if (!null_symbol)
@@ -85,6 +104,15 @@ ps5_capture_probe_run(const struct ps5_capture_probe_ops *ops,
   return fake_probe(ops, out);
 }
 
+#ifdef PS5_BT_CAPTURE_OBSERVE
+enum ps5_capture_probe_status
+ps5_capture_probe_observe(const struct ps5_capture_probe_ops *ops,
+                          struct ps5_capture_probe_result *out) {
+  assert(ops->now_us == capture_now_us);
+  return fake_probe(ops, out);
+}
+#endif
+
 enum ps5_capture_probe_status
 ps5_capture_probe_encode_report(const struct ps5_capture_probe_result *result,
                                 char *data, size_t capacity, size_t *length) {
@@ -97,6 +125,29 @@ ps5_capture_probe_encode_report(const struct ps5_capture_probe_result *result,
 }
 
 int main(void) {
+#ifdef PS5_BT_CAPTURE_OBSERVE
+  uint64_t now = 123;
+  assert(capture_now_us(&now) == 0 && now == 2345678);
+  fake_clock_status = -17;
+  assert(capture_now_us(&now) == -17 && now == 0);
+  fake_clock_status = 0;
+  fake_nanoseconds = 1000000000;
+  assert(capture_now_us(&now) == PS5_BT_INVALID && now == 0);
+  fake_nanoseconds = -1;
+  assert(capture_now_us(&now) == PS5_BT_INVALID && now == 0);
+  fake_nanoseconds = 0;
+  fake_seconds = -1;
+  assert(capture_now_us(&now) == PS5_BT_INVALID && now == 0);
+  fake_seconds = INT64_MAX;
+  assert(capture_now_us(&now) == PS5_BT_INVALID && now == 0);
+  fake_seconds = 2;
+  lookup_status = -5;
+  assert(capture_now_us(&now) == PS5_BT_IO && now == 0);
+  lookup_status = 0;
+  null_symbol = 1;
+  assert(capture_now_us(&now) == PS5_BT_IO && now == 0);
+  null_symbol = 0;
+#endif
   assert(capture_wait_before_read(0) == PS5_BT_INVALID && sleeps == 0);
   assert(capture_wait_before_read(100000) == 0 && sleeps == 1);
   wait_status = -4;

@@ -85,6 +85,7 @@ make sbc-codec-test # real offline PCM -> SBC -> RTP/L2CAP/ACL; no PS5/audio out
 make rust-archive   # no_std x86-64 ELF archive; no SDK or console needed
 make ps5-native-query # separate opt-in query ELF; run only after baseline entry test
 make ps5-sbc-selftest # generated-signal codec test; no Bluetooth/capture operation
+make ps5-capture-observe # first data/deadline/error, at most 20 reads/two seconds
 python3 tools/mvp_test_kit.py # dry-run next-window plan; no network/deployment
 ```
 

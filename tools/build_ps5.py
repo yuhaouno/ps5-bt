@@ -113,7 +113,7 @@ def self_test():
         suffixes = ("elf", "map", "manifest.json", "inspect.txt", "disasm.txt")
         for stem in ("ps5-bt", "ps5-bt-native-query", "ps5-bt-usb-metadata",
                      "ps5-bt-capture-preflight", "ps5-bt-capture-once",
-                     "ps5-bt-sbc-selftest"):
+                     "ps5-bt-sbc-selftest", "ps5-bt-capture-observe"):
             for suffix in suffixes:
                 (base / f"{stem}.{suffix}").write_text(stem)
         invalidate_output("ps5-bt-native-query", base)
@@ -156,7 +156,7 @@ def invalidate_output(stem, output=None):
 def build(args):
     stem = artifact_stem(args)
     invalidate_output(stem)
-    if (args.capture_preflight or args.capture_once) and not args.loader_kernel_resolver:
+    if (args.capture_preflight or args.capture_once or args.capture_observe) and not args.loader_kernel_resolver:
         raise ValueError("capture diagnostics require the explicit existing-loader kernel resolver")
     tools = llvm_tools(args.llvm_config)
     source = sdk_sources(args.sdk_source, args.usb_metadata)
@@ -184,8 +184,9 @@ def build(args):
     if args.usb_metadata:
         sources += [ROOT / "platform/ps5/diagnostics/usb_probe.c",
                     ROOT / "platform/ps5/diagnostics/usb_descriptors.c"]
-    if args.capture_preflight or args.capture_once:
-        sources.append(ROOT / "platform/ps5/diagnostics/capture_probe.c")
+    if args.capture_preflight or args.capture_once or args.capture_observe:
+        sources += [ROOT / "platform/ps5/diagnostics/capture_probe.c",
+                    ROOT / "platform/ps5/diagnostics/capture_observe.c"]
     if args.sbc_selftest:
         sources.append(ROOT / "platform/codec/ps5_bt_sbc_selftest.c")
     objects = []
@@ -199,8 +200,10 @@ def build(args):
         flags.append("-DPS5_BT_NATIVE_QUERY")
     if args.usb_metadata:
         flags.append("-DPS5_BT_USB_METADATA")
-    if args.capture_preflight or args.capture_once:
+    if args.capture_preflight or args.capture_once or args.capture_observe:
         flags.append("-DPS5_BT_CAPTURE_PROBE")
+    if args.capture_observe:
+        flags.append("-DPS5_BT_CAPTURE_OBSERVE")
     if args.capture_preflight:
         flags.append("-DPS5_BT_CAPTURE_PREFLIGHT")
     if args.sbc_selftest:
@@ -236,6 +239,7 @@ def build(args):
     report["usb_metadata"] = args.usb_metadata
     report["capture_preflight"] = args.capture_preflight
     report["capture_once"] = args.capture_once
+    report["capture_observe"] = args.capture_observe
     report["sbc_selftest"] = args.sbc_selftest
     report["loader_kernel_resolver"] = args.loader_kernel_resolver
     report["rust"] = rust_version
@@ -254,9 +258,10 @@ def build(args):
     if args.native_query:
         name = "platform/ps5/diagnostics/native_query.h"
         report["project_sources"][name] = digest(ROOT / name)
-    if args.capture_preflight or args.capture_once:
-        name = "platform/ps5/diagnostics/capture_probe.h"
-        report["project_sources"][name] = digest(ROOT / name)
+    if args.capture_preflight or args.capture_once or args.capture_observe:
+        for name in ("platform/ps5/diagnostics/capture_probe.h",
+                     "platform/ps5/diagnostics/capture_observe.h"):
+            report["project_sources"][name] = digest(ROOT / name)
     if args.sbc_selftest:
         from target_sbc import export_relink, source_inventory
         report["codec_sources"] = source_inventory()
@@ -294,6 +299,8 @@ def build(args):
 
 
 def artifact_stem(args):
+    if args.capture_observe:
+        return "ps5-bt-capture-observe"
     if args.sbc_selftest:
         return "ps5-bt-sbc-selftest"
     if args.capture_preflight:
@@ -319,6 +326,8 @@ if __name__ == "__main__":
                           help="load capture prerequisites and resolve exports only")
     variants.add_argument("--capture-once", action="store_true",
                           help="perform one bounded metadata-only capture cycle")
+    variants.add_argument("--capture-observe", action="store_true",
+                          help="observe first capture data for at most 20 reads/two seconds")
     variants.add_argument("--sbc-selftest", action="store_true",
                           help="encode deterministic generated PCM without Bluetooth or capture")
     parser.add_argument("--loader-kernel-resolver", action="store_true",

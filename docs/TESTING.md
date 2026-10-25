@@ -52,6 +52,10 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
   invalid-length/error termination, atomic local validation and exactly-once
   cleanup token. The host test supplies synthetic time and reads; it is not a
   PS5 capture result or permission to infer a PCM format.
+- Capture observation runner: exact immediate/Empty/Overrun/Data sequencing,
+  20-call/two-second exhaustion, failed clock/wait/read, cleanup faults and
+  clock regression; existing one-read/preflight modes remain covered. Main's
+  clock bridge tests native error, dirty lookup, invalid timespec and overflow.
 - PCM sample deadlines across five rates, capacity/wrap/stale/overflow rejection,
   bounded concealment across block boundaries, atomic rebuffer, retained future
   samples and exact expiry counts; 10,000 deterministic queue operations against

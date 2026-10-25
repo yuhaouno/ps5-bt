@@ -28,7 +28,10 @@ USB_SOURCES = {
     "platform/ps5/diagnostics/usb_probe.c", "platform/ps5/diagnostics/usb_probe.h",
     "platform/ps5/diagnostics/usb_descriptors.c", "platform/ps5/diagnostics/usb_descriptors.h",
 }
-CAPTURE_SOURCES = {"platform/ps5/diagnostics/capture_probe.c", "platform/ps5/diagnostics/capture_probe.h"}
+CAPTURE_SOURCES = {
+    "platform/ps5/diagnostics/capture_probe.c", "platform/ps5/diagnostics/capture_probe.h",
+    "platform/ps5/diagnostics/capture_observe.c", "platform/ps5/diagnostics/capture_observe.h",
+}
 SBC_SELFTEST_SOURCES = {
     "platform/codec/ps5_bt_sbc_selftest.c",
     "platform/codec/ps5_bt_sbc_selftest.h",
@@ -40,6 +43,7 @@ VARIANTS = {
     "usb_metadata": ("ps5-bt-usb-metadata", USB_SOURCES, "--usb-metadata"),
     "capture_preflight": ("ps5-bt-capture-preflight", CAPTURE_SOURCES, "--capture-preflight"),
     "capture_once": ("ps5-bt-capture-once", CAPTURE_SOURCES, "--capture-once"),
+    "capture_observe": ("ps5-bt-capture-observe", CAPTURE_SOURCES, "--capture-observe"),
     "sbc_selftest": ("ps5-bt-sbc-selftest", SBC_SELFTEST_SOURCES, "--sbc-selftest"),
 }
 REQUIRED_FILES = REQUIRED_SOURCES | {
@@ -318,7 +322,7 @@ def validate_manifest(root, head, files, manifest_path):
     variant = selected_variant(manifest)
     if type(manifest.get("loader_kernel_resolver", False)) is not bool:
         raise ValueError("manifest loader_kernel_resolver must be a boolean")
-    if variant in ("capture_preflight", "capture_once") and not manifest.get("loader_kernel_resolver", False):
+    if variant in ("capture_preflight", "capture_once", "capture_observe") and not manifest.get("loader_kernel_resolver", False):
         raise ValueError("capture diagnostic requires the existing-loader kernel resolver")
     expected_headers = USB_SDK_HEADERS if variant == "usb_metadata" else {}
     if manifest.get("sdk_headers", {}) != expected_headers:
@@ -708,7 +712,7 @@ def self_test():
                 reject_variant(dict(variant_manifest, **{other_key: True}), "mixed variants")
                 escaped_sources = dict(variant_sources, **{"../outside-secret": "0" * 64})
                 reject_variant(dict(variant_manifest, project_sources=escaped_sources), "project path escape")
-                if key in ("capture_preflight", "capture_once"):
+                if key in ("capture_preflight", "capture_once", "capture_observe"):
                     reject_variant(dict(variant_manifest, loader_kernel_resolver=False), "capture without resolver")
                 if key == "usb_metadata":
                     for invalid_headers in ({}, {"../outside-secret": "0" * 64},

@@ -5,12 +5,17 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "capture_observe.h"
+
 #define PS5_CAPTURE_PROBE_READ_BYTES 8192u
 #define PS5_CAPTURE_PROBE_REQUESTED_FRAME_BYTES 8u
 #define PS5_CAPTURE_PROBE_METADATA_BYTES 16u
 #define PS5_CAPTURE_PROBE_SYMBOL_COUNT 7u
 #define PS5_CAPTURE_PROBE_REPORT_CAPACITY 1536u
 #define PS5_CAPTURE_PROBE_SETTLE_US 100000u
+#define PS5_CAPTURE_PROBE_OBSERVE_INTERVAL_US 100000u
+#define PS5_CAPTURE_PROBE_OBSERVE_TOTAL_US UINT64_C(2000000)
+#define PS5_CAPTURE_PROBE_OBSERVE_MAX_READS 20u
 
 /* Adapter callbacks for the reviewed, current-process loader resolver.
  * Success is exactly zero and must return a non-NULL symbol. The module lookup
@@ -46,7 +51,9 @@ enum ps5_capture_probe_phase {
   PS5_CAPTURE_PHASE_CLOSE,
   PS5_CAPTURE_PHASE_TERMINATE,
   PS5_CAPTURE_PHASE_WAIT_BEFORE_READ,
-  PS5_CAPTURE_PHASE_DONE
+  PS5_CAPTURE_PHASE_DONE,
+  PS5_CAPTURE_PHASE_OBSERVE_CLOCK,
+  PS5_CAPTURE_PHASE_OBSERVE_WAIT
 };
 
 /* Optional durable phase tracing. ordinal is zero except for Avcap2 export
@@ -58,16 +65,23 @@ typedef void (*ps5_capture_trace_fn)(enum ps5_capture_probe_phase phase,
                                      uint32_t ordinal, int entering,
                                      int64_t raw_status);
 typedef int (*ps5_capture_wait_fn)(uint32_t microseconds);
+typedef int (*ps5_capture_now_us_fn)(uint64_t *out_monotonic_us);
 
 struct ps5_capture_probe_ops {
   ps5_capture_current_lookup_fn lookup_current;
   ps5_capture_module_lookup_fn lookup_module;
   ps5_capture_trace_fn trace;
-  /* Optional synchronous, non-reentrant settle hook. When present, run calls
-   * it exactly once with PS5_CAPTURE_PROBE_SETTLE_US after successful Start and
-   * before Read. A nonzero return skips Read and proceeds to owned cleanup.
+  /* Optional synchronous, non-reentrant wait hook. `run` calls it exactly once
+   * with PS5_CAPTURE_PROBE_SETTLE_US after successful Start and before Read.
+   * `observe` requires it and calls it only between bounded reads. A nonzero
+   * return stops observation and proceeds to owned cleanup.
    */
   ps5_capture_wait_fn wait_before_read;
+  /* Required only by `observe`. Success is exactly zero and writes a monotonic
+   * microsecond count. Failure output is ignored. The adapter must reject
+   * invalid native seconds/nanoseconds and conversion overflow.
+   */
+  ps5_capture_now_us_fn now_us;
 };
 
 enum ps5_capture_probe_read_kind {
@@ -94,7 +108,8 @@ enum ps5_capture_probe_call {
   PS5_CAPTURE_CALL_CLOSE = UINT32_C(1) << 8,
   PS5_CAPTURE_CALL_TERMINATE = UINT32_C(1) << 9,
   PS5_CAPTURE_CALL_WAIT_BEFORE_READ = UINT32_C(1) << 10,
-  PS5_CAPTURE_CALL_RESOLVE_AVCAP2 = UINT32_C(1) << 11
+  PS5_CAPTURE_CALL_RESOLVE_AVCAP2 = UINT32_C(1) << 11,
+  PS5_CAPTURE_CALL_OBSERVE_CLOCK = UINT32_C(1) << 12
 };
 
 /* Metadata only. No native handle, private parameter block, sample bytes or
@@ -130,6 +145,16 @@ struct ps5_capture_probe_result {
   uint8_t discontinuity;
   uint8_t timestamp_present;
   uint8_t cleanup_uncertain;
+  uint8_t observation;
+  enum ps5_capture_observe_stop observation_stop;
+  int32_t raw_observation_clock_status;
+  uint32_t observation_read_calls;
+  uint32_t observation_empty_calls;
+  uint32_t observation_overrun_calls;
+  /* Start-relative timestamp sampled immediately before the final actual read.
+   * It excludes native read duration and any wait after that read.
+   */
+  uint64_t observation_last_read_start_elapsed_us;
 };
 
 /* One synchronous, non-reentrant diagnostic cycle:
@@ -146,6 +171,18 @@ struct ps5_capture_probe_result {
 enum ps5_capture_probe_status
 ps5_capture_probe_run(const struct ps5_capture_probe_ops *ops,
                       struct ps5_capture_probe_result *out);
+
+/* Separate bounded hardware observation candidate. It performs the existing
+ * Initialize/Open/Start lifecycle, then an immediate READ_NOWAIT. Empty or
+ * Overrun schedules one caller-provided 100 ms wait before the next read. It
+ * stops on first data/error, after 20 reads, or at the exclusive two-second
+ * monotonic deadline. No format inference or sample output occurs. All exits
+ * consume the observation cleanup token and then use the same exactly-once
+ * Stop/Close/Terminate path as `run`.
+ */
+enum ps5_capture_probe_status
+ps5_capture_probe_observe(const struct ps5_capture_probe_ops *ops,
+                          struct ps5_capture_probe_result *out);
 
 /* Safer first-hardware gate: perform lookup, ordered module loads and all seven
  * export resolutions, then return without Initialize/Open/Start/Read or any

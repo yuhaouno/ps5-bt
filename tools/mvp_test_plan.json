@@ -69,6 +69,28 @@
         "self-test status, digest or cleanup differs from expected",
         "no final return within the external timeout"
       ]
+    },
+    {
+      "id": "capture-observe",
+      "order": 4,
+      "artifact": "build/ps5/ps5-bt-capture-observe.elf",
+      "build_manifest": "build/ps5/ps5-bt-capture-observe.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-capture-observe-source.tar.gz",
+      "slot": "ps5-bt-capture-observe",
+      "remote_filename": "ps5-bt-capture-observe.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=capture_phase phase=observe_clock",
+        "observation=1 observation_stop=",
+        "observation_clock_status=0",
+        "cleanup_uncertain=0",
+        "event=payload_return"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "clock, wait, read or cleanup error",
+        "more than 20 reads or no final return within 15 seconds"
+      ]
     }
   ]
 }

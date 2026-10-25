@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Add the independently selected capture observation ELF with a checked
+  monotonic-clock adapter, immediate first read and explicit 100 ms waits only
+  after Empty/Overrun. Stop at first data/error, 20 reads or a two-second
+  deadline and preserve exactly-once cleanup, durable counts and raw errors.
+
 - Link the generated-signal SBC self-test into an independently selected PS5
   ELF with durable numeric status. Build a generic static-only target archive
   using compiler resource headers, verify the exact external symbol set, and

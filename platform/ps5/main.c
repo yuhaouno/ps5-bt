@@ -14,6 +14,40 @@ static _Alignas(64) uint8_t sbc_selftest_storage[8192];
 #ifdef PS5_BT_CAPTURE_PROBE
 #include "bootstrap/bootstrap.h"
 #include "diagnostics/capture_probe.h"
+#ifdef PS5_BT_CAPTURE_OBSERVE
+struct target_timespec {
+  int64_t seconds, nanoseconds;
+};
+static int capture_now_us(uint64_t *out) {
+  /* Pinned SDK time.h declares int clock_gettime(int32 clockid, timespec*),
+   * CLOCK_MONOTONIC=4; x86/_types.h and sys/_timespec.h use two signed 64-bit
+   * fields. Runtime export availability and clock behavior require hardware. */
+  typedef int (*clock_fn)(int32_t, struct target_timespec *);
+  _Static_assert(sizeof(struct target_timespec) == 16, "target timespec ABI");
+  _Static_assert(sizeof(clock_fn) == sizeof(void *), "target function ABI");
+  if (!out)
+    return PS5_BT_INVALID;
+  *out = 0;
+  void *symbol = 0;
+  if (ps5_bootstrap_lookup("clock_gettime", &symbol) != 0 || !symbol)
+    return PS5_BT_IO;
+  clock_fn clock = 0;
+  for (size_t index = 0; index < sizeof clock; ++index)
+    ((unsigned char *)&clock)[index] = ((const unsigned char *)&symbol)[index];
+  struct target_timespec time = {0};
+  int raw = clock(4, &time);
+  if (raw != 0)
+    return raw;
+  if (time.seconds < 0 || time.nanoseconds < 0 ||
+      time.nanoseconds >= 1000000000)
+    return PS5_BT_INVALID;
+  uint64_t subseconds = (uint64_t)time.nanoseconds / 1000;
+  if ((uint64_t)time.seconds > (UINT64_MAX - subseconds) / 1000000)
+    return PS5_BT_INVALID;
+  *out = (uint64_t)time.seconds * 1000000 + subseconds;
+  return 0;
+}
+#endif
 static int capture_wait_before_read(uint32_t microseconds) {
   /* SDK v0.45 unistd.h declares int usleep(useconds_t), with unsigned
    * 32-bit useconds_t. One explicit 100 ms diagnostic settle, never a loop. */
@@ -33,9 +67,10 @@ static int capture_wait_before_read(uint32_t microseconds) {
 static void capture_trace(enum ps5_capture_probe_phase phase, uint32_t ordinal,
                           int entering, int64_t raw_status) {
   static const char *const names[] = {
-      "none",       "lookup_load", "load_ipmi", "load_avcap2", "resolve_avcap2",
-      "initialize", "open",        "start",     "read",        "stop",
-      "close",      "terminate",   "wait",      "done"};
+      "none",           "lookup_load", "load_ipmi",     "load_avcap2",
+      "resolve_avcap2", "initialize",  "open",          "start",
+      "read",           "stop",        "close",         "terminate",
+      "wait",           "done",        "observe_clock", "observe_wait"};
   char line[128];
   size_t used = 0;
   const char *parts[] = {
@@ -113,12 +148,17 @@ int main(void) {
       .lookup_module = ps5_bootstrap_module_lookup,
       .trace = capture_trace,
       .wait_before_read = capture_wait_before_read,
+#ifdef PS5_BT_CAPTURE_OBSERVE
+      .now_us = capture_now_us,
+#endif
   };
   char capture_report[PS5_CAPTURE_PROBE_REPORT_CAPACITY];
   size_t capture_length = 0;
   ps5_platform_log(capture_begin, (uint32_t)(sizeof capture_begin - 1));
 #ifdef PS5_BT_CAPTURE_PREFLIGHT
   (void)ps5_capture_probe_preflight(&capture_ops, &capture);
+#elif defined(PS5_BT_CAPTURE_OBSERVE)
+  (void)ps5_capture_probe_observe(&capture_ops, &capture);
 #else
   (void)ps5_capture_probe_run(&capture_ops, &capture);
 #endif

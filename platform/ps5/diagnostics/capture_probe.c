@@ -66,6 +66,20 @@ struct resolved_functions {
   read_audio_fn read_audio;
 };
 
+enum probe_mode {
+  PROBE_PREFLIGHT,
+  PROBE_ONCE,
+  PROBE_OBSERVE,
+};
+
+struct observe_read_context {
+  const struct ps5_capture_probe_ops *ops;
+  read_audio_fn read_audio;
+  void *handle;
+  unsigned char *metadata;
+  struct ps5_capture_probe_result *result;
+};
+
 static _Alignas(16) unsigned char probe_audio[PS5_CAPTURE_PROBE_READ_BYTES];
 static int probe_busy;
 
@@ -184,9 +198,69 @@ static void classify_read(struct ps5_capture_probe_result *result) {
   }
 }
 
+static int32_t observe_read_once(void *raw_context, void *buffer,
+                                 size_t capacity) {
+  struct observe_read_context *context = raw_context;
+  uint32_t ordinal = context->result->observation_read_calls;
+  clear_bytes(context->metadata, PS5_CAPTURE_PROBE_METADATA_BYTES);
+  context->metadata[0] = PS5_CAPTURE_PROBE_METADATA_BYTES;
+  context->result->called_mask |= PS5_CAPTURE_CALL_READ;
+  trace(context->ops, PS5_CAPTURE_PHASE_READ, ordinal, 1, 0);
+  int32_t raw = context->read_audio(context->handle, buffer, capacity,
+                                    context->metadata, AVCAP2_READ_NOWAIT);
+  trace(context->ops, PS5_CAPTURE_PHASE_READ, ordinal, 0, raw);
+  context->result->raw_read_status = raw;
+  return raw;
+}
+
+static int observe_now(const struct ps5_capture_probe_ops *ops,
+                       struct ps5_capture_probe_result *result,
+                       uint32_t ordinal, uint64_t *out) {
+  result->called_mask |= PS5_CAPTURE_CALL_OBSERVE_CLOCK;
+  trace(ops, PS5_CAPTURE_PHASE_OBSERVE_CLOCK, ordinal, 1, 0);
+  int raw = ops->now_us(out);
+  trace(ops, PS5_CAPTURE_PHASE_OBSERVE_CLOCK, ordinal, 0, raw);
+  result->raw_observation_clock_status = raw;
+  return raw;
+}
+
+static void copy_observation(struct ps5_capture_probe_result *result,
+                             const struct ps5_capture_observe *observation,
+                             uint64_t start_us, uint64_t last_read_start_us) {
+  result->observation_stop = observation->result.stop;
+  result->observation_read_calls = observation->result.read_calls;
+  result->observation_empty_calls = observation->result.empty_calls;
+  result->observation_overrun_calls = observation->result.overrun_calls;
+  result->observation_last_read_start_elapsed_us =
+      last_read_start_us - start_us;
+  result->discontinuity = observation->result.discontinuity;
+  result->raw_read_status = observation->result.raw_last_status;
+  switch (observation->result.last_kind) {
+  case PS5_CAPTURE_OBSERVE_NOT_READ:
+    result->read_kind = PS5_CAPTURE_READ_NOT_CALLED;
+    break;
+  case PS5_CAPTURE_OBSERVE_EMPTY:
+    result->read_kind = PS5_CAPTURE_READ_EMPTY;
+    break;
+  case PS5_CAPTURE_OBSERVE_DATA:
+    result->read_kind = PS5_CAPTURE_READ_DATA;
+    result->read_bytes = observation->result.data_bytes;
+    break;
+  case PS5_CAPTURE_OBSERVE_OVERRUN:
+    result->read_kind = PS5_CAPTURE_READ_OVERRUN;
+    break;
+  case PS5_CAPTURE_OBSERVE_OTHER_ERROR:
+    result->read_kind =
+        observation->result.stop == PS5_CAPTURE_OBSERVE_STOP_INVALID_LENGTH
+            ? PS5_CAPTURE_READ_INVALID_LENGTH
+            : PS5_CAPTURE_READ_ERROR;
+    break;
+  }
+}
+
 static enum ps5_capture_probe_status
 execute_probe(const struct ps5_capture_probe_ops *ops,
-              struct ps5_capture_probe_result *out, int invoke_capture) {
+              struct ps5_capture_probe_result *out, enum probe_mode mode) {
   struct ps5_capture_probe_result result = {
       .status = PS5_CAPTURE_PROBE_OK,
       .read_capacity_bytes = PS5_CAPTURE_PROBE_READ_BYTES,
@@ -202,7 +276,8 @@ execute_probe(const struct ps5_capture_probe_ops *ops,
 
   if (!out)
     return PS5_CAPTURE_PROBE_INVALID;
-  if (!ops || !ops->lookup_current || !ops->lookup_module) {
+  if (!ops || !ops->lookup_current || !ops->lookup_module ||
+      (mode == PROBE_OBSERVE && (!ops->wait_before_read || !ops->now_us))) {
     result.status = PS5_CAPTURE_PROBE_INVALID;
     *out = result;
     return result.status;
@@ -266,7 +341,7 @@ execute_probe(const struct ps5_capture_probe_ops *ops,
                 PS5_CAPTURE_PHASE_RESOLVE_AVCAP2);
     goto cleanup;
   }
-  if (!invoke_capture)
+  if (mode == PROBE_PREFLIGHT)
     goto cleanup;
 
   result.called_mask |= PS5_CAPTURE_CALL_INITIALIZE;
@@ -305,7 +380,7 @@ execute_probe(const struct ps5_capture_probe_ops *ops,
   }
   started = 1;
 
-  if (ops->wait_before_read) {
+  if (mode == PROBE_ONCE && ops->wait_before_read) {
     result.called_mask |= PS5_CAPTURE_CALL_WAIT_BEFORE_READ;
     trace(ops, PS5_CAPTURE_PHASE_WAIT_BEFORE_READ, 0, 1, 0);
     result.raw_wait_status = ops->wait_before_read(PS5_CAPTURE_PROBE_SETTLE_US);
@@ -318,12 +393,99 @@ execute_probe(const struct ps5_capture_probe_ops *ops,
     }
   }
 
-  result.called_mask |= PS5_CAPTURE_CALL_READ;
-  trace(ops, PS5_CAPTURE_PHASE_READ, 0, 1, 0);
-  result.raw_read_status = functions.read_audio(
-      handle, probe_audio, sizeof probe_audio, metadata, AVCAP2_READ_NOWAIT);
-  trace(ops, PS5_CAPTURE_PHASE_READ, 0, 0, result.raw_read_status);
-  classify_read(&result);
+  if (mode == PROBE_ONCE) {
+    result.called_mask |= PS5_CAPTURE_CALL_READ;
+    trace(ops, PS5_CAPTURE_PHASE_READ, 0, 1, 0);
+    result.raw_read_status = functions.read_audio(
+        handle, probe_audio, sizeof probe_audio, metadata, AVCAP2_READ_NOWAIT);
+    trace(ops, PS5_CAPTURE_PHASE_READ, 0, 0, result.raw_read_status);
+    classify_read(&result);
+  } else {
+    struct ps5_capture_observe observation = {0};
+    struct observe_read_context read_context = {
+        .ops = ops,
+        .read_audio = functions.read_audio,
+        .handle = handle,
+        .metadata = metadata,
+        .result = &result,
+    };
+    uint64_t start_us = 0, now_us = 0, last_read_start_us = 0;
+    result.observation = 1;
+    result.requested_frame_bytes = 0;
+    if (observe_now(ops, &result, 0, &start_us) != 0 ||
+        start_us > UINT64_MAX - PS5_CAPTURE_PROBE_OBSERVE_TOTAL_US) {
+      set_primary(&result, PS5_CAPTURE_PROBE_FAILED,
+                  PS5_CAPTURE_PHASE_OBSERVE_CLOCK);
+      goto cleanup;
+    }
+    now_us = start_us;
+    last_read_start_us = start_us;
+    if (ps5_capture_observe_begin(&observation, start_us,
+                                  start_us + PS5_CAPTURE_PROBE_OBSERVE_TOTAL_US,
+                                  PS5_CAPTURE_PROBE_OBSERVE_MAX_READS) !=
+        PS5_CAPTURE_OBSERVE_OK) {
+      set_primary(&result, PS5_CAPTURE_PROBE_FAILED,
+                  PS5_CAPTURE_PHASE_OBSERVE_CLOCK);
+      goto cleanup;
+    }
+    for (;;) {
+      if (now_us < observation.last_tick) {
+        set_primary(&result, PS5_CAPTURE_PROBE_FAILED,
+                    PS5_CAPTURE_PHASE_OBSERVE_CLOCK);
+        (void)ps5_capture_observe_step(&observation, observation.last_tick, 1,
+                                       0, 0, 0, 0);
+        copy_observation(&result, &observation, start_us, last_read_start_us);
+        break;
+      }
+      if (now_us < observation.deadline_tick &&
+          observation.result.read_calls < observation.max_calls)
+        last_read_start_us = now_us;
+      if (ps5_capture_observe_step(
+              &observation, now_us, 0, observe_read_once, &read_context,
+              probe_audio, sizeof probe_audio) != PS5_CAPTURE_OBSERVE_OK) {
+        set_primary(&result, PS5_CAPTURE_PROBE_FAILED, PS5_CAPTURE_PHASE_READ);
+        (void)ps5_capture_observe_step(&observation, observation.last_tick, 1,
+                                       0, 0, 0, 0);
+        copy_observation(&result, &observation, start_us, last_read_start_us);
+        break;
+      }
+      copy_observation(&result, &observation, start_us, last_read_start_us);
+      if (!observation.active)
+        break;
+
+      result.called_mask |= PS5_CAPTURE_CALL_WAIT_BEFORE_READ;
+      trace(ops, PS5_CAPTURE_PHASE_OBSERVE_WAIT, observation.result.read_calls,
+            1, 0);
+      result.raw_wait_status =
+          ops->wait_before_read(PS5_CAPTURE_PROBE_OBSERVE_INTERVAL_US);
+      trace(ops, PS5_CAPTURE_PHASE_OBSERVE_WAIT, observation.result.read_calls,
+            0, result.raw_wait_status);
+      if (result.raw_wait_status != 0) {
+        set_primary(&result, PS5_CAPTURE_PROBE_FAILED,
+                    PS5_CAPTURE_PHASE_OBSERVE_WAIT);
+        (void)ps5_capture_observe_step(&observation, now_us, 1, 0, 0, 0, 0);
+        copy_observation(&result, &observation, start_us, last_read_start_us);
+        break;
+      }
+      if (observe_now(ops, &result, observation.result.read_calls, &now_us) !=
+          0) {
+        set_primary(&result, PS5_CAPTURE_PROBE_FAILED,
+                    PS5_CAPTURE_PHASE_OBSERVE_CLOCK);
+        (void)ps5_capture_observe_step(&observation, observation.last_tick, 1,
+                                       0, 0, 0, 0);
+        copy_observation(&result, &observation, start_us, last_read_start_us);
+        break;
+      }
+    }
+    if (observation.result.stop == PS5_CAPTURE_OBSERVE_STOP_INVALID_LENGTH)
+      set_primary(&result, PS5_CAPTURE_PROBE_INVALID_LENGTH,
+                  PS5_CAPTURE_PHASE_READ);
+    else if (observation.result.stop == PS5_CAPTURE_OBSERVE_STOP_READ_ERROR)
+      set_primary(&result, PS5_CAPTURE_PROBE_FAILED, PS5_CAPTURE_PHASE_READ);
+    if (ps5_capture_observe_take_cleanup(&observation) !=
+        PS5_CAPTURE_OBSERVE_OK)
+      set_primary(&result, PS5_CAPTURE_PROBE_FAILED, PS5_CAPTURE_PHASE_READ);
+  }
 
 cleanup:
   if (started) {
@@ -375,13 +537,19 @@ cleanup:
 enum ps5_capture_probe_status
 ps5_capture_probe_run(const struct ps5_capture_probe_ops *ops,
                       struct ps5_capture_probe_result *out) {
-  return execute_probe(ops, out, 1);
+  return execute_probe(ops, out, PROBE_ONCE);
+}
+
+enum ps5_capture_probe_status
+ps5_capture_probe_observe(const struct ps5_capture_probe_ops *ops,
+                          struct ps5_capture_probe_result *out) {
+  return execute_probe(ops, out, PROBE_OBSERVE);
 }
 
 enum ps5_capture_probe_status
 ps5_capture_probe_preflight(const struct ps5_capture_probe_ops *ops,
                             struct ps5_capture_probe_result *out) {
-  return execute_probe(ops, out, 0);
+  return execute_probe(ops, out, PROBE_PREFLIGHT);
 }
 
 struct writer {
@@ -471,10 +639,22 @@ static const char *phase_name(enum ps5_capture_probe_phase phase) {
       "terminate",
       "wait_before_read",
       "done",
+      "observe_clock",
+      "observe_wait",
   };
   if ((unsigned)phase >= sizeof names / sizeof names[0])
     return 0;
   return names[phase];
+}
+
+static const char *observation_stop_name(enum ps5_capture_observe_stop stop) {
+  static const char *const names[] = {
+      "running",   "data",       "call_limit",     "deadline",
+      "cancelled", "read_error", "invalid_length",
+  };
+  if ((unsigned)stop >= sizeof names / sizeof names[0])
+    return 0;
+  return names[stop];
 }
 
 static const char *read_name(enum ps5_capture_probe_read_kind kind) {
@@ -557,6 +737,23 @@ static void encode(struct writer *writer,
   put_text(writer, " timestamp_present=");
   put_unsigned(writer, result->timestamp_present);
   put_text(writer, " format=requires_hardware samples_stored=0");
+  put_text(writer, " observation=");
+  put_unsigned(writer, result->observation);
+  put_text(writer, " observation_stop=");
+  put_text(writer, observation_stop_name(result->observation_stop));
+  put_text(writer, " observation_reads=");
+  put_unsigned(writer, result->observation_read_calls);
+  put_text(writer, " observation_empty=");
+  put_unsigned(writer, result->observation_empty_calls);
+  put_text(writer, " observation_overrun=");
+  put_unsigned(writer, result->observation_overrun_calls);
+  put_text(writer, " observation_last_read_start_elapsed_us=");
+  put_unsigned(writer, result->observation_last_read_start_elapsed_us);
+  put_text(writer, " observation_clock_status=");
+  if (result->called_mask & PS5_CAPTURE_CALL_OBSERVE_CLOCK)
+    put_signed(writer, result->raw_observation_clock_status);
+  else
+    put_text(writer, "na");
   put_raw_call(writer, " stop_status=", result, PS5_CAPTURE_CALL_STOP,
                result->raw_stop_status);
   put_raw_call(writer, " close_status=", result, PS5_CAPTURE_CALL_CLOSE,
@@ -577,9 +774,11 @@ ps5_capture_probe_encode_report(const struct ps5_capture_probe_result *result,
   *out_len = 0;
   if (!result || (!data && capacity) || !status_name(result->status) ||
       !phase_name(result->primary_phase) || !read_name(result->read_kind) ||
+      !observation_stop_name(result->observation_stop) ||
       result->resolved_mask & ~SYMBOL_ALL ||
       result->whole_requested_frames > 1 || result->discontinuity > 1 ||
-      result->timestamp_present > 1 || result->cleanup_uncertain > 1)
+      result->timestamp_present > 1 || result->cleanup_uncertain > 1 ||
+      result->observation > 1)
     return PS5_CAPTURE_PROBE_INVALID;
   encode(&writer, result);
   *out_len = writer.length;

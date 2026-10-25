@@ -136,7 +136,7 @@ firmware-specific facts.
 
 The packaging self-test uses synthetic SDK/header/relink fixtures and real
 temporary Git repositories. It verifies deterministic archives and exact
-contents/rebuild flags for all six diagnostic variants; retained original
+contents/rebuild flags for all seven diagnostic variants; retained original
 header bytes; the exact codec source and immutable relink maps; replacement
 codec/Rust archive/baseline ELF identity; missing/modified relink rejection;
 missing variant-source rejection; boolean/exclusivity rules; capture resolver

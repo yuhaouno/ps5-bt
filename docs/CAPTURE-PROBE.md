@@ -1,9 +1,11 @@
 # Bounded Avcap2 capture probe
 
-Status: host-tested diagnostic component. Parent integration has produced one
-successful preflight and one full immediate-read lifecycle on hardware; the new
-optional 100 ms wait path **Requires hardware**. This does not establish
-playable audio or freeze the future Rust/C audio ABI.
+Status: host-tested diagnostic component. Parent integration has produced a
+successful preflight, one Empty immediate read and one 8,192-byte settled read
+on hardware, each with clean lifecycle cleanup. The separately bounded
+observation candidate in [CAPTURE-OBSERVE.md](CAPTURE-OBSERVE.md) **Requires
+hardware**. None establishes playable audio or freezes the future Rust/C audio
+ABI.
 
 ## Integration requirement for the current hardware window
 
@@ -53,6 +55,11 @@ parent integration must call it synchronously while runtime
    skips ReadAudio, and proceeds through Stop/Close/Terminate exactly once.
    NULL preserves the original immediate-read sequence. The callback is
    synchronous and non-reentrant; it must not start a worker or retain state.
+6. `ps5_capture_probe_observe` additionally requires
+   `int (*now_us)(uint64_t *out_monotonic_us)`. It performs no initial settle:
+   the first read is immediate. Empty/Overrun may then cause an explicit
+   100,000 us wait and another checked monotonic timestamp, with a total limit
+   of 20 reads and two seconds. See CAPTURE-OBSERVE.md for its exact contract.
 
 Equivalent wrapper logic, for review rather than blind copying, is:
 
@@ -141,11 +148,14 @@ Reported from the parent-controlled Slim / firmware 13.40 run on 2026-10-24:
   Start, Stop, Close and Terminate. Its immediate ReadAudio returned raw
   `0x81950002` (`empty`), so it returned no PCM bytes and stored/dumped none.
 - The user confirmed normal console/controller behavior after the run.
+- A later separate 100 ms settle-hook run returned 8,192 bytes; Initialize,
+  Open, Start, Stop, Close and Terminate returned zero,
+  `cleanup_uncertain=0`, and the user again confirmed normal controller
+  behavior. Exact artifact/log evidence is recorded in HW2-EVIDENCE.md.
 
-This is narrow lifecycle evidence, not proof of the requested PCM format,
-capture timing, menu/game mix, repeatability or playable audio. The optional
-100 ms settle-hook variant was completed only after the hardware window ended
-and **has never run on PS5**. Its behavior remains Requires hardware.
+This is narrow lifecycle/data-length evidence, not proof of the requested PCM
+format, capture timing, menu/game mix, repeatability or playable audio. The
+bounded observation variant remains untested on PS5.
 
 ## Units, statuses and claims
 
