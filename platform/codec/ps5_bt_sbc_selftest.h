@@ -2,6 +2,7 @@
 #ifndef PS5_BT_SBC_SELFTEST_H
 #define PS5_BT_SBC_SELFTEST_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -11,6 +12,7 @@ extern "C" {
 #define PS5_BT_SBC_SELFTEST_SCHEMA UINT32_C(1)
 #define PS5_BT_SBC_SELFTEST_EXPECTED_PREFIX UINT32_C(0x9cfd206f)
 #define PS5_BT_SBC_SELFTEST_EXPECTED_DIGEST UINT32_C(0x14e0ec79)
+#define PS5_BT_SBC_SELFTEST_REPORT_CAPACITY 384u
 
 #define PS5_BT_SBC_SELFTEST_OK INT32_C(0)
 #define PS5_BT_SBC_SELFTEST_INVALID (-INT32_C(2))
@@ -59,6 +61,13 @@ struct ps5_bt_sbc_selftest_report {
  */
 int32_t ps5_bt_sbc_selftest_run(void *storage, uint32_t storage_capacity,
                                 struct ps5_bt_sbc_selftest_report *report);
+
+/* Deterministic ASCII v1 report without a trailing NUL. A length query uses
+ * data=NULL/capacity=0. Short output is unchanged and returns INVALID while
+ * out_length receives the required size. */
+int32_t ps5_bt_sbc_selftest_encode_report(
+    const struct ps5_bt_sbc_selftest_report *report, char *data,
+    size_t capacity, size_t *out_length);
 
 #ifdef __cplusplus
 }

@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "ps5_bt_sbc.h"
 #include "ps5_bt_sbc_selftest.h"
@@ -12,6 +13,17 @@
 struct aligned_storage {
   _Alignas(64) uint8_t bytes[TEST_STORAGE_CAPACITY];
 };
+
+static int contains(const char *data, size_t length, const char *needle) {
+  size_t needle_length = strlen(needle);
+  if (needle_length > length)
+    return 0;
+  for (size_t offset = 0; offset + needle_length <= length; ++offset) {
+    if (memcmp(data + offset, needle, needle_length) == 0)
+      return 1;
+  }
+  return 0;
+}
 
 static void test_deterministic_repeated_lifecycle(void) {
   struct aligned_storage storage;
@@ -44,6 +56,28 @@ static void test_deterministic_repeated_lifecycle(void) {
   assert(((first.first_frame_prefix >> 8) & 0xff) == 32);
   assert(first.first_frame_prefix == PS5_BT_SBC_SELFTEST_EXPECTED_PREFIX);
   assert(first.frame_digest == PS5_BT_SBC_SELFTEST_EXPECTED_DIGEST);
+
+  char report_line[PS5_BT_SBC_SELFTEST_REPORT_CAPACITY];
+  size_t report_length = 0;
+  assert(ps5_bt_sbc_selftest_encode_report(&first, NULL, 0,
+                                            &report_length) ==
+         PS5_BT_SBC_SELFTEST_OK);
+  assert(report_length < sizeof report_line);
+  memset(report_line, 0xa5, sizeof report_line);
+  assert(ps5_bt_sbc_selftest_encode_report(&first, report_line, report_length,
+                                            &report_length) ==
+         PS5_BT_SBC_SELFTEST_OK);
+  assert(contains(report_line, report_length, "result=0"));
+  assert(contains(report_line, report_length, "prefix=0x9cfd206f"));
+  assert(contains(report_line, report_length, "digest=0x14e0ec79"));
+  char short_report[8];
+  memset(short_report, 0xa5, sizeof short_report);
+  assert(ps5_bt_sbc_selftest_encode_report(&first, short_report,
+                                            sizeof short_report,
+                                            &report_length) ==
+         PS5_BT_SBC_SELFTEST_INVALID);
+  for (size_t index = 0; index < sizeof short_report; ++index)
+    assert((unsigned char)short_report[index] == 0xa5);
   printf("SBC self-test prefix=%08x digest=%08x\n", first.first_frame_prefix,
          first.frame_digest);
 

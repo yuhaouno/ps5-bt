@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Remove host SDK headers from the static-only SBC target build through a
+  narrowly scoped freestanding-header patch; retain upstream algorithms and
+  verify all reference vectors. Add an atomic bounded ASCII self-test report
+  with raw stage/cleanup status and deterministic frame prefix/digest.
+
 - Add a deterministic allocation-free SBC generated-signal self-test core. It
   performs two independent init/finish cycles, encodes four fixed PCM frames
   and verifies byte identity plus a pinned prefix/digest without retaining or

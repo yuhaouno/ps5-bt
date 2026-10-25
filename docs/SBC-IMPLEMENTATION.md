@@ -98,6 +98,10 @@ imported. Apply these patches, in order, to a temporary copy:
 2. `0002-caller-storage.patch` adds the private caller-storage entry points and
    lets a static-only build omit allocator-backed entry points. It makes no
    codec-algorithm change.
+3. `0003-freestanding-static.patch` selects the project-owned minimal byte-
+   operation/type/errno declarations only for `SBC_STATIC_ONLY`. This removes
+   the target-object probe's dependence on host SDK headers without adding an
+   allocator, I/O API or codec-algorithm change.
 
 The pristine tree must never be edited in place. The test script rejects an
 extra/missing file or any hash change, applies both patches with zero fuzz, and
@@ -141,12 +145,11 @@ Homebrew LLVM/Clang 18.1.8 for the target-object probe. It passed:
   wrapper with LLVM 18.1.8, `-mgeneral-regs-only`, freestanding/PIC/no-red-zone
   flags, followed by the same forbidden-import inspection.
 
-The target compile probe uses Clang resource headers plus the local macOS SDK's
-standard C headers because a reviewed standalone PS5 libc/header set is not in
-this checkout. The resulting objects are generic x86-64 ELF compile evidence,
-not an approved final-link dependency and not PS5 execution. The existing
-runtime build remains unchanged and still contains no allocator/libc codec
-module.
+The target compile probe uses only LLVM 18 resource headers plus
+`ps5_bt_sbc_freestanding.h`; it no longer consumes the host macOS or Linux SDK.
+The resulting objects are generic x86-64 ELF compile evidence, not PS5
+execution. The existing runtime build remains unchanged and still contains no
+allocator/libc codec module.
 
 `--no-sanitize` is available only for diagnosing a host without sanitizer
 runtime support; it is not the acceptance command. `--cc` selects another host

@@ -49,7 +49,11 @@ def verify_pristine() -> None:
 def patched_copy(build: Path, name: str = "patched") -> Path:
     target = build / name
     shutil.copytree(VENDORED / "upstream", target)
-    for name in ("0001-generic-c-only.patch", "0002-caller-storage.patch"):
+    for name in (
+        "0001-generic-c-only.patch",
+        "0002-caller-storage.patch",
+        "0003-freestanding-static.patch",
+    ):
         run([
             "patch",
             "--batch",
@@ -240,13 +244,9 @@ def try_target_objects(clang: Path | None, build: Path, patched: Path,
         "-mno-red-zone",
         "-mgeneral-regs-only",
     ]
-    xcrun = shutil.which("xcrun")
-    if xcrun:
-        sdk = run([xcrun, "--show-sdk-path"], stdout=subprocess.PIPE).stdout.decode().strip()
-        resource = run([str(clang), "-print-resource-dir"],
-                       stdout=subprocess.PIPE).stdout.decode().strip()
-        common.extend(["-isystem", str(Path(sdk) / "usr" / "include"),
-                       "-isystem", str(Path(resource) / "include")])
+    resource = run([str(clang), "-print-resource-dir"],
+                   stdout=subprocess.PIPE).stdout.decode().strip()
+    common.extend(["-nostdinc", "-isystem", str(Path(resource) / "include")])
     objects = []
     for source in (
         patched / "sbc" / "sbc.c",

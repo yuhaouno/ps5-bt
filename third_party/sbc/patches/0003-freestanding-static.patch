@@ -1,0 +1,41 @@
+--- a/sbc/sbc.h
++++ b/sbc/sbc.h
+@@ -20 +20,5 @@
+-#include <sys/types.h>
++#ifdef SBC_STATIC_ONLY
++#include "ps5_bt_sbc_freestanding.h"
++#else
++#include <sys/types.h>
++#endif
+--- a/sbc/sbc.c
++++ b/sbc/sbc.c
+@@ -16,9 +16,11 @@
+-#include <stdio.h>
+-#include <errno.h>
+-#include <string.h>
+-#ifndef SBC_STATIC_ONLY
+-#include <stdlib.h>
+-#endif
+-#include <stdbool.h>
+-#include <sys/types.h>
+-#include <limits.h>
++#ifdef SBC_STATIC_ONLY
++#include "ps5_bt_sbc_freestanding.h"
++#else
++#include <stdio.h>
++#include <errno.h>
++#include <string.h>
++#include <stdlib.h>
++#include <stdbool.h>
++#include <sys/types.h>
++#include <limits.h>
++#endif
+--- a/sbc/sbc_primitives.c
++++ b/sbc/sbc_primitives.c
+@@ -14 +14,5 @@
+-#include <string.h>
++#ifdef SBC_STATIC_ONLY
++#include "ps5_bt_sbc_freestanding.h"
++#else
++#include <string.h>
++#endif

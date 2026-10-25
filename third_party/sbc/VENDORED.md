@@ -46,6 +46,9 @@ Apply the numbered patches from this directory with `patch -p1` to a copy of
    initializer/finalizer. `SBC_STATIC_ONLY` omits allocator-backed upstream entry
    points from the codec build. It does not change filter, quantizer, packing,
    or decoding algorithms.
+3. `0003-freestanding-static.patch` replaces hosted C-library headers only for
+   `SBC_STATIC_ONLY` with the project-owned minimal target declarations. It
+   retains the generic codec algorithms and exposes no allocator or I/O API.
 
 `tools/test_sbc.py` verifies every pristine hash, applies the patches in a
 temporary directory, builds the wrapper, and exercises it. `--build-archive`

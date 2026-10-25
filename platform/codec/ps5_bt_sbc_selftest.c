@@ -194,3 +194,86 @@ int32_t ps5_bt_sbc_selftest_run(void *storage, uint32_t storage_capacity,
   report->codec_status = PS5_BT_SBC_OK;
   return PS5_BT_SBC_SELFTEST_OK;
 }
+
+static size_t append_text(char *buffer, size_t used, const char *text) {
+  while (*text)
+    buffer[used++] = *text++;
+  return used;
+}
+
+static size_t append_u32(char *buffer, size_t used, uint32_t value) {
+  char digits[10];
+  size_t count = 0;
+  do {
+    digits[count++] = (char)('0' + value % 10u);
+    value /= 10u;
+  } while (value != 0);
+  while (count != 0)
+    buffer[used++] = digits[--count];
+  return used;
+}
+
+static size_t append_i32(char *buffer, size_t used, int32_t value) {
+  uint32_t magnitude;
+  if (value < 0) {
+    buffer[used++] = '-';
+    magnitude = 0u - (uint32_t)value;
+  } else {
+    magnitude = (uint32_t)value;
+  }
+  return append_u32(buffer, used, magnitude);
+}
+
+static size_t append_hex32(char *buffer, size_t used, uint32_t value) {
+  static const char digits[] = "0123456789abcdef";
+  buffer[used++] = '0';
+  buffer[used++] = 'x';
+  for (uint32_t shift = 32; shift != 0; shift -= 4)
+    buffer[used++] = digits[(value >> (shift - 4)) & 15u];
+  return used;
+}
+
+int32_t ps5_bt_sbc_selftest_encode_report(
+    const struct ps5_bt_sbc_selftest_report *report, char *data,
+    size_t capacity, size_t *out_length) {
+  char local[PS5_BT_SBC_SELFTEST_REPORT_CAPACITY];
+  size_t used = 0;
+
+  if (!report || !out_length || (data == NULL && capacity != 0) ||
+      report->schema != PS5_BT_SBC_SELFTEST_SCHEMA)
+    return PS5_BT_SBC_SELFTEST_INVALID;
+  used = append_text(local, used, "ps5_bt_sbc_selftest_v1 result=");
+  used = append_i32(local, used, report->result);
+  used = append_text(local, used, " stage=");
+  used = append_u32(local, used, report->stage);
+  used = append_text(local, used, " codec=");
+  used = append_i32(local, used, report->codec_status);
+  used = append_text(local, used, " cleanup=");
+  used = append_i32(local, used, report->cleanup_status);
+  used = append_text(local, used, " storage=");
+  used = append_u32(local, used, report->required_storage);
+  used = append_text(local, used, " alignment=");
+  used = append_u32(local, used, report->required_alignment);
+  used = append_text(local, used, " cycles=");
+  used = append_u32(local, used, report->cycles_completed);
+  used = append_text(local, used, " frames=");
+  used = append_u32(local, used, report->frames_encoded);
+  used = append_text(local, used, " samples=");
+  used = append_u32(local, used, report->pcm_samples_consumed);
+  used = append_text(local, used, " frame_bytes=");
+  used = append_u32(local, used, report->frame_bytes);
+  used = append_text(local, used, " prefix=");
+  used = append_hex32(local, used, report->first_frame_prefix);
+  used = append_text(local, used, " digest=");
+  used = append_hex32(local, used, report->frame_digest);
+  local[used++] = '\n';
+
+  *out_length = used;
+  if (data == NULL && capacity == 0)
+    return PS5_BT_SBC_SELFTEST_OK;
+  if (capacity < used)
+    return PS5_BT_SBC_SELFTEST_INVALID;
+  for (size_t index = 0; index < used; ++index)
+    data[index] = local[index];
+  return PS5_BT_SBC_SELFTEST_OK;
+}
