@@ -1,8 +1,10 @@
 # Native L2CAP availability probe
 
-Status: independently selected diagnostic, 2026-10-25. PS5 execution and native L2CAP
-availability remain **Requires hardware**. Build and test results must be
-recorded separately before deployment; this document is not an execution claim.
+Status: executed on the recorded Slim/13.40 environment, 2026-10-25.
+The control socket created/closed successfully; L2CAP creation returned -1 with
+errno 47 (`EAFNOSUPPORT`). The user confirmed completion and normal wireless
+input. The requested native socket is unavailable through this process/call
+path; native controller routing and other interfaces remain Unknown.
 
 ## Purpose and architecture decision
 
@@ -157,9 +159,33 @@ The candidate was built from clean source commit
   and metadata exactly matched. Upload did not launch the candidate.
 - Previous log preserved locally as `build/ps5/pre-native-l2cap.log`, SHA-256
   `5dd734d9d484caa2ceee56990c1e38b2e5acd2400e8479eff1da2e4edcbba8bb`.
-- Manual launch was requested. Execution, socket availability and controller
-  coexistence remain **Requires hardware** until a new log and user observation
-  are recorded. Do not interpret a successfully uploaded ELF as a run.
+- The user subsequently confirmed manual completion and normal wireless input.
+  [HW3-EVIDENCE.md](HW3-EVIDENCE.md) records control fd 16/close 0, Bluetooth
+  -1/errno 47, no acquired Bluetooth fd, complete return 2 and the full log hash.
+
+### Interpretation after the negative result
+
+The pinned SDK declares errno 47 as `EAFNOSUPPORT`. In the pinned FreeBSD
+[`socreate` comparator][fb-socket], a missing address family produces this code;
+the later `prison_check_af` rejection is instead translated to
+`EPROTONOSUPPORT` (43). Thus the comparator supports domain absence more than a
+prison-permission explanation. PS5 kernel equivalence remains Unknown; this is
+not proof of a particular internal PS5 failure branch. Do not change process
+credentials or retry the same socket based only on this result.
+
+An SDK-specific trap also prevents a useful naive prison comparison:
+[`__kernel_init`][sdk-kernel-runtime] assigns `KERNEL_ADDRESS_PRISON0` by calling
+`kernel_get_ucred_prison(0)`, while `kernel_get_proc(pid <= 0)` selects the
+current process. It is not an independently established root-prison symbol.
+Comparing it with the current prison would not establish sandbox escape or
+explain this error. No prison or credential diagnostic is justified by that
+comparison.
+
+Do not implement the previously conditional headset-connect candidate against
+this failed socket path. The next transport gate requires concrete evidence of
+a different native channel/broker ABI or a USB ownership mechanism preserving
+native traffic and real controller credits. Repeating capture/codec tests,
+protocol-number scanning or automatic privilege changes would not answer it.
 
 | Observed result | Interpretation and next step |
 | --- | --- |
@@ -188,3 +214,5 @@ or playback automatically.
 [fb-l2cap]: https://github.com/freebsd/freebsd-src/blob/d106002967eff712894ab8b5337bbbff106ce5e0/sys/netgraph/bluetooth/socket/ng_btsocket_l2cap.c
 [fb-syscalls]: https://github.com/freebsd/freebsd-src/blob/d106002967eff712894ab8b5337bbbff106ce5e0/sys/kern/uipc_syscalls.c
 [fb-raw]: https://github.com/freebsd/freebsd-src/blob/d106002967eff712894ab8b5337bbbff106ce5e0/sys/netgraph/bluetooth/socket/ng_btsocket_hci_raw.c
+[fb-socket]: https://github.com/freebsd/freebsd-src/blob/d106002967eff712894ab8b5337bbbff106ce5e0/sys/kern/uipc_socket.c
+[sdk-kernel-runtime]: https://github.com/ps5-payload-dev/sdk/blob/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/crt/kernel.c

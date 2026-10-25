@@ -26,11 +26,13 @@ binding classification stayed unknown. Three unrelated device-node opens still
 failed; owned cleanup succeeded and the user confirmed normal wireless input.
 See HW3-EVIDENCE.md for the exact artifact and complete log. This closes the
 binding execution gap without establishing a dispatcher or changing the active
-transport gate. The next experiment is now the separately selected
-[unconnected native L2CAP socket availability probe](NATIVE-L2CAP-PROBE.md).
-The pinned FreeBSD attach/close/detach paths support this narrow lifecycle
-experiment without connection or event reception; PS5 implementation remains
-Unknown. A native channel route could leave HCI and credits with the system.
+transport gate. The separately selected
+[unconnected native L2CAP socket availability probe](NATIVE-L2CAP-PROBE.md)
+has now executed: the UDP control and close succeeded; Bluetooth creation
+returned -1/errno 47 (`EAFNOSUPPORT`), with complete return and normal wireless
+input. This closes the requested socket branch for the current environment.
+A different native channel route could leave HCI and credits with the system,
+but no usable alternate interface is yet established.
 The one-command raw-HCI acceptance test below still requires a source-proven
 broker registration/ACL-send ABI; there is no ready active-HCI artifact.
 
@@ -51,6 +53,10 @@ L2CAP creation/close, preserving immediate errno and cleanup status. It never
 opens raw HCI, binds, connects or reads events. Its 15-second external observation
 ceiling is not a cancellable kernel-call deadline. Any unresolved call or failed
 close stops the experiment; successful allocation alone proves no route.
+The completed negative result does not justify repeating the test, scanning
+protocol values or changing credentials. The source comparator maps prison
+rejection to errno 43, whereas missing domain returns 47; PS5 internals remain
+Unknown. See NATIVE-L2CAP-PROBE.md for the reviewed interpretation.
 
 If later source evidence identifies an actual dispatcher/broker, its first
 active acceptance diagnostic must be separately named and keep these bounds:
@@ -66,6 +72,21 @@ for a proven broker, but implementing it against today's headers would guess the
 very ownership contract it is meant to test.
 
 ## Evidence and interpretation
+
+### Additional ownership lead checked after the socket result
+
+`AngelLopezTorres/ps5-wireless-pads` was inspected at
+`33fa2fe4225f67748f688ee1016b5fab7cbb5605`. Its
+[NOTICE](https://github.com/AngelLopezTorres/ps5-wireless-pads/blob/33fa2fe4225f67748f688ee1016b5fab7cbb5605/NOTICE)
+identifies PadBridge ancestry and GPL-3.0-or-later terms. No source or binary was
+imported or executed. Its
+[USB contract](https://github.com/AngelLopezTorres/ps5-wireless-pads/blob/33fa2fe4225f67748f688ee1016b5fab7cbb5605/src/hci_usb.h)
+explicitly retains competing system endpoint reads; its
+[credit policy](https://github.com/AngelLopezTorres/ps5-wireless-pads/blob/33fa2fe4225f67748f688ee1016b5fab7cbb5605/src/host_int.h)
+uses a 60 ms fallback for missing completion reports. This is another shared
+reader, not the missing native dispatcher. Rest-mode or process-replacement
+features do not establish traffic ownership, so it supplies no next active
+backend candidate under this project's integrity rules.
 
 **Proven source** means the cited public text/source was inspected, not that its
 behavior was verified on PS5. **Reported** means an author's hardware claim or

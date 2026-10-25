@@ -117,9 +117,12 @@ to ask them to repeat their final reports.
 
 **Current execution priority (2026-10-25):** the user renewed the LAN window.
 Binding metadata, settled capture, target SBC and bounded capture observation
-have all executed; see HW3-EVIDENCE.md. The next candidate is
-[native L2CAP availability](NATIVE-L2CAP-PROBE.md), followed by actual native
-route/connection evidence if it succeeds. The earlier preparation checklist
+have all executed; see HW3-EVIDENCE.md. The
+[native L2CAP availability candidate](NATIVE-L2CAP-PROBE.md) also executed:
+UDP control and close succeeded, Bluetooth creation failed with errno 47 and
+wireless input was normal. Do not run the conditional native-connect successor;
+first establish a different usable native ABI or preserved USB ownership
+mechanism. The earlier preparation checklist
 below records the previous wave; do not rerun its completed diagnostics as the
 default next step.
 
@@ -146,11 +149,11 @@ default next step.
 
 ## Next hardware window: short ordered checklist
 
-For the already renewed window, run the native L2CAP availability candidate
-first. Preserve its exact artifact identity, retrieve the complete durable log,
-and confirm wireless input. Continue to native route/connection ABI review only
-if creation and cleanup succeed; record raw errno on failure. Entries 2–4 below
-have completed in HW3 and are historical unless a concrete change needs retest.
+The native L2CAP availability run is complete and negative (errno 47); its
+artifact identity, full durable log and normal wireless input are in HW3.
+No further console action is prepared until a concrete alternative transport
+mechanism is reviewed. Entries 2–4 below also completed in HW3 and are
+historical unless a concrete change needs retest.
 
 The user must confirm the console is available; a date or an old open port is
 not a renewed window. Target is **192.168.1.111**. Previously: FTP 2121,

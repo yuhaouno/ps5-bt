@@ -1,0 +1,24 @@
+event=loader_kernel_init_begin
+event=loader_kernel_init_end code=0
+event=payload_start log=/data/ps5-bt-hw1.log
+event=rust_entry abi=1 phase=bootstrap
+event=adapter_unavailable status=unsupported
+event=native_l2cap_begin
+event=native_l2cap_phase phase=resolve_socket edge=begin raw_bits=0x0000000000000000 errno_valid=0 errno_bits=0x00000000
+event=native_l2cap_phase phase=resolve_socket edge=end raw_bits=0x0000000000000000 errno_valid=0 errno_bits=0x00000000
+event=native_l2cap_phase phase=resolve_close edge=begin raw_bits=0x0000000000000000 errno_valid=0 errno_bits=0x00000000
+event=native_l2cap_phase phase=resolve_close edge=end raw_bits=0x0000000000000000 errno_valid=0 errno_bits=0x00000000
+event=native_l2cap_phase phase=resolve_errno edge=begin raw_bits=0x0000000000000000 errno_valid=0 errno_bits=0x00000000
+event=native_l2cap_phase phase=resolve_errno edge=end raw_bits=0x0000000000000000 errno_valid=0 errno_bits=0x00000000
+event=native_l2cap_phase phase=errno edge=begin raw_bits=0x0000000000000000 errno_valid=0 errno_bits=0x00000000
+event=native_l2cap_phase phase=errno edge=end raw_bits=0x0000000000000001 errno_valid=0 errno_bits=0x00000000
+event=native_l2cap_phase phase=control_socket edge=begin raw_bits=0x0000000000000000 errno_valid=0 errno_bits=0x00000000
+event=native_l2cap_phase phase=control_socket edge=end raw_bits=0x0000000000000010 errno_valid=0 errno_bits=0x00000000
+event=native_l2cap_phase phase=control_close edge=begin raw_bits=0x0000000000000000 errno_valid=0 errno_bits=0x00000000
+event=native_l2cap_phase phase=control_close edge=end raw_bits=0x0000000000000000 errno_valid=0 errno_bits=0x00000000
+event=native_l2cap_phase phase=l2cap_socket edge=begin raw_bits=0x0000000000000000 errno_valid=0 errno_bits=0x00000000
+event=native_l2cap_phase phase=l2cap_socket edge=end raw_bits=0xffffffffffffffff errno_valid=1 errno_bits=0x0000002f
+native_l2cap_v1 status=completed_negative resolve0=0 available=1 resolve1=0 available=1 resolve2=0 available=1 errno_called=1 errno_available=1 control_socket(2,2,17)=16 errno=unknown control_close=0 errno=unknown l2cap_socket(36,5,135)=-1 errno=47 l2cap_close=not_called errno=unknown transport=unsupported controller=unknown scope=local_socket_only
+event=stream_log_unavailable fallback=persistent
+event=payload_exit status=2 (expected Unsupported)
+event=payload_return status=2 (expected Unsupported)

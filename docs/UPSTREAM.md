@@ -13,6 +13,14 @@ subset documented below for HW-1; stock CRT and patch.c remain excluded. No prop
 
 ## Inventory
 
+The 2026-10-25 post-socket-result review also inspected
+[`AngelLopezTorres/ps5-wireless-pads`](https://github.com/AngelLopezTorres/ps5-wireless-pads/tree/33fa2fe4225f67748f688ee1016b5fab7cbb5605)
+at `33fa2fe4225f67748f688ee1016b5fab7cbb5605`. LICENSE is GPL v3 and NOTICE
+explicitly identifies GPL-3.0-or-later/PadBridge ancestry. It is a behavioral
+reference only: no source import, modification, linking or execution. Its
+competing-reader and timed-credit policies do not resolve our ownership gate;
+see NATIVE-HCI-RESEARCH.md.
+
 The native L2CAP availability experiment uses declarations/constants from the
 same pinned SDK and reviews FreeBSD revision
 `d106002967eff712894ab8b5337bbbff106ce5e0` as behavioral evidence only. No

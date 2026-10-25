@@ -58,7 +58,7 @@ their historical software/transfer baselines and are not current runtime state.
 | A2 | DONE | native_hci_research + lead review | source-backed single read-only native stack-version query; no PS5 broker found in bounded inventory; see NATIVE-HCI-RESEARCH.md |
 | C1a | DONE | platform_descriptors + lead review | bounded descriptor parser/report, hostile host tests and ASan/UBSan; no live USB access |
 | C1b | EXECUTED (PARTIAL) | lead + user | own 1286:2059 four-interface descriptor log, clean close and normal pad; three other opens failed; all binding queries returned Unknown names in HW3 |
-| C2 | IN PROGRESS | lead | native query returned -1; next bounded experiment is unconnected L2CAP socket creation/close (NATIVE-L2CAP-PROBE.md). Native route and raw HCI ownership remain unknown; no direct USB activation |
+| C2 | BLOCKER | lead | L2CAP socket experiment executed: UDP control/close succeeded, BT creation -1/errno 47, normal pad. This socket branch is unavailable in the current process; a different proven native broker or preserved USB traffic ownership remains required |
 | C3 | EXECUTED | lead | export resolved on Slim/13.40; single query returned -1; version/controller remain Unknown |
 | H1 | LIFECYCLE PASS | user + lead | loader kernel init 0, Rust entry and final 2 on Slim/13.40; user confirmed visible notifications and normal wireless input |
 | H2 | PARTIAL | user + lead | USB descriptors and normal pad confirmed; HCI queries/ownership/credits remain unverified and gated by C2 |
@@ -82,14 +82,18 @@ Do not declare hardware completion from desktop simulation or an ELF link.
 
 ## Persistent blockers and next integration target
 
-Transport access is the immediate critical path: run the separate native L2CAP
-availability candidate, then use the result to select route/connection ABI
-review or close that particular socket branch. Do not repeat capture or SBC
+Transport access is the immediate critical path: the native L2CAP candidate
+returned errno 47 after successful UDP control cleanup, closing that particular
+socket branch for this environment. Do not repeat capture or SBC
 self-tests without a changed implementation or a concrete unanswered question.
 Next acceptance remains real headset connection, a short audible SBC tone,
 then captured audio and the minimal LAN controls. A native channel backend may
 leave HCI/credits under the system owner; it requires a separately reviewed
 channel ABI rather than pretending the existing raw-HCI ABI was implemented.
+There is no ready headset-connect candidate against the failed socket path.
+The next executable transport test requires a concrete alternative channel or
+ownership ABI; more endpoint reads, guessed protocols or permission changes
+without such evidence would not resolve the blocker.
 
 The baseline diagnostic has passed its executable lifecycle gate on one
 environment. Human-visible notifications and wireless DualSense were confirmed;

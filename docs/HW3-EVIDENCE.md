@@ -91,9 +91,35 @@ not clock accuracy, total native-read duration or sustained capture behavior.
 The observation path divides by no assumed frame size, reports no timestamp
 and retains no samples. Native PCM format/timing remain unknown.
 
+## Native L2CAP socket availability
+
+Source: clean `cc3b560653bc984bcfc39c531a0fa2f92471f520`.
+ELF SHA-256:
+`f58bff82b5f6b2a86298f9881bf5c58d732a6af593024df86dd806c6858be0d7`.
+Source-package SHA-256:
+`91670b41cf2b77f6d6d6f400e4d48219395ee1760e0f3ebedec9bb7c4223b400`.
+Remote ELF readback matched before manual launch. The user confirmed completion
+and normal wireless controller operation. The
+[complete numeric log](evidence/2026-10-25-native-l2cap.txt), SHA-256
+`4c44f821ec1faa52ab66ba75cf442ff002bf5e9a144ea79e7d3155399d19ed29`,
+contains complete startup, phase and return markers.
+
+All three exports resolved with 0 and errno storage was non-NULL. The control
+`socket(2,2,17)` returned fd 16 and its one close returned 0. The single
+`socket(36,5,135)` returned -1 with immediately captured errno 47, declared
+`EAFNOSUPPORT` by the pinned SDK. No Bluetooth fd was acquired, so no Bluetooth
+close was called. Diagnostic status was `completed_negative`; payload return
+remained 2 for the Unsupported transport.
+
+This closes the native FreeBSD-shaped L2CAP socket availability branch for the
+current process/environment. It establishes neither global PS5 Bluetooth
+absence nor an alternative socket/API. No bind, connect, HCI event/ACL access,
+pairing or permission change occurred. See NATIVE-L2CAP-PROBE.md for the exact
+source-comparator interpretation and next evidence requirements.
+
 ## Remaining acceptance
 
-All four named candidates completed with user-confirmed normal wireless input.
+All five named candidates completed with user-confirmed normal wireless input.
 USB inventory remains partial and binding names Unknown; HCI ownership, command
 routing and enforceable credits remain unresolved. No inquiry/pairing, radio
 reset, controller firmware operation, ACL/audio send or headphone playback was

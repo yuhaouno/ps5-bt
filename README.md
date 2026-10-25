@@ -56,7 +56,7 @@ The earlier second-machine build reproduction remains in
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
 | PS5 diagnostic ELF with explicit loader kernel resolver | Verified on one environment | Slim/13.40: Rust entry, durable lifecycle and final 2; notifications returned success |
 | Optional read-only native stack-version query | Executed | sysctlbyname resolved; query returned -1; version and controller remain Unknown |
-| Unconnected native L2CAP socket probe | Implemented; Requires hardware | one UDP control create/close then one L2CAP create/close; allocation alone establishes no controller route |
+| Unconnected native L2CAP socket probe | Executed; negative on one Slim/13.40 | UDP control created/closed; L2CAP creation -1 / errno 47; normal wireless input; no usable native channel established |
 | Live PS5 transport and capture | Unsupported | adapter explicitly returns Unsupported |
 | PS5 Fat / Slim / Pro | Limited hardware evidence | one Slim/13.40 diagnostic run path; other models and Bluetooth remain Unknown |
 | Console firmware | Limited hardware evidence | user-reported 13.40 diagnostic execution only |

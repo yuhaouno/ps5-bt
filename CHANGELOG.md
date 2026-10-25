@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Execute the native L2CAP availability probe: UDP control creation/close
+  succeeded, but Bluetooth creation returned -1 / errno 47 (`EAFNOSUPPORT`).
+  Preserve the complete log and user-confirmed normal wireless input. Close
+  this socket branch for the current process/environment; no permission change
+  or headset connection follows from the result.
+
 - Add a separately selected native L2CAP availability experiment: resolve the
   exact socket/close/errno ABI, create/close an IPv4 control socket, then one
   unconnected L2CAP socket. Preserve immediate errno, phase markers and cleanup
