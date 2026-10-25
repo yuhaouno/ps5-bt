@@ -4,8 +4,21 @@ Updated: 2026-10-25. Read AGENTS.md and docs/MVP-STATE.md first.
 
 ## 2026-10-25 relay completion
 
-The new lead completed and committed four independent increments after
-`ba93307`:
+The new lead completed and committed nine reviewable increments after
+`ba93307`; the latest offline protocol wave adds:
+
+- `6a3cfca`: bounded authenticated LAN request/status contract with one
+  serialized command ticket; no socket listener, page or PS5 operation.
+- `1a94fac`: acceptance-confirmed outbound L2CAP-to-HCI ACL fragmentation that
+  retains a partially sent PDU until completion or explicit terminal/epoch
+  cancellation; no capacity discovery or credit ownership.
+- `875d99d`: bounded A2DP Audio Sink SDP discovery with exact UInt16 service
+  semantics, epoch/deadline correlation and finite continuation history.
+- `e55f2e3`: bounded AVDTP initiator session for conservative SBC discovery,
+  configuration and lifecycle transitions; fragmented signaling, live media
+  binding and hardware use remain absent.
+
+The preceding relay increments were:
 
 - `0e32102`: allocation-free Classic L2CAP Connection, MTU Configuration and
   Disconnection signaling with an epoch-bound initiator channel and six
@@ -22,9 +35,10 @@ The new lead completed and committed four independent increments after
   ceilings and log/controller stop rules. It is dry-run by default and never
   launches a payload.
 
-Last green checks at `40b6127`: `make check`, `make check-c-sanitize`,
+Last green checks at `e55f2e3`: `make check`, `make check-c-sanitize`,
 `make sbc-codec-test`, `make check-build-tools`, the `bt-a2dp` freestanding
-check, and Git diff/format checks. The workspace suite has 56 ordinary Rust
+check, the `bt-avdtp` freestanding check, and Git diff/format checks. The
+workspace suite has 104 ordinary Rust
 tests; the host codec feature adds eight Rust checks plus 208 encoder vectors,
 12 decoder checks, sanitizers, forbidden-import inspection and replacement
 archive relinking. These are host/build results, not PS5 playback evidence.
@@ -38,20 +52,18 @@ a network-free dry run. Only after the user confirms the console window and the
 two exact PayloadManager slots exist with matching schema-2 metadata may the
 lead consider `--deploy --execute`; it uploads only and still does not launch.
 
-The three temporary collaboration workers created by the relay turn are no
-longer live. The L2CAP worker left an untested partial edit when the user resumed;
-the lead reviewed/fixed it, added the missing tests/docs and committed it. The
-RTP and HCI-audit workers produced no separately usable filesystem increment;
-the lead completed those tracks directly. Do not assume `/root/rtp_packetizer`,
-`/root/l2cap_signaling` or `/root/hci_ownership` can be resumed. The two older
-local worker chat IDs below remain historical references; no new message was
-needed for this completed relay.
+The temporary collaboration workers from these protocol turns are no longer
+live. Their changes were reviewed and corrected by the integration owner before
+the commits above; the final AVDTP audit reported no blocking issue. Do not
+assume `/root/acl_fragmenter`, `/root/avdtp_session`, `/root/hci_ownership`,
+`/root/l2cap_signaling`, `/root/rtp_packetizer` or `/root/sdp_discovery` can be
+resumed. The two older local worker chat IDs below remain historical references.
 
-Remaining offline critical path: A2DP SDP discovery client; AVDTP SBC
-capability/stream state; Classic baseband connection, explicit pairing and key
-storage; outbound L2CAP-to-ACL fragmentation/pacing; reviewed target libsbc
-archive/self-test and its relink distribution materials; experimental capture
-format/timestamp adapter; then the thin bounded LAN status/command surface.
+Remaining offline critical path: Classic baseband connection, explicit pairing
+and key storage; AVDTP signaling reassembly and live media-channel binding;
+transport pacing; reviewed target libsbc archive/self-test and its relink
+distribution materials; experimental capture format/timestamp adapter; and the
+bounded LAN listener/static page wired to actual owner state.
 HCI activation still requires a source-proven single-owner dispatcher and the
 one-command/credit acceptance experiment in NATIVE-HCI-RESEARCH.md. No raw USB
 reader, timed credit refill or guessed socket broker is an alternative.
@@ -181,9 +193,10 @@ manifests from the new clean HEAD before packaging/deployment.
 - Earlier dirty hardware builds retain their original identities. Clean
   rebuilt diagnostics/source packages do not inherit those hardware results.
 
-Next offline deliverable: bounded SBC/RTP packetization with negotiated MTU,
-sequence/sample timestamps and scripted rejection/stall tests, followed by
-AVDTP session/signaling and SDP discovery/connection. Keep the eventual minimal
-LAN control page thin and honest about implemented states. Next hardware window
-needs driver-binding metadata and one settled capture read first; nonempty PCM
-format/timing and HCI routing/credit ownership are still separate blockers.
+Next offline deliverable: bind the completed SDP, L2CAP, AVDTP and RTP pieces
+through an explicit paced media orchestration path, while separately advancing
+baseband/pairing, target SBC and capture-format evidence. Keep the eventual
+minimal LAN page thin and honest about implemented states. The next hardware
+window still needs driver-binding metadata and one settled capture read first;
+nonempty PCM format/timing and HCI routing/credit ownership remain separate
+blockers.

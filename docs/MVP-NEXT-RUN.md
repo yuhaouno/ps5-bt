@@ -8,8 +8,11 @@ Read AGENTS.md, SESSION-HANDOFF.md and MVP-STATE.md before work.
 Relay progress on 2026-10-25: L2CAP Classic signaling (`0e32102`), bounded
 SBC-over-RTP plus the real host RTP/L2CAP/ACL scenario (`0c2ecf5`), the concrete
 ownership blocker/experiment audit (`4ef1d00`) and the dry-run-first hardware
-kit (`40b6127`) are committed. SESSION-HANDOFF.md records final checks, worker
-state and remaining work. Rebuild the kit if a later handoff commit changes HEAD.
+kit (`40b6127`) are committed. The next offline wave added the bounded LAN
+contract (`6a3cfca`), lossless outbound ACL fragmentation (`1a94fac`), A2DP Sink
+SDP discovery (`875d99d`) and the bounded AVDTP SBC initiator session
+(`e55f2e3`). SESSION-HANDOFF.md records final checks, worker state and remaining
+work. Rebuild the kit if a later handoff commit changes HEAD.
 
 ## Outcome and critical path
 
@@ -29,6 +32,12 @@ Two unresolved hardware facts dominate the outcome:
 Offline protocols, target codec integration and control scaffolding should
 advance alongside these investigations. If a hardware fact still blocks tone,
 deliver an executable diagnostic and exact remaining blocker, not fake success.
+
+The host foundations now include L2CAP channel signaling and outbound
+fragmentation, SDP Sink discovery, AVDTP conservative-SBC session state,
+SBC-over-RTP packetization and the bounded control contract. Remaining work is
+their paced media binding plus signaling reassembly, Classic baseband/pairing,
+target codec/capture adapters and the actual safe LAN listener/page.
 
 ## Completed baseline: do not repeat or overwrite
 
