@@ -346,10 +346,9 @@ fn response_checks_transaction_count_continuation_and_chunk_boundaries() {
         ServiceSearchAttributeResponse::parse(&packet, 0x1234, 6),
         Err(ParseError::AttributeByteCount)
     );
-    assert_eq!(
-        ServiceSearchAttributeResponse::parse(&pdu(7, &[0, 1, 0, 0]), 0x1234, 7),
-        Err(ParseError::AttributeByteCount)
-    );
+    let one_byte_packet = pdu(7, &[0, 1, 0, 0]);
+    let one = ServiceSearchAttributeResponse::parse(&one_byte_packet, 0x1234, 7).unwrap();
+    assert_eq!(one.attribute_lists, &[0]);
     assert_eq!(
         ServiceSearchAttributeResponse::parse(&pdu(7, &[0, 8, 0, 0]), 0x1234, 7),
         Err(ParseError::AttributeByteCount)

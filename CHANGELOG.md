@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Add a bounded A2DP Audio Sink SDP discovery client with exact request
+  attributes, per-request transactions, connection epochs, whole-exchange
+  deadline, finite continuation history and atomic final service validation.
+  Enforce UInt16 PSM/version/feature wire types; no live query is claimed.
+
 - Add allocation-free outbound L2CAP-to-HCI ACL fragmentation with an explicit
   acceptance cursor, byte-identical preparation retry, PB=0/PB=1 framing,
   handle/epoch checks and durable accounting for terminal or epoch cancellation.

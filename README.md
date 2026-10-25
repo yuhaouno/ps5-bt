@@ -36,7 +36,7 @@ The earlier second-machine build reproduction remains in
 | --- | --- | --- |
 | Portable contracts, HCI command/ACL framing and capability event decoders | Implemented | host packet/malformed-input tests |
 | L2CAP framing, bounded ACL fragmentation/reassembly and Classic channel signaling | Implemented on host | acceptance-confirmed outbound cursor plus scripted Connection/MTU Configuration/Disconnection and handle/epoch/bounds tests; no live transport/credits |
-| SDP framing and bounded data-element parsing | Implemented | synthetic parser tests; no discovery client |
+| SDP framing, bounded data elements and A2DP Sink discovery | Implemented on host | correlated transactions/epochs, bounded continuation and strict service-record semantics; no live query |
 | C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |
 | Opt-in read-only USB enumeration | Executed on one Slim/13.40 | own four-interface descriptor log; other node opens failed; transport remains Unsupported |
@@ -123,8 +123,8 @@ Rust owns the architecture. Proven platform adaptation may remain C. See
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
 The workspace contains `bt-a2dp`, `bt-control`, `bt-core`, `bt-codec`, `bt-hci`,
 `bt-l2cap`, `bt-sdp`, `ps5-sys`, `ps5-platform`, and `ps5-runtime`. The first initiator-side L2CAP Basic-mode
-channel machine and SBC-over-RTP packetizer are host-tested; SDP discovery and
-AVDTP session work remain future work, and no live channel is enabled.
+channel machine, SDP Audio Sink discovery client and SBC-over-RTP packetizer are
+host-tested; AVDTP integration remains offline-only, and no live channel is enabled.
 The bounded LAN request/state contract is host-tested, but has no socket listener
 or page; the remaining protocol and LAN integration work is not a current capability.
 See [next-session work and hardware run order](docs/MVP-NEXT-RUN.md).

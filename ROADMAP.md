@@ -26,7 +26,8 @@ The next implementation and 2026-10-25 hardware preparation plan is
 not independent host protocol, target-adapter or minimal-control-page development.
 An initiator-side Classic Basic-mode L2CAP channel now passes scripted
 Connection/MTU Configuration/Disconnection tests, but has no live transport,
-SDP/AVDTP session or hardware evidence.
+AVDTP session or hardware evidence. A bounded A2DP Sink SDP discovery exchange
+now passes scripted continuation and service-record tests but has no live query.
 Its outbound fragmenter now preserves one partially accepted PDU until complete
 or explicitly terminated and emits exact PB=0/PB=1 ACL frames against a proven
 external data limit. It has no credit ledger, pacing or hardware evidence.

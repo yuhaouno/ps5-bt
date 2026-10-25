@@ -1,6 +1,6 @@
 [package]
 name = "bt-sdp"
-description = "Bounded SDP PDU and data-element parsing"
+description = "Bounded SDP parsing and A2DP Audio Sink discovery"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -80,10 +80,13 @@ no syscall is executed by that test. Hardware evidence is in HW1-REPAIR.md.
 
 ## Portable expansion
 
-The SDP foundation tests exact PDU/transaction/continuation framing, all element
+The SDP tests cover exact PDU/transaction/continuation framing, all element
 type/size descriptors and Boolean bytes, integer extrema, truncations and explicit
-byte/node/depth limits. See [SDP.md](SDP.md). Response chunks are deliberately
-separate from complete-tree validation; no discovery/session pass is claimed.
+byte/node/depth limits. The A2DP Sink client adds exact request bytes, arbitrary
+chunk splits, full token-history loop detection, transaction/epoch/deadline
+binding, atomic final validation and strict service/PSM/profile/UInt16 semantics.
+See [SDP.md](SDP.md). These scripted peers do not establish a live query or
+interoperability result.
 
 Implement unit/state tests with each protocol component. Include malformed
 lengths, nested SDP limits, L2CAP fragmentation/MTU bounds, foreign/stale handles,

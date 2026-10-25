@@ -93,13 +93,27 @@ impl<'a> Iterator for Elements<'a> {
     type Item = Result<DataElement<'a>, ParseError>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.next_encoded()
+            .map(|result| result.map(|(element, _)| element))
+    }
+}
+
+impl<'a> Elements<'a> {
+    /// Return the decoded child together with its complete encoded bytes.
+    /// Profile-specific validators use this to enforce integer wire widths
+    /// without weakening the generic value-oriented public representation.
+    pub(crate) fn next_encoded(
+        &mut self,
+    ) -> Option<Result<(DataElement<'a>, &'a [u8]), ParseError>> {
         if self.remaining.is_empty() {
             return None;
         }
+        let encoded = self.remaining;
         match decode(self.remaining) {
             Ok((element, tail)) => {
+                let consumed = encoded.len() - tail.len();
                 self.remaining = tail;
-                Some(Ok(element))
+                Some(Ok((element, &encoded[..consumed])))
             }
             Err(error) => {
                 self.remaining = &[];

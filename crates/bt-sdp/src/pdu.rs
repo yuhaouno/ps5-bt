@@ -85,7 +85,7 @@ impl<'a> ServiceSearchAttributeResponse<'a> {
             return Err(ParseError::Length);
         }
         let count = u16::from_be_bytes([p[0], p[1]]);
-        if maximum_attribute_bytes < 7 || count < 2 || count > maximum_attribute_bytes {
+        if maximum_attribute_bytes < 7 || count > maximum_attribute_bytes {
             return Err(ParseError::AttributeByteCount);
         }
         let rest = &p[2..];
