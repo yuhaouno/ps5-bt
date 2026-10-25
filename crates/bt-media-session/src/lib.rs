@@ -8,6 +8,9 @@
 #![no_std]
 #![forbid(unsafe_code)]
 
+mod transmit;
+pub use transmit::{TransmitError, TransmitOutcome};
+
 use bt_a2dp::{
     MAX_SBC_FRAMES_PER_PACKET, PACKET_OVERHEAD_BYTES, PacketError, PacketReport, SbcRtpPacketizer,
 };

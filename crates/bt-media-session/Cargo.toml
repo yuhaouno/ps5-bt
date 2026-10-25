@@ -10,10 +10,8 @@ publish.workspace = true
 [dependencies]
 bt-a2dp = { path = "../bt-a2dp" }
 bt-core = { path = "../bt-core" }
-bt-l2cap = { path = "../bt-l2cap" }
-
-[dev-dependencies]
 bt-hci = { path = "../bt-hci" }
+bt-l2cap = { path = "../bt-l2cap" }
 
 [lints]
 workspace = true

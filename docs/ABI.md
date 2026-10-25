@@ -53,6 +53,10 @@ success. This refers to the raw HCI receive queue, not a PCM playout buffer:
 bounded concealment/rebuffer and expired unsent media policy live above this ABI.
 Those policies never acknowledge missing HCI completions or discard partially
 sent L2CAP PDUs. See AUDIO-RECOVERY.md; no C ABI change is introduced.
+Busy is the only send error with a general no-acceptance guarantee here. The
+portable credit owner treats other backend errors as terminal with an uncertain
+current-send outcome; it neither refunds nor blindly retries that frame. Pure
+Rust preflight errors occur before the native call and do not consume credit.
 Timeout zero polls; positive waits are bounded in milliseconds. Timeout returns
 `-8` with zero outputs and maps to `Ok(None)` in Rust receive.
 

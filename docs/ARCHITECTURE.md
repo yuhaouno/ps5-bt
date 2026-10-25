@@ -62,9 +62,9 @@ can implement the same traits without depending on any PS5 crate.
 | `bt-core` | `no_std` contracts, SBC parameters, PCM staging and nominal sample timeline | no dependencies |
 | `bt-codec` | `no_std` caller-storage encoder owner; real generic libsbc behind host-only feature | `bt-core`; C static archive only with `host-libsbc` |
 | `bt-control` | `no_std` bounded authenticated request parsing, serialized command tickets and redacted status | no dependencies; no listener or transport owner |
-| `bt-hci` | `no_std` typed command/event/ACL framing and capability decoding | `bt-core`; no platform dependency |
+| `bt-hci` | `no_std` typed command/event/ACL framing, capability decoding and externally owned ACL reservation accounting | `bt-core`; no platform dependency or ownership discovery |
 | `bt-l2cap` | `no_std` basic framing, bounded handle/epoch ACL fragmentation/reassembly and initiator-side Classic Basic-mode signaling | `bt-core`, `bt-hci`; no live transport, credit ledger or responder allocator |
-| `bt-media-session` | `no_std` SBC-frame to RTP/L2CAP/ACL send cursor with acceptance-confirmed retry and durable cancellation accounting | `bt-a2dp`, `bt-core`, `bt-l2cap`; no clock, encoder, credits or transport owner |
+| `bt-media-session` | `no_std` SBC-frame to RTP/L2CAP/ACL send cursor plus one-attempt submission through an external credit owner | `bt-a2dp`, `bt-core`, `bt-hci`, `bt-l2cap`; no clock, encoder, reservation discovery or transport owner |
 | `bt-sdp` | `no_std` borrowed PDU/data elements and bounded A2DP Sink discovery with atomic final validation | no dependencies; no L2CAP or live session |
 | `ps5-sys` | `no_std` declarations matching our own C header | no SDK struct bindings |
 | `ps5-platform` | `no_std` safe C adapter wrapper, exclusive session ownership | `bt-core`, `ps5-sys` |

@@ -24,6 +24,7 @@ dependencies = [
  "bt-core",
  "bt-hci",
  "bt-l2cap",
+ "bt-media-session",
 ]
 
 [[package]]

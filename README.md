@@ -38,6 +38,7 @@ The earlier second-machine build reproduction remains in
 | Area | Status | Evidence |
 | --- | --- | --- |
 | Portable contracts, HCI command/ACL framing and capability event decoders | Implemented | host packet/malformed-input tests |
+| Owned ACL credit accounting | Implemented on host | exact acceptance/completion accounting with explicit reservation, sticky loss/uncertain-send failure and no timer refill; no hardware reservation established |
 | L2CAP framing, bounded ACL fragmentation/reassembly and Classic channel signaling | Implemented on host | acceptance-confirmed outbound cursor plus scripted Connection/MTU Configuration/Disconnection and handle/epoch/bounds tests; no live transport/credits |
 | SDP framing, bounded data elements and A2DP Sink discovery | Implemented on host | correlated transactions/epochs, bounded continuation and strict service-record semantics; no live query |
 | AVDTP SBC initiator session | Implemented on host | bounded Discover/Get Capabilities/Set Configuration/Open/Start/Suspend/Close/Abort with conservative SBC selection; no signaling reassembly, live media channel, headset or PS5 execution |
@@ -50,7 +51,7 @@ The earlier second-machine build reproduction remains in
 | Generated-signal SBC self-test | Executed on one Slim/13.40 environment | two fresh init/finish cycles, four 77-byte frames and pinned digest match host; clean cleanup; no measured encode duration or Bluetooth output |
 | Bounded capture observation | Executed on one Slim/13.40 environment | immediate Empty then 8,192 bytes after one wait; checked clock call and clean cleanup; native PCM format/timestamp still unknown |
 | SBC-over-RTP/A2DP packetization | Implemented on host | fixed negotiated MTU/frame boundaries, atomic backpressure, sequence/sample timestamps and wrap tests; no AVDTP/live stream |
-| Media send orchestration | Implemented on host | binds complete SBC frames through RTP, L2CAP and acceptance-confirmed ACL fragmentation; no clock, HCI credits or live transport |
+| Media send orchestration | Implemented on host | SBC/RTP/L2CAP/ACL submission now uses an external credit owner; Busy/credit stops retain the PDU and terminal errors report cancellation counts; no clock or live transport |
 | LAN control/status contract | Implemented on host | bounded authenticated request parser, single-owner command queue and identity-free status JSON; no listener/page or PS5 integration |
 | PCM staging, nominal sample timeline and bounded recovery | Host-only implementation | caller-owned stereo i16 queue; synthetic gaps/stalls; no resampler or live audio |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |

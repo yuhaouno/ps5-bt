@@ -40,6 +40,8 @@ pub struct Received<'a> {
 
 /// A single-owner transport. Success means accepted, not transmitted/credited.
 /// Implementations must preserve native traffic and report framing/queue loss.
+/// `Error::Busy` rejects the entire send without accepting bytes. Other send
+/// errors have no generic non-acceptance guarantee and require reconciliation.
 pub trait BluetoothTransport {
     fn send_command(&mut self, packet: &[u8]) -> Result<(), Error>;
     fn send_acl(&mut self, packet: &[u8]) -> Result<(), Error>;

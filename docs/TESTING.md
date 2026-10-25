@@ -6,6 +6,14 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
 ## Current automated checks
 
+- Owned ACL ledger: exact accepted/completed invariants, zero and full u16
+  reservations, atomic malformed/foreign/duplicate/over-completion failure,
+  stale epoch quarantine, cumulative counter exhaustion, Busy retry, all other
+  backend errors with explicit uncertain outcome, and no clock refill.
+  Media submission tests bind that ledger to real fragment cursors: Busy both
+  before/after a prefix, exhaustion, terminal prefix cancellation, first-send
+  uncertainty, idle failure and wrong owner/data-limit rejection. These are
+  synthetic reservations and completion events, not PS5 ownership evidence.
 - Native L2CAP availability boundary: all exports must resolve before calls;
   immediate errno capture, descriptor zero, control failure, one close attempt,
   cleanup uncertainty, atomic reports and real main ordering. Run
@@ -22,7 +30,8 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
   reference decoder checks; C ASan/UBSan and allocator-import rejection;
   separately rebuilt replacement archive linking. `make sbc-codec-test` also
   runs the 77-byte real SBC example and the complete 90-byte RTP/A2DP ->
-  94-byte L2CAP -> 98-byte synthetic ACL framing example. No headset, capture,
+  94-byte L2CAP -> three 44/44/18-byte synthetic ACL submissions with one Busy,
+  two credit stops and three scripted completions. No headset, capture, real
   transport or target execution.
 - Generated-signal SBC self-test: two independent init/finish cycles encode the
   same two fixed 48 kHz joint-stereo frames, compare both cycles byte-for-byte

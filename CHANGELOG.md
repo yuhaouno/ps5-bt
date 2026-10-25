@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add an allocation-free ACL packet-reservation ledger with exact accepted and
+  completed counts, strict epoch/handle/event validation and sticky terminal
+  uncertainty. Integrate it with the retained media PDU sender and real host
+  SBC example; Busy and credit exhaustion preserve fragment bytes. No timer
+  refill, guessed controller budget or PS5 ownership claim is introduced.
+
 - Execute the native L2CAP availability probe: UDP control creation/close
   succeeded, but Bluetooth creation returned -1 / errno 47 (`EAFNOSUPPORT`).
   Preserve the complete log and user-confirmed normal wireless input. Close

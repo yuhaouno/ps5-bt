@@ -37,7 +37,10 @@ AVDTP media-channel binding or hardware evidence. A bounded A2DP Sink SDP discov
 now passes scripted continuation and service-record tests but has no live query.
 Its outbound fragmenter now preserves one partially accepted PDU until complete
 or explicitly terminated and emits exact PB=0/PB=1 ACL frames against a proven
-external data limit. It has no credit ledger, pacing or hardware evidence.
+external data limit. A separate owned ACL reservation ledger and one-attempt
+media submission driver now pass host tests and the real SBC example, including
+Busy retry, zero-credit backpressure and exact completion accounting. They do
+not establish a hardware reservation, native routing or sample-clock pacing.
 The thin LAN foundation now has a host-tested authenticated request boundary,
 single-owner command tickets and redacted status serialization. It has no
 listener, rendered page or PS5 integration and therefore is not a user-facing
@@ -69,7 +72,7 @@ the runtime is reviewed. Do not open artificial issues for each empty crate.
 
 Initial host validation: four Rust parser tests, 15 C/Rust seam scenarios, C stub
 contract checks, fmt/check/Clippy and the freestanding archive build/inspection.
-Current local checks: 113 ordinary Rust tests plus eight host codec checks,
+Current local checks: 134 ordinary Rust tests plus eight host codec checks,
 208 encoder reference vectors, 12 decoder checks, replacement-archive linking,
 four host PCM recovery scenarios,
 descriptor/native-query C tests with ASan/UBSan, 15 ABI

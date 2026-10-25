@@ -19,6 +19,7 @@ bt-core = { path = "../bt-core" }
 bt-a2dp = { path = "../bt-a2dp" }
 bt-hci = { path = "../bt-hci" }
 bt-l2cap = { path = "../bt-l2cap" }
+bt-media-session = { path = "../bt-media-session" }
 
 [[example]]
 name = "pcm_to_sbc"

@@ -1,7 +1,7 @@
 # Portable HCI and L2CAP framing
 
-Status: HCI framing plus bounded L2CAP basic framing, outbound fragmentation,
-recombination and an initiator-side Classic Basic-mode channel machine are
+Status: HCI framing and owned ACL credit accounting plus bounded L2CAP basic
+framing, outbound fragmentation, recombination and a Classic Basic-mode channel machine are
 implemented and tested on the host. No hardware, controller ownership, live
 connection or audio support is established by these components.
 
@@ -42,8 +42,60 @@ does not aggregate or replenish credits. A controller-wide capacity or reported
 completion is not an owned transmission reservation. HCI does not carry a
 connection epoch in this event: the future ordered dispatcher must resolve
 ownership and handle reuse before accounting, and must not relabel queued
-old-session events as current-session completions. No credit ledger, command
-dispatcher or active transport is implemented here.
+old-session events as current-session completions. The separate reservation
+ledger below supplies accounting, not the missing dispatcher or active transport.
+
+## Owned ACL packet reservation and media submission
+
+`bt_hci::flow::AclCreditOwner` is an allocation-free, host-tested packet ledger
+for one externally proven handle/epoch reservation and ACL data maximum. Its
+constructor asserts caller-provided ownership; it cannot establish a hardware
+reservation. Never substitute controller-wide buffer capacity or a free-buffer
+snapshot for that evidence. Zero reservation produces real backpressure.
+
+Each `send_acl` validates context, exact packet framing, point-to-point handle,
+data limit and available credit before one transport call. Only whole-frame
+acceptance consumes a packet. Only Busy guarantees no acceptance and permits
+unchanged retry. Every other backend error freezes the owner with explicit
+send-outcome uncertainty; local validation does not submit or consume a credit.
+No command, event read, clock, retry, reset or time-based refill occurs here.
+
+`complete` validates the entire Number Of Completed Packets event before any
+reclaim. Wrong epoch, foreign handles (even zero-count entries), duplicate
+handle entries, malformed framing or counts exceeding outstanding packets
+record the first terminal cause without partially crediting earlier entries.
+An empty or owned zero-count event is a no-op. Snapshot counters retain the
+initial reservation, available/outstanding packets, accepted/completed totals
+and failure; no failure silently reconciles outstanding packets. Completion
+means controller buffer reuse, not audible delivery or RF success. This subset
+uses packet-based ACL flow control, not block-based, SCO or ISO accounting.
+
+The external dispatcher must deliver events exactly once with their original
+ownership context, preserving every native entry of a shared event elsewhere.
+The ledger rejects a mixed raw event rather than filtering away native entries.
+HCI carries neither epoch nor sequence: a duplicate delivery that fits current
+outstanding counts, or stale data falsely relabelled as current, cannot be
+identified here. Explicit event/queue loss calls `mark_integrity_lost`; creating
+a fresh owner is allowed only after external teardown/quarantine and a new
+proven reservation. Dropping a Rust value releases no controller resource.
+
+`MediaSession::transmit_next` binds this owner to the retained RTP/L2CAP PDU and
+attempts at most one ACL submission. It verifies matching handle, epoch and ACL
+data maximum, charges accepted data through the ledger, then advances the
+fragment cursor. Busy/NoCredits preserve the PDU; partial healthy PDUs still
+cannot be stopped. A terminal failure consumes an observable cancellation with
+definitely accepted prefix counts and a separate current-send uncertainty flag.
+The same reservation/backend must remain bound throughout a PDU; equal numeric
+contexts do not authenticate a substituted owner. Do not mix manual cursor
+confirmation with this integrated method.
+
+The real host SBC example now traverses this path with one synthetic credit:
+77 SBC bytes become a 90-byte RTP packet, a 94-byte L2CAP PDU and three ACL
+fragments (44/44/18 bytes including HCI headers). One Busy retry and two credit
+stops preserve bytes; three scripted completion events reconcile the ledger.
+This is executable software integration, not PS5 traffic ownership or headset
+playback evidence. A native L2CAP backend would retain its own system flow
+control and would not use this raw-HCI ledger as proof of ownership.
 
 ## L2CAP basic-header and recombination contract
 
@@ -182,6 +234,8 @@ Baseline inspected on 2026-10-23: [Bluetooth Core 6.0](https://www.bluetooth.com
 - 7.4.1–7.4.5: version, supported commands/features, extended features and buffer size.
 - 7.7.14–7.7.15: Command Complete and Command Status.
 - 7.7.19: Number Of Completed Packets.
+- 4.1.1: packet-based Host-to-Controller flow control; the separate ledger
+  intentionally requires an owned reservation beyond controller-wide capacity.
 
 [Vol 3, Part A, L2CAP specification](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Core-60/out/en/host/logical-link-control-and-adaptation-protocol-specification.html):
 

@@ -6,6 +6,7 @@
 mod acl;
 mod command;
 mod completion;
+pub mod flow;
 
 pub use acl::{AclPacket, BroadcastFlag, ConnectionHandle, PacketBoundary};
 pub use command::{Command, Opcode};

@@ -3,6 +3,10 @@
 Last updated: 2026-10-25. The explicit HW-1 diagnostic now executes on the
 recorded Slim/13.40 environment. MVP audio is not operational.
 
+The user selected Sony **WH-1000XM4** (over-ear) as the first planned headset.
+It has not been discovered, paired or tested by this project; no compatibility
+claim or Bluetooth address is recorded.
+
 ## Current milestone and baseline
 
 Runtime minimal-syscall-v6 removes unsafe executable-byte inspection, normalizes
@@ -55,6 +59,7 @@ their historical software/transfer baselines and are not current runtime state.
 | B1 | DONE | build_toolchain + independent/lead review | real inspected diagnostic ELF, original minimal entry/linker, three hash-verified SDK syscall inputs; no stock permission-changing CRT |
 | D1a | DONE | hci_l2cap + lead review | safe HCI command/event/ACL and capability/completion types; malformed-input tests; no credit accounting or live transport |
 | D1b | DONE | hci_l2cap + lead review | bounded L2CAP framing/reassembly in caller storage, tied to explicit handle/epoch; no signaling/channel establishment |
+| D1c | DONE (HOST) | lead + ownership worker + independent review | owned ACL packet ledger and one-attempt media submission: exact acceptance/completion, Busy/credit backpressure, sticky uncertainty and observable prefix cancellation; external reservation/routing still required |
 | A2 | DONE | native_hci_research + lead review | source-backed single read-only native stack-version query; no PS5 broker found in bounded inventory; see NATIVE-HCI-RESEARCH.md |
 | C1a | DONE | platform_descriptors + lead review | bounded descriptor parser/report, hostile host tests and ASan/UBSan; no live USB access |
 | C1b | EXECUTED (PARTIAL) | lead + user | own 1286:2059 four-interface descriptor log, clean close and normal pad; three other opens failed; all binding queries returned Unknown names in HW3 |
@@ -69,7 +74,7 @@ their historical software/transfer baselines and are not current runtime state.
 | G1a | DONE | sbc_audit + independent/lead review | validated shared SBC selections and LGPL/runtime audit; implementation follows in G1b |
 | G1b | TARGET SELFTEST PASS | codec worker + lead + user | generic libsbc caller-storage path encoded four generated frames in two lifecycles on PS5 with exact host digest and clean cleanup; source/object/replacement materials tested; encode timing and live integration remain |
 | G2a | DONE (HOST) | lead | caller-owned stereo i16 PCM queue, absolute nominal sample deadlines, bounded counted silence/rebuffer/expiry; ten media tests and four synthetic scenarios; codec example in T1, no live capture/transport |
-| T1 | PARTIAL (HOST) | lead | real PCM-to-SBC example emits one 77-byte frame; a bounded media cursor wraps complete SBC frames through RTP/A2DP, L2CAP and acceptance-confirmed ACL fragmentation with exact retry/cancellation accounting; clock/credit pacing and hostile live headset/session remain |
+| T1 | PARTIAL (HOST) | lead | real PCM-to-SBC example now drives 77-byte SBC through RTP/L2CAP and three ACL submissions using one synthetic owned credit, Busy retry, two credit stops and three synthetic completions; real reservation, sample pacing and live headset/session remain |
 | H7 | HARDWARE | user + lead | 440 Hz SBC A2DP tone audible on real headset, after controller/connection/negotiation |
 | H8 | HARDWARE | user + lead | actual PS5 PCM audible through the proven tone pipeline |
 | I1a | DONE | lead | pinned build/source-package instructions plus a clean-manifest, hash-checked binding/settled-capture kit; deployment defaults to dry-run and never launches |
