@@ -41,6 +41,11 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
   status preservation, phase tracing, optional one-shot settling wait, byte/frame
   bounds and consume-once cleanup. `make capture-probe-test` uses synthetic
   callbacks; see HW2-EVIDENCE.md for the distinct real no-delay lifecycle.
+- Capture observation core: caller-driven single-read steps, Empty/Overrun/Data
+  accounting, exact call/deadline stops, cancellation, clock regression,
+  invalid-length/error termination, atomic local validation and exactly-once
+  cleanup token. The host test supplies synthetic time and reads; it is not a
+  PS5 capture result or permission to infer a PCM format.
 - PCM sample deadlines across five rates, capacity/wrap/stale/overflow rejection,
   bounded concealment across block boundaries, atomic rebuffer, retained future
   samples and exact expiry counts; 10,000 deterministic queue operations against

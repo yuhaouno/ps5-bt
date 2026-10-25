@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Add a caller-driven bounded capture observation state machine with one
+  nonblocking read per step, explicit deadline/call/capacity limits, classified
+  Empty/Data/Overrun/error outcomes and an exactly-once cleanup obligation. It
+  does not yet select a PS5 clock/wait adapter or change capture-once behavior.
+
 - Add a `no_std` bounded media send cursor that binds already-encoded SBC frames
   through RTP/A2DP, L2CAP and acceptance-confirmed ACL fragmentation. Failed
   sends reprepare byte-identical frames; partially accepted PDUs survive until

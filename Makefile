@@ -8,7 +8,8 @@ USB_TEST_FLAGS := -std=c11 -Wall -Wextra -Werror -pedantic -Iplatform/ps5/diagno
 NATIVE_QUERY_TEST_SOURCES := platform/ps5/diagnostics/native_query.c tests/platform/native_query_test.c
 USB_PROBE_TEST_SOURCES := platform/ps5/diagnostics/usb_probe.c platform/ps5/diagnostics/usb_descriptors.c tests/platform/usb_probe_test.c
 CAPTURE_PROBE_TEST_SOURCES := platform/ps5/diagnostics/capture_probe.c tests/platform/capture_probe_test.c
-.PHONY: usb-probe-test capture-probe-test sbc-codec-test ps5-usb-metadata ps5-capture-preflight ps5-capture-once
+CAPTURE_OBSERVE_TEST_SOURCES := platform/ps5/diagnostics/capture_observe.c tests/platform/capture_observe_test.c
+.PHONY: usb-probe-test capture-probe-test capture-observe-test sbc-codec-test ps5-usb-metadata ps5-capture-preflight ps5-capture-once
 
 all: ps5-link
 
@@ -23,6 +24,7 @@ check:
 	$(MAKE) native-query-test
 	$(MAKE) usb-probe-test
 	$(MAKE) capture-probe-test
+	$(MAKE) capture-observe-test
 	$(MAKE) sbc-codec-test
 	$(MAKE) check-build-tools
 	$(MAKE) rust-archive
@@ -63,6 +65,11 @@ capture-probe-test:
 	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include -DPS5_BT_CAPTURE_PROBE -DPS5_BT_CAPTURE_PREFLIGHT tests/platform/capture_main_test.c -o build/host/capture-probe/preflight-main-test
 	build/host/capture-probe/preflight-main-test
 
+capture-observe-test:
+	mkdir -p build/host/capture-observe
+	$(HOST_CC) $(USB_TEST_FLAGS) $(CAPTURE_OBSERVE_TEST_SOURCES) -o build/host/capture-observe/test
+	build/host/capture-observe/test
+
 ps5-usb-metadata:
 	python3 tools/build_ps5.py --usb-metadata --loader-kernel-resolver
 
@@ -87,7 +94,7 @@ native-query-test:
 	build/host/native-query/baseline-main-test
 
 check-c-sanitize:
-	mkdir -p build/host/usb-probe build/host/capture-probe
+	mkdir -p build/host/usb-probe build/host/capture-probe build/host/capture-observe
 	$(HOST_CC) $(USB_TEST_FLAGS) -fsanitize=address,undefined -fno-omit-frame-pointer $(USB_PROBE_TEST_SOURCES) -o build/host/usb-probe/test-sanitized
 	build/host/usb-probe/test-sanitized
 	$(HOST_CC) $(USB_TEST_FLAGS) -fsanitize=address,undefined -fno-omit-frame-pointer $(CAPTURE_PROBE_TEST_SOURCES) -o build/host/capture-probe/test-sanitized
@@ -96,6 +103,8 @@ check-c-sanitize:
 	build/host/capture-probe/main-test-sanitized
 	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include -DPS5_BT_CAPTURE_PROBE -DPS5_BT_CAPTURE_PREFLIGHT -fsanitize=address,undefined -fno-omit-frame-pointer tests/platform/capture_main_test.c -o build/host/capture-probe/preflight-main-test-sanitized
 	build/host/capture-probe/preflight-main-test-sanitized
+	$(HOST_CC) $(USB_TEST_FLAGS) -fsanitize=address,undefined -fno-omit-frame-pointer $(CAPTURE_OBSERVE_TEST_SOURCES) -o build/host/capture-observe/test-sanitized
+	build/host/capture-observe/test-sanitized
 	mkdir -p build/host/usb-diagnostics
 	$(HOST_CC) $(USB_TEST_FLAGS) -fsanitize=address,undefined -fno-omit-frame-pointer $(USB_TEST_SOURCES) -o build/host/usb-diagnostics/test-sanitized
 	build/host/usb-diagnostics/test-sanitized
