@@ -1,6 +1,6 @@
 [package]
 name = "bt-l2cap"
-description = "Bounded L2CAP basic framing and received ACL recombination"
+description = "Bounded L2CAP framing, ACL fragmentation/reassembly and Classic signaling"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

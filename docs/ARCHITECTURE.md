@@ -55,7 +55,7 @@ can implement the same traits without depending on any PS5 crate.
 | `bt-codec` | `no_std` caller-storage encoder owner; real generic libsbc behind host-only feature | `bt-core`; C static archive only with `host-libsbc` |
 | `bt-control` | `no_std` bounded authenticated request parsing, serialized command tickets and redacted status | no dependencies; no listener or transport owner |
 | `bt-hci` | `no_std` typed command/event/ACL framing and capability decoding | `bt-core`; no platform dependency |
-| `bt-l2cap` | `no_std` basic framing, bounded handle/epoch ACL reassembly and initiator-side Classic Basic-mode signaling | `bt-core`, `bt-hci`; no live transport or responder allocator |
+| `bt-l2cap` | `no_std` basic framing, bounded handle/epoch ACL fragmentation/reassembly and initiator-side Classic Basic-mode signaling | `bt-core`, `bt-hci`; no live transport, credit ledger or responder allocator |
 | `bt-sdp` | `no_std` borrowed PDU/continuation framing and bounded data elements | no dependencies; no client/session |
 | `ps5-sys` | `no_std` declarations matching our own C header | no SDK struct bindings |
 | `ps5-platform` | `no_std` safe C adapter wrapper, exclusive session ownership | `bt-core`, `ps5-sys` |

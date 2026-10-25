@@ -27,6 +27,9 @@ not independent host protocol, target-adapter or minimal-control-page developmen
 An initiator-side Classic Basic-mode L2CAP channel now passes scripted
 Connection/MTU Configuration/Disconnection tests, but has no live transport,
 SDP/AVDTP session or hardware evidence.
+Its outbound fragmenter now preserves one partially accepted PDU until complete
+or explicitly terminated and emits exact PB=0/PB=1 ACL frames against a proven
+external data limit. It has no credit ledger, pacing or hardware evidence.
 The thin LAN foundation now has a host-tested authenticated request boundary,
 single-owner command tickets and redacted status serialization. It has no
 listener, rendered page or PS5 integration and therefore is not a user-facing

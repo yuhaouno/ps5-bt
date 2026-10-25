@@ -35,7 +35,7 @@ The earlier second-machine build reproduction remains in
 | Area | Status | Evidence |
 | --- | --- | --- |
 | Portable contracts, HCI command/ACL framing and capability event decoders | Implemented | host packet/malformed-input tests |
-| L2CAP basic framing, bounded ACL reassembly and Classic channel signaling | Implemented on host | scripted Connection/MTU Configuration/Disconnection plus handle/epoch/bounds tests; no live transport |
+| L2CAP framing, bounded ACL fragmentation/reassembly and Classic channel signaling | Implemented on host | acceptance-confirmed outbound cursor plus scripted Connection/MTU Configuration/Disconnection and handle/epoch/bounds tests; no live transport/credits |
 | SDP framing and bounded data-element parsing | Implemented | synthetic parser tests; no discovery client |
 | C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |

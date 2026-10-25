@@ -1,9 +1,9 @@
 # Portable HCI and L2CAP framing
 
-Status: HCI framing plus bounded L2CAP basic framing, recombination and an
-initiator-side Classic Basic-mode channel machine are implemented and tested on
-the host. No hardware, controller ownership, live connection or audio support
-is established by these components.
+Status: HCI framing plus bounded L2CAP basic framing, outbound fragmentation,
+recombination and an initiator-side Classic Basic-mode channel machine are
+implemented and tested on the host. No hardware, controller ownership, live
+connection or audio support is established by these components.
 
 ## HCI contract
 
@@ -84,6 +84,34 @@ retry or recovery policy. In particular, it reports a start that interrupts an
 unfinished PDU rather than silently replacing it after a possible flush/loss.
 Reliable operation and explicit flush recovery remain future policy work.
 
+## Outbound fragmentation contract
+
+`Fragmenter` atomically copies one complete basic-header-bearing PDU into
+caller-owned storage and emits complete HCI ACL frames into separate caller
+storage. The producer's input borrow ends at `start`, so a bounded queue slot can
+be reclaimed while the cursor preserves the in-flight bytes. Its configured ACL data maximum is an externally
+proven controller limit, excludes the four-byte HCI header and must be in
+`1..=65535`; the type does not discover or invent capacity. The first fragment
+uses host-to-controller PB=0 (`StartNonFlushable`) and continuations use PB=1.
+Payloads can split at any PDU octet, including inside the basic header.
+
+`prepare` never advances the cursor. Repeating it before
+`confirm_accepted` produces byte-identical header and payload bytes, including
+after a short-output rejection. Confirmation means the single-owner transport
+accepted the entire ACL frame into its bounded storage; it does not mean USB or
+controller completion and does not restore a credit. A busy instance cannot
+replace its borrowed PDU, and no second confirmation is possible without a new
+prepared frame.
+
+Before the first accepted fragment the caller may cancel normally. Once any
+fragment is accepted, the PDU cannot be silently expired, replaced or dropped.
+Its cursor storage remains owned until all fragments are accepted, the caller records a typed
+terminal transport/integrity/credit failure, or a strictly newer connection
+epoch is installed after external teardown/quarantine. Cancellation returns
+accepted-byte and fragment counts plus the cause. The primitive has no clock,
+queue, pacing, completion ledger, retry loop or permission to relabel stale
+packets; those remain responsibilities of the future ordered owner.
+
 ## Classic signaling and channel contract
 
 The same crate parses and encodes exactly one BR/EDR signaling command for
@@ -114,8 +142,8 @@ leave channel state unchanged. Output-capacity failures also preserve the
 identifier counter, so retry emits the same transaction rather than creating a
 phantom gap.
 
-This is not a signaling multiplexer, responder-side channel allocator, outbound
-ACL fragmenter, SDP client, AVDTP session or pairing implementation. The caller
+This is not a signaling multiplexer, responder-side channel allocator, SDP
+client, AVDTP session or pairing implementation. The caller
 must wrap encoded commands in CID `0x0001`, enforce signaling and data MTUs,
 apply explicit deadlines, and never send them until HCI ownership and credits
 are established. At most one locally initiated transaction is pending in this
@@ -139,8 +167,11 @@ scripted signaling tests cover exact connection/configuration/disconnection
 bytes, reciprocal MTU configuration, peer and local disconnects, every
 truncation of a configuration command, unsupported options/continuations,
 short-output atomicity, rejection, timeout/cancel, stale identifiers/CIDs,
-foreign epochs and constructed-invalid commands. These are synthetic peers,
-not interoperability results.
+foreign epochs and constructed-invalid commands. Ten outbound fragmentation
+tests cover exact PB/header bytes, exact and one-octet boundaries, a one-byte ACL
+maximum, maximum L2CAP PDU, byte-identical preparation retry, short-output
+atomicity, busy/stale/foreign rejection, terminal failure and explicit partial
+cancellation accounting. These are synthetic peers, not interoperability results.
 
 Baseline inspected on 2026-10-23: [Bluetooth Core 6.0](https://www.bluetooth.com/specifications/specs/core-specification-6-0/).
 [Vol 4, Part E, HCI functional specification](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Core-60/out/en/host-controller-interface/host-controller-interface-functional-specification.html):

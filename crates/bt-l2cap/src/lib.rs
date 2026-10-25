@@ -3,6 +3,13 @@
 #![no_std]
 #![forbid(unsafe_code)]
 
+mod fragment;
+
+pub use fragment::{
+    Acceptance, Cancellation, CancellationReason, FragmentError, Fragmenter, PreparedFragment,
+    TerminalFailure,
+};
+
 use bt_core::Error;
 use bt_hci::{AclPacket, BroadcastFlag, ConnectionHandle, PacketBoundary};
 

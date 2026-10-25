@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Add allocation-free outbound L2CAP-to-HCI ACL fragmentation with an explicit
+  acceptance cursor, byte-identical preparation retry, PB=0/PB=1 framing,
+  handle/epoch checks and durable accounting for terminal or epoch cancellation.
+  It does not discover capacity, own controller credits or activate transport.
+
 - Add a no_std bounded LAN control/status contract: strict authenticated HTTP
   routing for status/connect/start/stop, exact same-origin checks for mutations,
   one pending command owned by the Bluetooth loop, stale-completion rejection
