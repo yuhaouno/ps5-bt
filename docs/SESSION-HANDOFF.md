@@ -2,6 +2,64 @@
 
 Updated: 2026-10-25. Read AGENTS.md and docs/MVP-STATE.md first.
 
+## Latest: resumed LAN window and four completed candidates
+
+This section supersedes the historical offline-only status below. The user
+explicitly renewed hardware access from the PS5 LAN and authorized tests.
+Target remains `.111`; FTP 2121 and the existing service at 9180 responded.
+Only the four PS5-BT diagnostic slots were created/uploaded. Each uploaded ELF
+was read back and SHA-256 verified; the user launched each manually and
+confirmed completion with normal wireless controller behavior. Logs were saved
+before the next launch. See HW3-EVIDENCE.md for exact identities and raw logs.
+
+- USB binding, clean `942eb9d`: active configuration succeeds; driver names
+  remain Unknown for all four interfaces, three other opens fail, cleanup
+  succeeds, final 1 records incomplete inventory. HCI remains Unsupported.
+- Settled capture, clean `942eb9d`: one read after 100 ms returns 8,192 bytes;
+  all lifecycle/cleanup statuses 0, cleanup_uncertain=0, final 2.
+- Generated-signal SBC, clean `34ea256`: two lifecycles/four 77-byte frames,
+  prefix `9cfd206f` and digest `14e0ec79` exactly match host; codec/cleanup 0,
+  final 2. No hardware encode duration was measured.
+- Capture observation, clean `34ea256`: immediate Empty, one wait, then 8,192
+  bytes; clock calls return 0, last-read-start elapsed 104,093 us; clean cleanup,
+  final 2. Format and timestamp units remain unknown; no samples were retained.
+
+New reviewable commits: `1745e97` media send orchestration, `b787f39` bounded
+observation core, `6acedd9` deterministic codec self-test core, `f8a4bb8`
+freestanding SBC headers/report, `a79bc77` first nonempty hardware evidence,
+`3581c2e` replaceable target codec diagnostic, `9b9c8b4` binding gate update,
+and `34ea256` independently selected bounded observation ELF.
+
+The final trace-format fix preserves decimal read ordinals above 9; the earlier
+one-digit formatter affected only later observation attempts, not the two-read
+hardware result. Capture artifacts rebuilt after this fix have different
+bytes and remain unexecuted until matched to a fresh log. Original tested
+`942eb9d` and `34ea256` artifacts keep their recorded acceptance.
+
+The complete local suite passed after the SBC integration; the observation
+integration additionally passed strict/sanitized lifecycle/runner/main tests,
+clock-regression cancellation, source-package self-tests and actual ELF links.
+The workspace has 113 ordinary Rust tests plus eight feature-on codec checks,
+208 encoder and 12 decoder vectors. Two independently rebuilt target codec
+archives replacement-link to identical self-test ELF bytes. Extracting the
+`34ea256` SBC corresponding-source package into a separate temporary project
+also rebuilt the exact tested ELF. The package contains source/notices,
+application objects, Rust/default codec archives and working replacement script.
+
+Preserve original tested packages/manifests separately from final-HEAD rebuilds.
+Rebuild all four candidates and packages after this documentation commit, then
+assemble the ignored kit without editing manifests. Rebuilt artifacts do not
+inherit hardware results unless the exact tested bytes match. Temporary workers
+are complete; do not assume they or this hardware window remain active in a
+future session without checking current state and user availability.
+
+Remaining path: native capture format/timestamp evidence, measured encode
+duration, Classic connection/pairing/key lifecycle, AVDTP reassembly/binding,
+sample/credit pacing and actual LAN listener/page. The source-proven single-
+owner HCI broker/ACL-credit contract is still the activation blocker. There is
+no ready active-HCI/headphone candidate; do not invent a broker, competing USB
+reader, reset or timed credit refill to bypass it.
+
 ## 2026-10-25 relay completion
 
 The new lead completed and committed nine reviewable increments after
@@ -68,17 +126,18 @@ HCI activation still requires a source-proven single-owner dispatcher and the
 one-command/credit acceptance experiment in NATIVE-HCI-RESEARCH.md. No raw USB
 reader, timed credit refill or guessed socket broker is an alternative.
 
-## Current authority and priorities
+## Historical offline authority (superseded by renewed window above)
 
-The morning hardware window has ended. The user resumed offline development
-after the usage reset. Do not connect to or deploy to PS5 without a renewed
-hardware window. Parallel chats remain authorized for the scoped work below.
+The morning hardware window ended, after which offline development resumed.
+The later explicit LAN message renewed access and produced the results above.
+Parallel work remains authorized for the scoped MVP.
 Target is **192.168.1.111**, never the historical .10 address.
 Prioritize finishing diagnostics/build tests and the real Rust-to-SBC offline path.
 That baseline is complete at `62e3c39`. The user has now requested a new lead
 chat to continue implementation and prepare the 2026-10-25 PS5 window. Read
 MVP-NEXT-RUN.md for the authoritative relay plan and worker continuation roster.
-This request does not confirm that the console is available now.
+Future sessions must check actual user availability instead of treating this
+historical plan as a continuously open hardware window.
 No change was approved to the native HCI ownership/credit integrity gate.
 Do not enable a competing-reader backend or timed credit refill.
 

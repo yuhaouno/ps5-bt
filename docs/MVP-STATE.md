@@ -67,7 +67,7 @@ their historical software/transfer baselines and are not current runtime state.
 | E1b | PARTIAL (HOST) | lead | bounded initiator-side Classic L2CAP Connection/MTU Configuration/Disconnection plus acceptance-confirmed outbound ACL fragmentation pass scripted tests; responder allocation, Classic baseband connection/pairing/key lifecycle and live activation remain |
 | F1 | PARTIAL (HOST) | lead | bounded complete-frame SBC-over-RTP packetization and AVDTP Discover/Get Capabilities/Set Configuration/Open/Start/Suspend/Close/Abort pass host tests; signaling reassembly, media binding and live transport remain |
 | G1a | DONE | sbc_audit + independent/lead review | validated shared SBC selections and LGPL/runtime audit; implementation follows in G1b |
-| G1b | DONE (HOST) | codec worker + lead | real generic libsbc with caller-storage C ABI and safe Rust owner; 208 vectors, 12 decodes, replacement-archive linking; PS5 ABI/distribution remain gated |
+| G1b | TARGET SELFTEST PASS | codec worker + lead + user | generic libsbc caller-storage path encoded four generated frames in two lifecycles on PS5 with exact host digest and clean cleanup; source/object/replacement materials tested; encode timing and live integration remain |
 | G2a | DONE (HOST) | lead | caller-owned stereo i16 PCM queue, absolute nominal sample deadlines, bounded counted silence/rebuffer/expiry; ten media tests and four synthetic scenarios; codec example in T1, no live capture/transport |
 | T1 | PARTIAL (HOST) | lead | real PCM-to-SBC example emits one 77-byte frame; a bounded media cursor wraps complete SBC frames through RTP/A2DP, L2CAP and acceptance-confirmed ACL fragmentation with exact retry/cancellation accounting; clock/credit pacing and hostile live headset/session remain |
 | H7 | HARDWARE | user + lead | 440 Hz SBC A2DP tone audible on real headset, after controller/connection/negotiation |
@@ -89,7 +89,9 @@ that firmware/loader compatibility.
 
 The read-only binding extension and settled capture read have now executed in
 the renewed window. Driver names remain Unknown; the settled read returned
-8,192 bytes. Native format/timing and target codec execution remain next gates.
+8,192 bytes. Native format/timing remain unknown. The generated-signal target
+codec now passes two lifecycles/four frames with exact host digest; bounded
+capture observation also passed Empty then Data using the checked clock adapter.
 Native HCI command/event/ACL ownership and enforceable credits remain unresolved;
 existing upstream competing readers do not establish shared routing.
 The first offline PCM queue, nominal sample timeline and recovery simulation

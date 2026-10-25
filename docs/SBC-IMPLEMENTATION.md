@@ -5,7 +5,8 @@ The root workspace includes `bt-codec`, but the real backend is an explicit
 `host-libsbc` feature and is not a dependency of `ps5-runtime`. The separate
 `make ps5-sbc-selftest` diagnostic now links a reviewed generic target archive
 and exports tested replacement materials; see SBC-TARGET.md. No headset or
-live-audio integration is present, and execution requires its own hardware log.
+live-audio integration is present. The generated-signal self-test now has a
+successful hardware log in HW3-EVIDENCE.md; encode timing remains unmeasured.
 
 ## Implemented boundary
 
@@ -251,8 +252,9 @@ The lead/integration owner should resume in this order:
    timestamps by the shared parameter model's 128 PCM frames for this selection
    and rejects MTU/short-output errors atomically. AVDTP session binding, pacing
    and expired-unsent-media policy remain Rust concerns.
-8. Separately measure initialization/encode time and run repeated init/finish
-   on actual PS5 before changing `Requires hardware`. Live A2DP remains blocked
+8. The generated-signal init/encode/finish path has now passed on actual PS5;
+   separately measure initialization/encode duration before any deadline claim.
+   Live A2DP remains blocked
    on transport ownership/credits and must not be inferred from these tests.
 
 The parent task owns root Cargo/Makefile integration, the shared runtime,

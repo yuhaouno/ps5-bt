@@ -1,0 +1,11 @@
+event=loader_kernel_init_begin
+event=loader_kernel_init_end code=0
+event=payload_start log=/data/ps5-bt-hw1.log
+event=rust_entry abi=1 phase=bootstrap
+event=adapter_unavailable status=unsupported
+event=sbc_selftest_begin
+codec=BlueZ_libsbc_2.2 license=LGPL-2.1-or-later generic=1
+ps5_bt_sbc_selftest_v1 result=0 stage=6 codec=0 cleanup=0 storage=5648 alignment=16 cycles=2 frames=4 samples=1024 frame_bytes=77 prefix=0x9cfd206f digest=0x14e0ec79
+event=stream_log_unavailable fallback=persistent
+event=payload_exit status=2 (expected Unsupported)
+event=payload_return status=2 (expected Unsupported)

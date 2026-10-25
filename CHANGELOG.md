@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Verify the target SBC self-test on PS5: two clean lifecycles and four frames
+  match the host digest exactly. Verify bounded capture observation with one
+  Empty, one wait, then 8,192 bytes using a successful monotonic-clock path;
+  cleanup and user-observed wireless input remain normal. Preserve raw logs
+  and exact artifact/source-package hashes in HW3-EVIDENCE.md.
+
 - Add the independently selected capture observation ELF with a checked
   monotonic-clock adapter, immediate first read and explicit 100 ms waits only
   after Empty/Overrun. Stop at first data/error, 20 reads or a two-second

@@ -1,7 +1,8 @@
 # MVP relay and next PS5 window
 
 Prepared: 2026-10-24, Asia/Shanghai. Target hardware day requested by the user:
-2026-10-25, exact availability not confirmed. This is implementation authority
+2026-10-25; the user renewed LAN hardware access and four candidates have now
+executed. See HW3-EVIDENCE.md. This is implementation authority
 and a preparation/run plan, not a claim that playback will work on that date.
 Read AGENTS.md, SESSION-HANDOFF.md and MVP-STATE.md before work.
 
@@ -26,8 +27,9 @@ Two unresolved hardware facts dominate the outcome:
    Interface 2 also declares HCI class, but this does not prove an independent
    controller or authorize a competing reader. Establish a concrete mechanism,
    its evidence and a bounded acceptance experiment before live operations.
-2. Nonempty captured PCM and actual format/timing. The recorded immediate read
-   was Empty; successful Initialize/Open/Start/cleanup is not audio acquisition.
+2. Actual native capture format/timing. Settled and bounded-observation runs
+   now returned 8,192 bytes with clean cleanup. Native sample type, rate,
+   channels and timestamp units remain unverified.
 
 Offline protocols, target codec integration and control scaffolding should
 advance alongside these investigations. If a hardware fact still blocks tone,

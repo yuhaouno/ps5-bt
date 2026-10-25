@@ -1,8 +1,11 @@
 # Target SBC self-test and relinking
 
-Status: build-tested for `x86_64-sie-ps5`; hardware execution is still
-Requires hardware. This path encodes a generated signal only. It neither reads
-captured audio nor opens Bluetooth transport.
+Status: the generated-signal self-test executed successfully on the recorded
+Slim / firmware 13.40 environment. Both init/finish cycles, all four frames and
+the pinned digest matched the host, with user-confirmed normal wireless input.
+See HW3-EVIDENCE.md for exact artifact identity and the complete log. This path
+encodes a generated signal only; captured-audio and live Bluetooth integration
+remain unimplemented. No hardware encode duration was measured.
 
 ## Target archive boundary
 

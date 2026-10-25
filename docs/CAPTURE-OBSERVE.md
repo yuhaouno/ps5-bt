@@ -1,9 +1,10 @@
 # Bounded capture observation candidate
 
-Status: host-tested and target-compiled; Requires hardware. The separate
-100 ms settled capture-once candidate returned 8,192 bytes on one Slim / 13.40
-run with clean lifecycle cleanup. This candidate has not run on PS5 and does
-not inherit that result.
+Status: host-tested, target-compiled and executed on the recorded Slim / 13.40
+environment. This candidate observed one immediate Empty, then 8,192 bytes
+after one 100 ms wait, with clock_status=0, clean lifecycle cleanup and
+user-confirmed normal wireless input. See HW3-EVIDENCE.md for exact identities
+and the complete log. Native PCM format/timestamps remain unknown.
 
 ## Purpose and bounds
 

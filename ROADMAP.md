@@ -25,7 +25,9 @@ backpressure and requires explicit whole-fragment acceptance. A bounded AVDTP
 initiator signaling session is host-tested, but this is
 not M3a: there is no live media transport or headset output. A separate
 generated-signal target codec self-test now links with replaceable archive and
-application-object/source materials; its execution still Requires hardware.
+application-object/source materials; its two lifecycles/four generated frames
+have now executed on PS5 with exact host digest and clean cleanup. Encode
+duration and live media integration remain unverified.
 The next implementation and 2026-10-25 hardware preparation plan is
 [MVP-NEXT-RUN.md](docs/MVP-NEXT-RUN.md). Milestones gate evidence and activation,
 not independent host protocol, target-adapter or minimal-control-page development.
@@ -67,7 +69,7 @@ the runtime is reviewed. Do not open artificial issues for each empty crate.
 
 Initial host validation: four Rust parser tests, 15 C/Rust seam scenarios, C stub
 contract checks, fmt/check/Clippy and the freestanding archive build/inspection.
-Current local checks: 44 baseline Rust tests plus eight host codec checks,
+Current local checks: 113 ordinary Rust tests plus eight host codec checks,
 208 encoder reference vectors, 12 decoder checks, replacement-archive linking,
 four host PCM recovery scenarios,
 descriptor/native-query C tests with ASan/UBSan, 15 ABI
