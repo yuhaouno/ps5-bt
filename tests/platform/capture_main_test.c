@@ -68,8 +68,15 @@ void ps5_platform_log(const uint8_t *data, uint32_t length) {
     stage = 2;
   } else {
     assert(stage == 3);
-    if (length > 19 && memcmp(data, "event=capture_phase", 19) == 0)
+    if (length > 19 && memcmp(data, "event=capture_phase", 19) == 0) {
       ++traces;
+      if (traces == 1) {
+        const char expected[] =
+            "event=capture_phase phase=read edge=begin ordinal=20 ";
+        assert(length >= sizeof expected - 1 &&
+               memcmp(data, expected, sizeof expected - 1) == 0);
+      }
+    }
   }
 }
 
@@ -80,7 +87,7 @@ fake_probe(const struct ps5_capture_probe_ops *ops,
   assert(ops->lookup_current == ps5_bootstrap_lookup);
   assert(ops->lookup_module == ps5_bootstrap_module_lookup);
   stage = 3;
-  ops->trace(PS5_CAPTURE_PHASE_READ, 0, 1, 0);
+  ops->trace(PS5_CAPTURE_PHASE_READ, 20, 1, 0);
   ops->trace(PS5_CAPTURE_PHASE_READ, 0, 0, -1);
   *out = (struct ps5_capture_probe_result){.status = probe_status};
   return probe_status;

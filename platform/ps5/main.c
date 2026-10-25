@@ -81,7 +81,14 @@ static void capture_trace(enum ps5_capture_probe_phase phase, uint32_t ordinal,
   for (unsigned part = 0; part < 3; ++part)
     for (const char *text = parts[part]; *text && used < sizeof line; ++text)
       line[used++] = *text;
-  line[used++] = (char)('0' + ordinal % 10);
+  char ordinal_digits[10];
+  size_t ordinal_count = 0;
+  do {
+    ordinal_digits[ordinal_count++] = (char)('0' + ordinal % 10);
+    ordinal /= 10;
+  } while (ordinal != 0);
+  while (ordinal_count != 0)
+    line[used++] = ordinal_digits[--ordinal_count];
   const char suffix[] = " raw_bits=0x";
   for (size_t i = 0; i < sizeof suffix - 1; ++i)
     line[used++] = suffix[i];
