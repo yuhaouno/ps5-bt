@@ -50,6 +50,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bt-media-session"
+version = "0.0.1"
+dependencies = [
+ "bt-a2dp",
+ "bt-core",
+ "bt-hci",
+ "bt-l2cap",
+]
+
+[[package]]
 name = "bt-sdp"
 version = "0.0.1"
 

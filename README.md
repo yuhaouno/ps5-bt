@@ -45,6 +45,7 @@ The earlier second-machine build reproduction remains in
 | SBC parameter selection and frame sizing | Implemented | portable validation tests and host encoder boundary |
 | Real PCM-to-SBC encoding | Host-only implementation | safe Rust owner, generic libsbc, 208 encoder/12 decoder vectors; not in PS5 ELF |
 | SBC-over-RTP/A2DP packetization | Implemented on host | fixed negotiated MTU/frame boundaries, atomic backpressure, sequence/sample timestamps and wrap tests; no AVDTP/live stream |
+| Media send orchestration | Implemented on host | binds complete SBC frames through RTP, L2CAP and acceptance-confirmed ACL fragmentation; no clock, HCI credits or live transport |
 | LAN control/status contract | Implemented on host | bounded authenticated request parser, single-owner command queue and identity-free status JSON; no listener/page or PS5 integration |
 | PCM staging, nominal sample timeline and bounded recovery | Host-only implementation | caller-owned stereo i16 queue; synthetic gaps/stalls; no resampler or live audio |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
@@ -123,11 +124,12 @@ Application / payload
 Rust owns the architecture. Proven platform adaptation may remain C. See
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
 The workspace contains `bt-a2dp`, `bt-avdtp`, `bt-control`, `bt-core`,
-`bt-codec`, `bt-hci`, `bt-l2cap`, `bt-sdp`, `ps5-sys`, `ps5-platform`, and
-`ps5-runtime`. The first initiator-side L2CAP Basic-mode channel machine, SDP
+`bt-codec`, `bt-hci`, `bt-l2cap`, `bt-media-session`, `bt-sdp`, `ps5-sys`,
+`ps5-platform`, and `ps5-runtime`. The first initiator-side L2CAP Basic-mode channel machine, SDP
 Audio Sink discovery client, bounded AVDTP initiator session and SBC-over-RTP
-packetizer are host-tested. AVDTP signaling reassembly, media-channel binding
-and every live channel remain absent.
+packetizer are host-tested. The media send cursor binds encoded frames through
+RTP/L2CAP/ACL with explicit acceptance and cancellation accounting. AVDTP
+signaling reassembly, clock/credit pacing and every live channel remain absent.
 The bounded LAN request/state contract is host-tested, but has no socket listener
 or page; the remaining protocol and LAN integration work is not a current capability.
 See [next-session work and hardware run order](docs/MVP-NEXT-RUN.md).

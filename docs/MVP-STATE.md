@@ -67,7 +67,7 @@ their historical software/transfer baselines and are not current runtime state.
 | G1a | DONE | sbc_audit + independent/lead review | validated shared SBC selections and LGPL/runtime audit; implementation follows in G1b |
 | G1b | DONE (HOST) | codec worker + lead | real generic libsbc with caller-storage C ABI and safe Rust owner; 208 vectors, 12 decodes, replacement-archive linking; PS5 ABI/distribution remain gated |
 | G2a | DONE (HOST) | lead | caller-owned stereo i16 PCM queue, absolute nominal sample deadlines, bounded counted silence/rebuffer/expiry; ten media tests and four synthetic scenarios; codec example in T1, no live capture/transport |
-| T1 | PARTIAL (HOST) | lead | real PCM-to-SBC example emits one 77-byte frame and wraps it in 90-byte RTP/A2DP, 94-byte L2CAP and 98-byte synthetic ACL; reusable outbound fragmentation is host-tested, while pacing and hostile scripted headset/session remain |
+| T1 | PARTIAL (HOST) | lead | real PCM-to-SBC example emits one 77-byte frame; a bounded media cursor wraps complete SBC frames through RTP/A2DP, L2CAP and acceptance-confirmed ACL fragmentation with exact retry/cancellation accounting; clock/credit pacing and hostile live headset/session remain |
 | H7 | HARDWARE | user + lead | 440 Hz SBC A2DP tone audible on real headset, after controller/connection/negotiation |
 | H8 | HARDWARE | user + lead | actual PS5 PCM audible through the proven tone pipeline |
 | I1a | DONE | lead | pinned build/source-package instructions plus a clean-manifest, hash-checked binding/settled-capture kit; deployment defaults to dry-run and never launches |

@@ -7,6 +7,7 @@ members = [
     "crates/bt-control",
     "crates/bt-hci",
     "crates/bt-l2cap",
+    "crates/bt-media-session",
     "crates/bt-sdp",
     "crates/ps5-sys",
     "crates/ps5-platform",

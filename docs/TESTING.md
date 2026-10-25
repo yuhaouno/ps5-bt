@@ -29,6 +29,11 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
   and reserved bits, peer reject details, stale epoch/label/signal, collision,
   timeout/disconnect, short-output atomicity and explicit fragment rejection.
   No live L2CAP channel, headset interoperability or PS5 execution is implied.
+- Media send orchestration: complete SBC frame to RTP/L2CAP/ACL success across
+  multiple fragments, byte-identical prepare retry, stale/foreign connection
+  rejection, pre-send stop, partial-send cancellation gate, typed terminal
+  failure, epoch invalidation and atomic MTU/scratch/retained-capacity failure.
+  Acceptance is not controller completion and no test invents HCI credits.
 - USB probe callbacks: actual-name selection, node/entry limits, exactly-once
   cleanup, partial metadata, active-configuration/driver-name validation and
   main failure mapping. `make usb-probe-test` performs no real USB operation.

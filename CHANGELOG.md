@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add a `no_std` bounded media send cursor that binds already-encoded SBC frames
+  through RTP/A2DP, L2CAP and acceptance-confirmed ACL fragmentation. Failed
+  sends reprepare byte-identical frames; partially accepted PDUs survive until
+  completion, typed terminal failure or a strictly newer epoch. It owns no
+  clock, controller credits or transport.
+
 - Add an allocation-free bounded AVDTP initiator for Discover, Get
   Capabilities, Set Configuration, Open, Start, Suspend, Close and Abort, with
   conservative SBC selection, epoch-bound transactions and explicit state

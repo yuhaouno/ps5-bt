@@ -19,7 +19,9 @@ window has ended; offline codec integration may continue independently.
 The first real offline PCM-to-SBC path is now host-tested: bounded queue,
 safe Rust owner, C caller-storage wrapper and pinned generic libsbc. Its first
 complete SBC frame now passes through bounded RTP/A2DP, L2CAP and synthetic ACL
-framing. A bounded AVDTP initiator signaling session is host-tested, but this is
+framing. A reusable send cursor now preserves complete media PDUs across ACL
+backpressure and requires explicit whole-fragment acceptance. A bounded AVDTP
+initiator signaling session is host-tested, but this is
 not M3a: there is no live media transport, headset output or PS5 codec execution.
 The next implementation and 2026-10-25 hardware preparation plan is
 [MVP-NEXT-RUN.md](docs/MVP-NEXT-RUN.md). Milestones gate evidence and activation,

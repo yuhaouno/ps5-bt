@@ -1,0 +1,19 @@
+[package]
+name = "bt-media-session"
+description = "Bounded SBC RTP/L2CAP/ACL media send orchestration"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+bt-a2dp = { path = "../bt-a2dp" }
+bt-core = { path = "../bt-core" }
+bt-l2cap = { path = "../bt-l2cap" }
+
+[dev-dependencies]
+bt-hci = { path = "../bt-hci" }
+
+[lints]
+workspace = true

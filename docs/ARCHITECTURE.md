@@ -57,14 +57,16 @@ can implement the same traits without depending on any PS5 crate.
 | `bt-control` | `no_std` bounded authenticated request parsing, serialized command tickets and redacted status | no dependencies; no listener or transport owner |
 | `bt-hci` | `no_std` typed command/event/ACL framing and capability decoding | `bt-core`; no platform dependency |
 | `bt-l2cap` | `no_std` basic framing, bounded handle/epoch ACL fragmentation/reassembly and initiator-side Classic Basic-mode signaling | `bt-core`, `bt-hci`; no live transport, credit ledger or responder allocator |
+| `bt-media-session` | `no_std` SBC-frame to RTP/L2CAP/ACL send cursor with acceptance-confirmed retry and durable cancellation accounting | `bt-a2dp`, `bt-core`, `bt-l2cap`; no clock, encoder, credits or transport owner |
 | `bt-sdp` | `no_std` borrowed PDU/data elements and bounded A2DP Sink discovery with atomic final validation | no dependencies; no L2CAP or live session |
 | `ps5-sys` | `no_std` declarations matching our own C header | no SDK struct bindings |
 | `ps5-platform` | `no_std` safe C adapter wrapper, exclusive session ownership | `bt-core`, `ps5-sys` |
 | `ps5-runtime` | diagnostic entry, C-callable Rust static library | platform wrapper and HCI |
 
 All packages are unpublished, temporary identifiers, not reserved public names.
-The first bounded L2CAP channel-signaling machine, AVDTP initiator session and
-SBC-over-RTP packetizer are host-tested; SDP discovery is also host-tested.
+The first bounded L2CAP channel-signaling machine, AVDTP initiator session,
+SBC-over-RTP packetizer and RTP/L2CAP/ACL media send cursor are host-tested;
+SDP discovery is also host-tested.
 AVDTP signaling reassembly, live media binding and baseband connection remain
 authorized MVP implementation targets, not implemented capabilities. Split
 them when code and dependencies justify it. Do not create empty protocol crates.
