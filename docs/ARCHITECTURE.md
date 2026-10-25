@@ -51,6 +51,7 @@ can implement the same traits without depending on any PS5 crate.
 | Crate | Initial responsibility | Dependency direction |
 | --- | --- | --- |
 | `bt-a2dp` | `no_std` bounded complete-frame SBC-over-RTP packetization | `bt-core`; no session or transport dependency |
+| `bt-avdtp` | `no_std` bounded initiator signaling and conservative SBC capability/session state | `bt-core`; no transport owner, media binding or signaling reassembly |
 | `bt-core` | `no_std` contracts, SBC parameters, PCM staging and nominal sample timeline | no dependencies |
 | `bt-codec` | `no_std` caller-storage encoder owner; real generic libsbc behind host-only feature | `bt-core`; C static archive only with `host-libsbc` |
 | `bt-control` | `no_std` bounded authenticated request parsing, serialized command tickets and redacted status | no dependencies; no listener or transport owner |
@@ -62,10 +63,11 @@ can implement the same traits without depending on any PS5 crate.
 | `ps5-runtime` | diagnostic entry, C-callable Rust static library | platform wrapper and HCI |
 
 All packages are unpublished, temporary identifiers, not reserved public names.
-The first bounded L2CAP channel-signaling machine and SBC-over-RTP packetizer are
-host-tested; SDP discovery is also host-tested, while AVDTP session and baseband connection work remain
-authorized MVP implementation targets, not implemented capabilities. Split them
-when code and dependencies justify it. Do not create empty protocol crates.
+The first bounded L2CAP channel-signaling machine, AVDTP initiator session and
+SBC-over-RTP packetizer are host-tested; SDP discovery is also host-tested.
+AVDTP signaling reassembly, live media binding and baseband connection remain
+authorized MVP implementation targets, not implemented capabilities. Split
+them when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
 `no_std` on the freestanding target. Portable crates remain `no_std` everywhere.
 No async executor, allocator, GUI framework, or configuration framework is needed

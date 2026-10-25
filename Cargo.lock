@@ -10,6 +10,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "bt-avdtp"
+version = "0.0.1"
+dependencies = [
+ "bt-core",
+]
+
+[[package]]
 name = "bt-codec"
 version = "0.0.1"
 dependencies = [

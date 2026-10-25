@@ -63,7 +63,7 @@ their historical software/transfer baselines and are not current runtime state.
 | C4 | LIFECYCLE PASS | capture worker + lead + user | Ipmi/Avcap2 load, seven resolves, initialize/open/start/cleanup succeed; one immediate Empty read; settled-read test requires hardware |
 | E1a | DONE | sdp_framing + independent/lead review | bounded SDP PDU/continuation/data-element foundation and A2DP Sink discovery client, with transaction/epoch/deadline/continuation and exact UInt16 service semantics; no live query |
 | E1b | PARTIAL (HOST) | lead | bounded initiator-side Classic L2CAP Connection/MTU Configuration/Disconnection plus acceptance-confirmed outbound ACL fragmentation pass scripted tests; responder allocation, Classic baseband connection/pairing/key lifecycle and live activation remain |
-| F1 | PARTIAL (HOST) | lead | bounded complete-frame SBC-over-RTP packetization passes MTU/backpressure/sequence/sample timestamp tests; AVDTP negotiation/open/start/stop and media binding remain |
+| F1 | PARTIAL (HOST) | lead | bounded complete-frame SBC-over-RTP packetization and AVDTP Discover/Get Capabilities/Set Configuration/Open/Start/Suspend/Close/Abort pass host tests; signaling reassembly, media binding and live transport remain |
 | G1a | DONE | sbc_audit + independent/lead review | validated shared SBC selections and LGPL/runtime audit; implementation follows in G1b |
 | G1b | DONE (HOST) | codec worker + lead | real generic libsbc with caller-storage C ABI and safe Rust owner; 208 vectors, 12 decodes, replacement-archive linking; PS5 ABI/distribution remain gated |
 | G2a | DONE (HOST) | lead | caller-owned stereo i16 PCM queue, absolute nominal sample deadlines, bounded counted silence/rebuffer/expiry; ten media tests and four synthetic scenarios; codec example in T1, no live capture/transport |
@@ -91,8 +91,9 @@ Native HCI command/event/ACL ownership and enforceable credits remain unresolved
 existing upstream competing readers do not establish shared routing.
 The first offline PCM queue, nominal sample timeline and recovery simulation
 are implemented under AUDIO-RECOVERY.md. The real host PCM-to-SBC path is now
-implemented under SBC-IMPLEMENTATION.md. Complete-frame RTP packetization is now
-done; next media work is AVDTP session binding, SDP discovery,
-pacing and explicit capture conversion. Tone, pairing, captured
+implemented under SBC-IMPLEMENTATION.md. Complete-frame RTP packetization, SDP
+discovery and the bounded AVDTP initiator session are now done; next media work
+is signaling reassembly, media-channel binding, pacing and explicit capture
+conversion. Tone, pairing, captured
 PCM and live audio remain later milestones; simulation does not authorize a
 shared-reader backend.

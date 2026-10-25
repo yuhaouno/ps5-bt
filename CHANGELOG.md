@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add an allocation-free bounded AVDTP initiator for Discover, Get
+  Capabilities, Set Configuration, Open, Start, Suspend, Close and Abort, with
+  conservative SBC selection, epoch-bound transactions and explicit state
+  rollback. General Reject and reserved SEID/header bits are strict;
+  fragmented signaling and live media transport remain unsupported.
+
 - Add a bounded A2DP Audio Sink SDP discovery client with exact request
   attributes, per-request transactions, connection epochs, whole-exchange
   deadline, finite continuation history and atomic final service validation.

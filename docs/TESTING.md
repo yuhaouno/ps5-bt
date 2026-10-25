@@ -22,7 +22,13 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 - SBC-over-RTP packetization: exact RTP/A2DP header bytes, one/three complete
   frames, negotiated MTU and output backpressure, retained marker and state on
   failure, frame count/length/sync rejection, dynamic payload/SSRC validation,
-  and sequence/sample-timestamp wrap. No AVDTP session or timing claim.
+  and sequence/sample-timestamp wrap. It is not bound to a live AVDTP/media
+  transport and makes no timing claim.
+- AVDTP initiator: exact command/header bytes, conservative SBC selection and a
+  scripted configure/open/start/suspend/restart/close/abort lifecycle; malformed
+  and reserved bits, peer reject details, stale epoch/label/signal, collision,
+  timeout/disconnect, short-output atomicity and explicit fragment rejection.
+  No live L2CAP channel, headset interoperability or PS5 execution is implied.
 - USB probe callbacks: actual-name selection, node/entry limits, exactly-once
   cleanup, partial metadata, active-configuration/driver-name validation and
   main failure mapping. `make usb-probe-test` performs no real USB operation.
@@ -88,10 +94,12 @@ binding, atomic final validation and strict service/PSM/profile/UInt16 semantics
 See [SDP.md](SDP.md). These scripted peers do not establish a live query or
 interoperability result.
 
-Implement unit/state tests with each protocol component. Include malformed
-lengths, nested SDP limits, L2CAP fragmentation/MTU bounds, foreign/stale handles,
-transaction timeouts, AVDTP collisions and disconnects at each transition. Use a
-virtual monotonic clock and bounded scripted transport; no sleeps in state tests.
+Implement unit/state tests with each protocol component. Current AVDTP tests
+cover collision, timeout, disconnect and stale responses around the bounded
+single-packet session. Continue with malformed lengths, nested SDP limits,
+L2CAP fragmentation/MTU bounds, foreign/stale handles and future AVDTP
+fragment reassembly transitions. Use a virtual monotonic clock and bounded
+scripted transport; no sleeps in state tests.
 Check resource bounds and make every retry/failure observable.
 
 Add a pinned cargo-fuzz/libFuzzer harness when parser surface grows; seed it

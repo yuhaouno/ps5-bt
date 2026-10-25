@@ -19,14 +19,14 @@ window has ended; offline codec integration may continue independently.
 The first real offline PCM-to-SBC path is now host-tested: bounded queue,
 safe Rust owner, C caller-storage wrapper and pinned generic libsbc. Its first
 complete SBC frame now passes through bounded RTP/A2DP, L2CAP and synthetic ACL
-framing. This is not M3a: it has no AVDTP session, headset output or PS5 codec
-execution.
+framing. A bounded AVDTP initiator signaling session is host-tested, but this is
+not M3a: there is no live media transport, headset output or PS5 codec execution.
 The next implementation and 2026-10-25 hardware preparation plan is
 [MVP-NEXT-RUN.md](docs/MVP-NEXT-RUN.md). Milestones gate evidence and activation,
 not independent host protocol, target-adapter or minimal-control-page development.
 An initiator-side Classic Basic-mode L2CAP channel now passes scripted
 Connection/MTU Configuration/Disconnection tests, but has no live transport,
-AVDTP session or hardware evidence. A bounded A2DP Sink SDP discovery exchange
+AVDTP media-channel binding or hardware evidence. A bounded A2DP Sink SDP discovery exchange
 now passes scripted continuation and service-record tests but has no live query.
 Its outbound fragmenter now preserves one partially accepted PDU until complete
 or explicitly terminated and emits exact PB=0/PB=1 ACL frames against a proven
