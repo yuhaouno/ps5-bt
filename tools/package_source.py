@@ -24,6 +24,10 @@ REQUIRED_SOURCES = {
     "platform/ps5/bootstrap/syscall_checked.S",
 }
 NATIVE_SOURCES = {"platform/ps5/diagnostics/native_query.c", "platform/ps5/diagnostics/native_query.h"}
+NATIVE_L2CAP_SOURCES = {
+    "platform/ps5/diagnostics/native_l2cap_probe.c",
+    "platform/ps5/diagnostics/native_l2cap_probe.h",
+}
 USB_SOURCES = {
     "platform/ps5/diagnostics/usb_probe.c", "platform/ps5/diagnostics/usb_probe.h",
     "platform/ps5/diagnostics/usb_descriptors.c", "platform/ps5/diagnostics/usb_descriptors.h",
@@ -39,6 +43,7 @@ SBC_SELFTEST_SOURCES = {
 TARGET_SBC_SOURCE_FILES = frozenset(target_sbc_source_inventory())
 SBC_RELINK_DIRECTORY = PurePosixPath("build/ps5/ps5-bt-sbc-selftest-relink")
 VARIANTS = {
+    "native_l2cap_probe": ("ps5-bt-native-l2cap-probe", NATIVE_L2CAP_SOURCES, "--native-l2cap-probe"),
     "native_query": ("ps5-bt-native-query", NATIVE_SOURCES, "--native-query"),
     "usb_metadata": ("ps5-bt-usb-metadata", USB_SOURCES, "--usb-metadata"),
     "capture_preflight": ("ps5-bt-capture-preflight", CAPTURE_SOURCES, "--capture-preflight"),
@@ -506,7 +511,7 @@ def self_test():
             root = Path(temporary) / "project"
             root.mkdir()
             git(root, "init", "-q")
-            fixture_files = (REQUIRED_FILES | NATIVE_SOURCES | USB_SOURCES |
+            fixture_files = (REQUIRED_FILES | NATIVE_SOURCES | NATIVE_L2CAP_SOURCES | USB_SOURCES |
                              CAPTURE_SOURCES | SBC_SELFTEST_SOURCES)
             for name in fixture_files:
                 path = root / name

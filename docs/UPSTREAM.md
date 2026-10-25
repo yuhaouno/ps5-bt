@@ -13,6 +13,12 @@ subset documented below for HW-1; stock CRT and patch.c remain excluded. No prop
 
 ## Inventory
 
+The native L2CAP availability experiment uses declarations/constants from the
+same pinned SDK and reviews FreeBSD revision
+`d106002967eff712894ab8b5337bbbff106ce5e0` as behavioral evidence only. No
+FreeBSD Bluetooth implementation or headers are copied into its link. Exact
+files, license review and runtime limitations are in NATIVE-L2CAP-PROBE.md.
+
 | Source | Inspected revision | License evidence | Relationship |
 | --- | --- | --- | --- |
 | [ps5-payload-dev/sdk](https://github.com/ps5-payload-dev/sdk) | `a7685ce8e97ce1f8a4f38253a41d54241c9124f1`, release `v0.45` | root LICENSE plus README: GPL-3.0-or-later default; FreeBSD headers BSD and other file notices apply | three selected external source files in reviewed minimal-runtime link; stock CRT excluded |

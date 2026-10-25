@@ -82,6 +82,12 @@ run it only after the baseline entry/log/return test succeeds.
 
 ### Existing-loader HW-1 variant
 
+The separately selected `make ps5-native-l2cap-probe` uses the established
+existing-loader resolver and writes `build/ps5/ps5-bt-native-l2cap-probe.elf`.
+It creates/closes one IPv4 UDP control socket and, only after clean control
+cleanup, one unconnected L2CAP socket. See [the exact experiment and limits](NATIVE-L2CAP-PROBE.md).
+It does not implement the transport ABI or connect to a headset.
+
 ```sh
 LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-hw1
 # Optional separate query artifact:

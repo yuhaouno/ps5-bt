@@ -115,12 +115,19 @@ to ask them to repeat their final reports.
 
 ## Prepare before the hardware window
 
+**Current execution priority (2026-10-25):** the user renewed the LAN window.
+Binding metadata, settled capture, target SBC and bounded capture observation
+have all executed; see HW3-EVIDENCE.md. The next candidate is
+[native L2CAP availability](NATIVE-L2CAP-PROBE.md), followed by actual native
+route/connection evidence if it succeeds. The earlier preparation checklist
+below records the previous wave; do not rerun its completed diagnostics as the
+default next step.
+
 1. Review the transport ownership options first and choose a concrete experiment.
    Missing APIs/offsets stay Unknown; do not invent or silently relax the gate.
-   The 2026-10-25 audit in NATIVE-HCI-RESEARCH.md selects the existing read-only
-   USB binding diagnostic as the next executable evidence step. It rejects a raw
-   socket/direct endpoint experiment until a bounded PS5 dispatcher contract is
-   proven, and records the exact later one-command/credit acceptance bounds.
+   The updated audit selects one unconnected L2CAP create/close experiment.
+   Raw HCI/direct endpoint activation still requires a proven bounded ownership
+   contract; the exact later one-command/credit acceptance bounds remain.
 2. Implement/test the independent tracks. Keep Rust protocols/media policy and
    the proven C platform/codec adaptation; a C rewrite adds no acceptance value.
 3. Build baseline, USB binding and settled capture candidates now. Add further
@@ -138,6 +145,12 @@ to ask them to repeat their final reports.
    A distributed combined codec artifact needs its relink materials first.
 
 ## Next hardware window: short ordered checklist
+
+For the already renewed window, run the native L2CAP availability candidate
+first. Preserve its exact artifact identity, retrieve the complete durable log,
+and confirm wireless input. Continue to native route/connection ABI review only
+if creation and cleanup succeed; record raw errno on failure. Entries 2–4 below
+have completed in HW3 and are historical unless a concrete change needs retest.
 
 The user must confirm the console is available; a date or an old open port is
 not a renewed window. Target is **192.168.1.111**. Previously: FTP 2121,

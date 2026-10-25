@@ -15,6 +15,11 @@ Change the version for incompatible semantics. Never change one side silently.
 
 ## Transport contract
 
+The independently selected native L2CAP availability diagnostic is C-only and
+does not implement these functions. A proven native channel backend would need
+a separately reviewed channel ABI so HCI/credits remain with the system owner;
+successful socket allocation does not authorize pretending this ABI exists.
+
 | Function | Meaning |
 | --- | --- |
 | `ps5_bt_abi_version()` | exact numeric ABI identifier |

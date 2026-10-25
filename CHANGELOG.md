@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add a separately selected native L2CAP availability experiment: resolve the
+  exact socket/close/errno ABI, create/close an IPv4 control socket, then one
+  unconnected L2CAP socket. Preserve immediate errno, phase markers and cleanup
+  uncertainty. No bind, connection, controller I/O or privilege change occurs;
+  successful creation does not establish a usable Bluetooth route.
+
 - Verify the target SBC self-test on PS5: two clean lifecycles and four frames
   match the host digest exactly. Verify bounded capture observation with one
   Empty, one wait, then 8,192 bytes using a successful monotonic-clock path;

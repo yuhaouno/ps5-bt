@@ -170,6 +170,7 @@ event already consumed by the wrong owner. [HearBridge transport][hb-usb],
 | Integration option | What would unblock it | Present status |
 | --- | --- | --- |
 | Native-supported command/event/ACL broker | a real documented/source-inspected interface that serializes commands and forwards all native traffic, with per-owner handles and credits | Unknown: no such interface established in the inspected SDK/upstreams |
+| Native L2CAP channel | actual socket availability, controller route, connection/pairing ABI and bounded channel lifetime under the native HCI owner | Experimental: next test only creates/closes an unconnected socket; see NATIVE-L2CAP-PROBE.md |
 | A separate HCI function/interface | evidence of independent controller state and native ownership, enforceable ACL budget, and exclusive function access without disturbing DualSense | Unknown: descriptors alone are insufficient |
 | Existing permissioned exclusive controller ownership | existing environment already grants it and separately preserves wireless DualSense on its own controller; no detach/reset/driver changes introduced here | Unknown; cannot assume from USB open success |
 | More reads, opcode/handle filtering, file lock, timed refill, event/ACL split readers | none supplies missing native delivery or command serialization | rejected for active built-in backend |

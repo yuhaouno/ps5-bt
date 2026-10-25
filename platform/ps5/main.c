@@ -1,5 +1,41 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "ps5_bt.h"
+#ifdef PS5_BT_NATIVE_L2CAP_PROBE
+#include "bootstrap/bootstrap.h"
+#include "diagnostics/native_l2cap_probe.h"
+static void native_l2cap_trace(enum ps5_native_l2cap_phase phase, int entering,
+                               int64_t raw_status, int errno_valid,
+                               int raw_errno) {
+  static const char *const names[] = {
+      "resolve_socket", "resolve_close", "resolve_errno", "errno",
+      "control_socket", "control_close", "l2cap_socket",  "l2cap_close"};
+  char line[192];
+  size_t used = 0;
+  const char *parts[] = {
+      "event=native_l2cap_phase phase=",
+      (unsigned)phase < sizeof names / sizeof names[0] ? names[phase]
+                                                       : "unknown",
+      entering ? " edge=begin raw_bits=0x" : " edge=end raw_bits=0x"};
+  for (unsigned part = 0; part < 3; ++part)
+    for (const char *value = parts[part]; *value; ++value)
+      line[used++] = *value;
+  for (unsigned shift = 64; shift; shift -= 4)
+    line[used++] =
+        "0123456789abcdef"[((uint64_t)raw_status >> (shift - 4)) & 15];
+  const char suffix[] = " errno_valid=";
+  for (size_t i = 0; i < sizeof suffix - 1; ++i)
+    line[used++] = suffix[i];
+  line[used++] = errno_valid ? '1' : '0';
+  const char error_suffix[] = " errno_bits=0x";
+  for (size_t i = 0; i < sizeof error_suffix - 1; ++i)
+    line[used++] = error_suffix[i];
+  for (unsigned shift = 32; shift; shift -= 4)
+    line[used++] =
+        "0123456789abcdef"[((uint32_t)raw_errno >> (shift - 4)) & 15];
+  line[used++] = '\n';
+  ps5_platform_log((const uint8_t *)line, (uint32_t)used);
+}
+#endif
 #ifdef PS5_BT_NATIVE_QUERY
 #include "bootstrap/bootstrap.h"
 #include "diagnostics/native_query.h"
@@ -102,6 +138,25 @@ static void capture_trace(enum ps5_capture_probe_phase phase, uint32_t ordinal,
 
 int main(void) {
   int result = (int)ps5_rust_probe();
+#ifdef PS5_BT_NATIVE_L2CAP_PROBE
+  static const uint8_t begin[] = "event=native_l2cap_begin\n";
+  static const uint8_t failed[] = "event=native_l2cap_report_failed\n";
+  struct ps5_native_l2cap_result native;
+  char line[PS5_NATIVE_L2CAP_REPORT_CAPACITY];
+  size_t length = 0;
+  ps5_platform_log(begin, sizeof begin - 1);
+  enum ps5_native_l2cap_status status = ps5_native_l2cap_probe_resolve(
+      ps5_bootstrap_lookup, native_l2cap_trace, &native);
+  if (ps5_native_l2cap_probe_encode_report(
+          &native, line, sizeof line, &length) == PS5_NATIVE_L2CAP_AVAILABLE) {
+    ps5_platform_log((const uint8_t *)line, (uint32_t)length);
+  } else {
+    ps5_platform_log(failed, sizeof failed - 1);
+    result = 1;
+  }
+  if (status < 0)
+    result = 1;
+#endif
 #ifdef PS5_BT_SBC_SELFTEST
   static const uint8_t begin[] = "event=sbc_selftest_begin\n";
   static const uint8_t attribution[] =

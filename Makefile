@@ -6,6 +6,8 @@ HOST_CC ?= cc
 USB_TEST_SOURCES := platform/ps5/diagnostics/usb_descriptors.c tests/platform/usb_descriptors_test.c
 USB_TEST_FLAGS := -std=c11 -Wall -Wextra -Werror -pedantic -Iplatform/ps5/diagnostics
 NATIVE_QUERY_TEST_SOURCES := platform/ps5/diagnostics/native_query.c tests/platform/native_query_test.c
+NATIVE_L2CAP_TEST_SOURCES := platform/ps5/diagnostics/native_l2cap_probe.c tests/platform/native_l2cap_probe_test.c
+.PHONY: native-l2cap-probe-test ps5-native-l2cap-probe
 USB_PROBE_TEST_SOURCES := platform/ps5/diagnostics/usb_probe.c platform/ps5/diagnostics/usb_descriptors.c tests/platform/usb_probe_test.c
 CAPTURE_PROBE_TEST_SOURCES := platform/ps5/diagnostics/capture_probe.c platform/ps5/diagnostics/capture_observe.c tests/platform/capture_probe_test.c
 CAPTURE_OBSERVE_RUNNER_SOURCES := platform/ps5/diagnostics/capture_probe.c platform/ps5/diagnostics/capture_observe.c tests/platform/capture_observe_runner_test.c
@@ -23,6 +25,7 @@ check:
 	python3 tools/host_check.py
 	$(MAKE) usb-descriptors-test
 	$(MAKE) native-query-test
+	$(MAKE) native-l2cap-probe-test
 	$(MAKE) usb-probe-test
 	$(MAKE) capture-probe-test
 	$(MAKE) capture-observe-test
@@ -110,7 +113,22 @@ native-query-test:
 	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include tests/platform/native_main_test.c -o build/host/native-query/baseline-main-test
 	build/host/native-query/baseline-main-test
 
+native-l2cap-probe-test:
+	mkdir -p build/host/native-l2cap
+	$(HOST_CC) $(USB_TEST_FLAGS) $(NATIVE_L2CAP_TEST_SOURCES) -o build/host/native-l2cap/test
+	build/host/native-l2cap/test
+	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include -DPS5_BT_NATIVE_L2CAP_PROBE platform/ps5/diagnostics/native_l2cap_probe.c tests/platform/native_l2cap_main_test.c -o build/host/native-l2cap/main-test
+	build/host/native-l2cap/main-test
+
+ps5-native-l2cap-probe:
+	python3 tools/build_ps5.py --native-l2cap-probe --loader-kernel-resolver
+
 check-c-sanitize:
+	mkdir -p build/host/native-l2cap
+	$(HOST_CC) $(USB_TEST_FLAGS) -fsanitize=address,undefined -fno-omit-frame-pointer $(NATIVE_L2CAP_TEST_SOURCES) -o build/host/native-l2cap/test-sanitized
+	build/host/native-l2cap/test-sanitized
+	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include -DPS5_BT_NATIVE_L2CAP_PROBE -fsanitize=address,undefined -fno-omit-frame-pointer platform/ps5/diagnostics/native_l2cap_probe.c tests/platform/native_l2cap_main_test.c -o build/host/native-l2cap/main-test-sanitized
+	build/host/native-l2cap/main-test-sanitized
 	mkdir -p build/host/usb-probe build/host/capture-probe build/host/capture-observe
 	$(HOST_CC) $(USB_TEST_FLAGS) -fsanitize=address,undefined -fno-omit-frame-pointer $(USB_PROBE_TEST_SOURCES) -o build/host/usb-probe/test-sanitized
 	build/host/usb-probe/test-sanitized

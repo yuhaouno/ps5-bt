@@ -121,7 +121,7 @@ def validate_candidate(root, candidate, head):
     }.get(candidate["id"])
     if expected_variant is None:
         raise ValueError("unreviewed candidate id")
-    variants = ("native_query", "usb_metadata", "capture_preflight", "capture_once",
+    variants = ("native_query", "native_l2cap_probe", "usb_metadata", "capture_preflight", "capture_once",
                 "sbc_selftest", "capture_observe")
     if any(type(manifest.get(key, False)) is not bool for key in variants) or [
         key for key in variants if manifest.get(key, False)

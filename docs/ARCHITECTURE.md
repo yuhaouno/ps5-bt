@@ -21,6 +21,13 @@ is supplied.
 
 ## Ownership
 
+An experimental native L2CAP channel path is also under investigation
+([availability probe](NATIVE-L2CAP-PROBE.md)). If hardware proves it usable,
+the native stack would retain HCI ownership/credits while Rust retains
+SDP/AVDTP/RTP and audio policy. This would need a separate reviewed channel
+boundary; the current raw-HCI ABI remains Unsupported. Socket allocation alone
+does not establish this architecture or a controller route.
+
 ```text
 Original minimal C/assembly entry / existing loader integration
                     |

@@ -113,7 +113,8 @@ def self_test():
         suffixes = ("elf", "map", "manifest.json", "inspect.txt", "disasm.txt")
         for stem in ("ps5-bt", "ps5-bt-native-query", "ps5-bt-usb-metadata",
                      "ps5-bt-capture-preflight", "ps5-bt-capture-once",
-                     "ps5-bt-sbc-selftest", "ps5-bt-capture-observe"):
+                     "ps5-bt-sbc-selftest", "ps5-bt-capture-observe",
+                     "ps5-bt-native-l2cap-probe"):
             for suffix in suffixes:
                 (base / f"{stem}.{suffix}").write_text(stem)
         invalidate_output("ps5-bt-native-query", base)
@@ -127,6 +128,10 @@ def self_test():
         assert (base / "ps5-bt-usb-metadata.elf").is_file()
         invalidate_output("ps5-bt-usb-metadata", base)
         assert not any((base / f"ps5-bt-usb-metadata.{suffix}").exists() for suffix in suffixes)
+        assert all((base / f"ps5-bt-native-l2cap-probe.{suffix}").is_file() for suffix in suffixes)
+        invalidate_output("ps5-bt-native-l2cap-probe", base)
+        assert not any((base / f"ps5-bt-native-l2cap-probe.{suffix}").exists() for suffix in suffixes)
+        assert (base / "ps5-bt-native-query.elf").read_text() == "optional"
     print("PASS missing/modified SDK and missing toolchain failure paths")
 
 
@@ -181,6 +186,8 @@ def build(args):
         sources += [source / "crt/kernel.c", source / "crt/nid.c"]
     if args.native_query:
         sources.append(ROOT / "platform/ps5/diagnostics/native_query.c")
+    if args.native_l2cap_probe:
+        sources.append(ROOT / "platform/ps5/diagnostics/native_l2cap_probe.c")
     if args.usb_metadata:
         sources += [ROOT / "platform/ps5/diagnostics/usb_probe.c",
                     ROOT / "platform/ps5/diagnostics/usb_descriptors.c"]
@@ -198,6 +205,8 @@ def build(args):
         flags += ["-DPS5_BT_LOADER_KERNEL_RESOLVER"]
     if args.native_query:
         flags.append("-DPS5_BT_NATIVE_QUERY")
+    if args.native_l2cap_probe:
+        flags.append("-DPS5_BT_NATIVE_L2CAP_PROBE")
     if args.usb_metadata:
         flags.append("-DPS5_BT_USB_METADATA")
     if args.capture_preflight or args.capture_once or args.capture_observe:
@@ -236,6 +245,7 @@ def build(args):
         raise
     report["runtime"] = "minimal-syscall-v6"
     report["native_query"] = args.native_query
+    report["native_l2cap_probe"] = args.native_l2cap_probe
     report["usb_metadata"] = args.usb_metadata
     report["capture_preflight"] = args.capture_preflight
     report["capture_once"] = args.capture_once
@@ -257,6 +267,9 @@ def build(args):
     report["project_sources"]["platform/ps5/bootstrap/bootstrap.h"] = digest(ROOT / "platform/ps5/bootstrap/bootstrap.h")
     if args.native_query:
         name = "platform/ps5/diagnostics/native_query.h"
+        report["project_sources"][name] = digest(ROOT / name)
+    if args.native_l2cap_probe:
+        name = "platform/ps5/diagnostics/native_l2cap_probe.h"
         report["project_sources"][name] = digest(ROOT / name)
     if args.capture_preflight or args.capture_once or args.capture_observe:
         for name in ("platform/ps5/diagnostics/capture_probe.h",
@@ -299,6 +312,8 @@ def build(args):
 
 
 def artifact_stem(args):
+    if args.native_l2cap_probe:
+        return "ps5-bt-native-l2cap-probe"
     if args.capture_observe:
         return "ps5-bt-capture-observe"
     if args.sbc_selftest:
@@ -320,6 +335,8 @@ if __name__ == "__main__":
     variants = parser.add_mutually_exclusive_group()
     variants.add_argument("--native-query", action="store_true",
                         help="build separate single read-only native query diagnostic")
+    variants.add_argument("--native-l2cap-probe", action="store_true",
+                        help="create/close one control and one unconnected L2CAP socket")
     variants.add_argument("--usb-metadata", action="store_true",
                           help="build separate read-only USB metadata diagnostic")
     variants.add_argument("--capture-preflight", action="store_true",

@@ -56,6 +56,7 @@ The earlier second-machine build reproduction remains in
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
 | PS5 diagnostic ELF with explicit loader kernel resolver | Verified on one environment | Slim/13.40: Rust entry, durable lifecycle and final 2; notifications returned success |
 | Optional read-only native stack-version query | Executed | sysctlbyname resolved; query returned -1; version and controller remain Unknown |
+| Unconnected native L2CAP socket probe | Implemented; Requires hardware | one UDP control create/close then one L2CAP create/close; allocation alone establishes no controller route |
 | Live PS5 transport and capture | Unsupported | adapter explicitly returns Unsupported |
 | PS5 Fat / Slim / Pro | Limited hardware evidence | one Slim/13.40 diagnostic run path; other models and Bluetooth remain Unknown |
 | Console firmware | Limited hardware evidence | user-reported 13.40 diagnostic execution only |
@@ -85,6 +86,7 @@ make host-smoke     # C main -> Rust -> unsupported C adapter, on the desktop
 make sbc-codec-test # real offline PCM -> SBC -> RTP/L2CAP/ACL; no PS5/audio output
 make rust-archive   # no_std x86-64 ELF archive; no SDK or console needed
 make ps5-native-query # separate opt-in query ELF; run only after baseline entry test
+make ps5-native-l2cap-probe # create/close two unconnected sockets; no radio traffic requested
 make ps5-sbc-selftest # generated-signal codec test; no Bluetooth/capture operation
 make ps5-capture-observe # first data/deadline/error, at most 20 reads/two seconds
 python3 tools/mvp_test_kit.py # dry-run next-window plan; no network/deployment

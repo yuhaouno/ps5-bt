@@ -6,6 +6,11 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
 ## Current automated checks
 
+- Native L2CAP availability boundary: all exports must resolve before calls;
+  immediate errno capture, descriptor zero, control failure, one close attempt,
+  cleanup uncertainty, atomic reports and real main ordering. Run
+  `make native-l2cap-probe-test`; the same scenarios run under ASan/UBSan.
+  Callback tests do not establish PS5 socket implementation or controller routing.
 - LAN control boundary: exact four-route HTTP/1.1 parsing, byte/header/line
   ceilings, bearer/Host/Origin/custom-header enforcement, duplicate/smuggling/
   body rejection, single pending command ownership, stale completion rejection,

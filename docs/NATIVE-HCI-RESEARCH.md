@@ -18,7 +18,7 @@ symbol plus `-1` result proves that this specific call path executed, not that a
 FreeBSD Bluetooth stack or controller node is available. USB interface 2 has a
 second set of HCI-shaped endpoints, but descriptor class and endpoint numbers do
 not establish a separate command state, event route, connection-handle domain or
-ACL credit pool. The deployed binding extension was not confirmed as launched.
+ACL credit pool.
 
 The renewed 2026-10-25 window has now executed the clean `942eb9d` binding
 candidate. All four driver queries returned 0, but names were `Unknown` and
@@ -26,9 +26,13 @@ binding classification stayed unknown. Three unrelated device-node opens still
 failed; owned cleanup succeeded and the user confirmed normal wireless input.
 See HW3-EVIDENCE.md for the exact artifact and complete log. This closes the
 binding execution gap without establishing a dispatcher or changing the active
-transport gate. The next active experiment remains the one-command acceptance
-test below, conditional on a source-proven broker registration/ACL-send ABI;
-there is no ready safe active-HCI artifact in the current kit.
+transport gate. The next experiment is now the separately selected
+[unconnected native L2CAP socket availability probe](NATIVE-L2CAP-PROBE.md).
+The pinned FreeBSD attach/close/detach paths support this narrow lifecycle
+experiment without connection or event reception; PS5 implementation remains
+Unknown. A native channel route could leave HCI and credits with the system.
+The one-command raw-HCI acceptance test below still requires a source-proven
+broker registration/ACL-send ABI; there is no ready active-HCI artifact.
 
 The pinned SDK headers expose the FreeBSD-shaped `AF_BLUETOOTH`, raw HCI protocol
 134 and `SIOC_HCI_RAW_NODE_LIST_NAMES`. They also mark Netgraph list-names as a
@@ -41,20 +45,12 @@ than providing this project's required command-and-ACL transport. A monitor or
 command socket would still lack owned handles and enforceable ACL reservations.
 Therefore no raw-socket or direct-USB active candidate is authorized now.
 
-The next executable ownership-related experiment is the already built,
-independently selectable **USB binding metadata** diagnostic, not an HCI read:
-
-1. Use a fresh clean-HEAD artifact and manifest. Manually launch it once with a
-   15-second external observation ceiling; it performs no endpoint I/O.
-2. Retrieve `/data/ps5-bt-hw1.log` before any later candidate overwrites it.
-   Require complete active-configuration and driver-binding results for every
-   reported interface plus final cleanup/lifecycle markers.
-3. Confirm wireless DualSense input before, during and after. Stop on any input
-   anomaly, incomplete inventory or uncertain cleanup.
-4. A nonempty binding confirms only that a native driver reports attachment. An
-   empty or different binding still does not prove an independent radio or free
-   endpoints. Either outcome remains `transport=Unsupported`; it selects the
-   next source investigation and must not trigger an HCI command automatically.
+The completed USB binding test does not need repeating. The new availability
+probe performs only one control socket creation/close and one unconnected
+L2CAP creation/close, preserving immediate errno and cleanup status. It never
+opens raw HCI, binds, connects or reads events. Its 15-second external observation
+ceiling is not a cancellable kernel-call deadline. Any unresolved call or failed
+close stops the experiment; successful allocation alone proves no route.
 
 If later source evidence identifies an actual dispatcher/broker, its first
 active acceptance diagnostic must be separately named and keep these bounds:

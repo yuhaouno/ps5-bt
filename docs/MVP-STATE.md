@@ -57,8 +57,8 @@ their historical software/transfer baselines and are not current runtime state.
 | D1b | DONE | hci_l2cap + lead review | bounded L2CAP framing/reassembly in caller storage, tied to explicit handle/epoch; no signaling/channel establishment |
 | A2 | DONE | native_hci_research + lead review | source-backed single read-only native stack-version query; no PS5 broker found in bounded inventory; see NATIVE-HCI-RESEARCH.md |
 | C1a | DONE | platform_descriptors + lead review | bounded descriptor parser/report, hostile host tests and ASan/UBSan; no live USB access |
-| C1b | EXECUTED (PARTIAL) | lead + user | own 1286:2059 four-interface descriptor log, clean close and normal pad; three other opens failed; binding extension unverified |
-| C2 | BLOCKER | lead | native query executed with -1 and SDK/FreeBSD-shaped raw sockets still lack a PS5 broker, ACL-send path and bounded ownership contract; next executable evidence is binding metadata, while the one-command acceptance design remains gated on a proven dispatcher |
+| C1b | EXECUTED (PARTIAL) | lead + user | own 1286:2059 four-interface descriptor log, clean close and normal pad; three other opens failed; all binding queries returned Unknown names in HW3 |
+| C2 | IN PROGRESS | lead | native query returned -1; next bounded experiment is unconnected L2CAP socket creation/close (NATIVE-L2CAP-PROBE.md). Native route and raw HCI ownership remain unknown; no direct USB activation |
 | C3 | EXECUTED | lead | export resolved on Slim/13.40; single query returned -1; version/controller remain Unknown |
 | H1 | LIFECYCLE PASS | user + lead | loader kernel init 0, Rust entry and final 2 on Slim/13.40; user confirmed visible notifications and normal wireless input |
 | H2 | PARTIAL | user + lead | USB descriptors and normal pad confirmed; HCI queries/ownership/credits remain unverified and gated by C2 |
@@ -81,6 +81,15 @@ native-query ELF. Each was reviewed and tested before atomic integration.
 Do not declare hardware completion from desktop simulation or an ELF link.
 
 ## Persistent blockers and next integration target
+
+Transport access is the immediate critical path: run the separate native L2CAP
+availability candidate, then use the result to select route/connection ABI
+review or close that particular socket branch. Do not repeat capture or SBC
+self-tests without a changed implementation or a concrete unanswered question.
+Next acceptance remains real headset connection, a short audible SBC tone,
+then captured audio and the minimal LAN controls. A native channel backend may
+leave HCI/credits under the system owner; it requires a separately reviewed
+channel ABI rather than pretending the existing raw-HCI ABI was implemented.
 
 The baseline diagnostic has passed its executable lifecycle gate on one
 environment. Human-visible notifications and wireless DualSense were confirmed;
