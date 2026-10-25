@@ -1,6 +1,6 @@
 # MVP orchestration state
 
-Last updated: 2026-10-25. The explicit HW-1 diagnostic now executes on the
+Last updated: 2026-10-26. The explicit HW-1 diagnostic now executes on the
 recorded Slim/13.40 environment. MVP audio is not operational.
 
 The user selected Sony **WH-1000XM4** (over-ear) as the first planned headset.
@@ -99,6 +99,15 @@ There is no ready headset-connect candidate against the failed socket path.
 The next executable transport test requires a concrete alternative channel or
 ownership ABI; more endpoint reads, guessed protocols or permission changes
 without such evidence would not resolve the blocker.
+
+The latest bounded native follow-up found MBus attachment-management calls but
+no usable channel/subscription ABI (NATIVE-HCI-RESEARCH.md). No new target run
+was requested. Independently, the ACL reservation ledger and media submission
+integration passed 134 workspace Rust tests, eight host-codec checks, workspace
+and codec-feature Clippy, whole-workspace freestanding checking and Rust
+archive inspection. The real SBC example now exercises three accepted ACL
+fragments with one Busy retry, two credit stops and three synthetic completions.
+This closes a software integration gap, not the C2 hardware ownership blocker.
 
 The baseline diagnostic has passed its executable lifecycle gate on one
 environment. Human-visible notifications and wireless DualSense were confirmed;

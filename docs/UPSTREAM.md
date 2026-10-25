@@ -13,6 +13,14 @@ subset documented below for HW-1; stock CRT and patch.c remain excluded. No prop
 
 ## Inventory
 
+The 2026-10-26 bounded MBus follow-up inspected the Ghostcontrol Manba fork at
+`0c7abe001387ad140f0481f57896f42c6af2361c`, specifically its README and
+GPL-3.0-or-later `shellui_pad.c`, as behavioral references only. No code,
+Sony binary or system-process modification was imported or executed. The
+reviewed calls manage attachment disconnection/user binding and do not supply
+an audio-channel or preserved-event ABI; exact links and limits are recorded
+in NATIVE-HCI-RESEARCH.md.
+
 The 2026-10-25 post-socket-result review also inspected
 [`AngelLopezTorres/ps5-wireless-pads`](https://github.com/AngelLopezTorres/ps5-wireless-pads/tree/33fa2fe4225f67748f688ee1016b5fab7cbb5605)
 at `33fa2fe4225f67748f688ee1016b5fab7cbb5605`. LICENSE is GPL v3 and NOTICE

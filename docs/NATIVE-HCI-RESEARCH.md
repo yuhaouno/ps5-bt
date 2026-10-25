@@ -73,6 +73,23 @@ very ownership contract it is meant to test.
 
 ## Evidence and interpretation
 
+### MBus lead, bounded follow-up on 2026-10-26
+
+The public Ghostcontrol Manba fork was inspected at
+[`0c7abe001387ad140f0481f57896f42c6af2361c`](https://github.com/NikoBellikJR31/Ghostcontrol-PS5-USB-Controller-Patcher-Manba-/tree/0c7abe001387ad140f0481f57896f42c6af2361c).
+The reviewed `shellui_pad.c` declares GPL-3.0-or-later; no code or binary was
+imported, modified, executed or deployed. Its author records a system MBus
+Bluetooth-event thread, but the
+[actual calls](https://github.com/NikoBellikJR31/Ghostcontrol-PS5-USB-Controller-Patcher-Manba-/blob/0c7abe001387ad140f0481f57896f42c6af2361c/SOURCE%20MODIFIEE%20PAYLOAD/shellui_pad.c#L3162)
+only disconnect attachments or bind them to users. They do not establish a
+bounded copied event subscription, audio channel create/send/receive ABI,
+owner registration or ACL credit reservation. Invoking those calls or attaching
+to a system process would not answer the missing transport question and is not
+a prepared experiment. A self-only module-name probe would establish presence
+at most and is not worth another console run. The next useful MBus experiment
+requires an actual read-only subscription or self-owned channel ABI with
+documented record bounds, cancellation and cleanup first.
+
 ### Additional ownership lead checked after the socket result
 
 `AngelLopezTorres/ps5-wireless-pads` was inspected at
