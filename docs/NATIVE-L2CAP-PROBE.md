@@ -143,6 +143,24 @@ headset interoperability test.
 
 ## Result branches and next evidence gate
 
+### Prepared artifact, 2026-10-25
+
+The candidate was built from clean source commit
+`cc3b560653bc984bcfc39c531a0fa2f92471f520`:
+
+- ELF SHA-256: `f58bff82b5f6b2a86298f9881bf5c58d732a6af593024df86dd806c6858be0d7`.
+- Corresponding-source archive SHA-256:
+  `91670b41cf2b77f6d6d6f400e4d48219395ee1760e0f3ebedec9bb7c4223b400`.
+- `make check`, `make check-c-sanitize`, strict C warnings, formatting,
+  PS5 compilation/ELF inspection and source-package validation passed.
+- Uploaded to the separate slot above at `192.168.1.111`; downloaded ELF hash
+  and metadata exactly matched. Upload did not launch the candidate.
+- Previous log preserved locally as `build/ps5/pre-native-l2cap.log`, SHA-256
+  `5dd734d9d484caa2ceee56990c1e38b2e5acd2400e8479eff1da2e4edcbba8bb`.
+- Manual launch was requested. Execution, socket availability and controller
+  coexistence remain **Requires hardware** until a new log and user observation
+  are recorded. Do not interpret a successfully uploaded ELF as a run.
+
 | Observed result | Interpretation and next step |
 | --- | --- |
 | Resolver/errno boundary unavailable, or UDP creation fails | General call-path/process availability is unresolved. Audit the precise symbol, raw status and immediate errno before another candidate. Do not interpret this as Bluetooth absence. |
