@@ -20,6 +20,16 @@ second set of HCI-shaped endpoints, but descriptor class and endpoint numbers do
 not establish a separate command state, event route, connection-handle domain or
 ACL credit pool. The deployed binding extension was not confirmed as launched.
 
+The renewed 2026-10-25 window has now executed the clean `942eb9d` binding
+candidate. All four driver queries returned 0, but names were `Unknown` and
+binding classification stayed unknown. Three unrelated device-node opens still
+failed; owned cleanup succeeded and the user confirmed normal wireless input.
+See HW3-EVIDENCE.md for the exact artifact and complete log. This closes the
+binding execution gap without establishing a dispatcher or changing the active
+transport gate. The next active experiment remains the one-command acceptance
+test below, conditional on a source-proven broker registration/ACL-send ABI;
+there is no ready safe active-HCI artifact in the current kit.
+
 The pinned SDK headers expose the FreeBSD-shaped `AF_BLUETOOTH`, raw HCI protocol
 134 and `SIOC_HCI_RAW_NODE_LIST_NAMES`. They also mark Netgraph list-names as a
 read-only message. That is compile-time interface evidence only. No inspected
