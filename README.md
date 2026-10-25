@@ -25,8 +25,11 @@ returns -1; no controller capability or audio support follows from this.
 See [hardware repair evidence](docs/HW1-REPAIR.md).
 Own read-only USB enumeration has since confirmed `1286:2059` with HCI-class
 interfaces 0 and 2. The capture diagnostic completed open/start/cleanup, but
-its immediate read returned Empty; no PCM or audio playback is established.
-See [USB/capture evidence](docs/HW2-EVIDENCE.md).
+its immediate read returned Empty. A later 100 ms settled read returned 8,192
+bytes with clean cleanup and user-confirmed normal wireless input. Native PCM
+format/timing and audio playback remain unverified.
+See [USB/capture evidence](docs/HW2-EVIDENCE.md) and
+[the resumed hardware window](docs/HW3-EVIDENCE.md).
 The earlier second-machine build reproduction remains in
 [the wave report](docs/WAVE-1-REPORT.md).
 
@@ -41,7 +44,7 @@ The earlier second-machine build reproduction remains in
 | C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |
 | Opt-in read-only USB enumeration | Executed on one Slim/13.40 | own four-interface descriptor log; other node opens failed; transport remains Unsupported |
-| Opt-in Avcap2 capture diagnostic | Lifecycle executed | open/start/stop/close/terminate 0; immediate read Empty; no acquired PCM |
+| Opt-in Avcap2 capture diagnostic | Nonempty data observed on one Slim/13.40 | 100 ms settled read returned 8,192 bytes; all lifecycle/cleanup statuses 0; native PCM format/timing unknown |
 | SBC parameter selection and frame sizing | Implemented | portable validation tests and host encoder boundary |
 | Real PCM-to-SBC encoding | Host-only implementation | safe Rust owner, generic libsbc, 208 encoder/12 decoder vectors; not in PS5 ELF |
 | Generated-signal SBC self-test | Core target-compiles; not yet linked | two fresh init/finish cycles and four deterministic frames with pinned digest; no PS5 execution or audio output |

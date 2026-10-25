@@ -1,0 +1,86 @@
+event=loader_kernel_init_begin
+event=loader_kernel_init_end code=0
+event=payload_start log=/data/ps5-bt-hw1.log
+event=rust_entry abi=1 phase=bootstrap
+event=adapter_unavailable status=unsupported
+usb_probe_v1 access=readonly transport=Unsupported
+usb_probe operation=open_directory raw_result=16
+usb_probe node=/dev/ugen0.1
+usb_probe operation=open_device raw_result=-1
+usb_probe node=/dev/ugen1.1
+usb_probe operation=open_device raw_result=-1
+usb_probe node=/dev/ugen0.2
+usb_probe operation=open_device raw_result=17
+usb_probe operation=device_descriptor raw_result=0
+usb_probe operation=active_configuration raw_result=0
+usb_probe active_configuration_index=0
+usb_probe configuration_index=0
+usb_probe operation=full_descriptor raw_result=0
+usb_probe operation=parse_configuration raw_result=0
+ps5-usb-metadata-v1 vid=1286 pid=2059 vendor=Marvell/NXP config=01 bytes=0167 interfaces=04 groups=000e transport=Unsupported
+hci-interface=00 alternate=00 endpoints=0004
+ endpoint=81 attributes=02 max-packet-raw=0200 interval=00
+ endpoint=01 attributes=02 max-packet-raw=0200 interval=00
+ endpoint=82 attributes=03 max-packet-raw=0040 interval=01
+ endpoint=02 attributes=02 max-packet-raw=0200 interval=00
+hci-interface=01 alternate=00 endpoints=0002
+ endpoint=83 attributes=01 max-packet-raw=0000 interval=04
+ endpoint=03 attributes=01 max-packet-raw=0000 interval=04
+hci-interface=01 alternate=01 endpoints=0002
+ endpoint=83 attributes=01 max-packet-raw=0009 interval=04
+ endpoint=03 attributes=01 max-packet-raw=0009 interval=04
+hci-interface=01 alternate=02 endpoints=0002
+ endpoint=83 attributes=01 max-packet-raw=0011 interval=04
+ endpoint=03 attributes=01 max-packet-raw=0011 interval=04
+hci-interface=01 alternate=03 endpoints=0002
+ endpoint=83 attributes=01 max-packet-raw=0019 interval=04
+ endpoint=03 attributes=01 max-packet-raw=0019 interval=04
+hci-interface=01 alternate=04 endpoints=0002
+ endpoint=83 attributes=01 max-packet-raw=0021 interval=04
+ endpoint=03 attributes=01 max-packet-raw=0021 interval=04
+hci-interface=01 alternate=05 endpoints=0002
+ endpoint=83 attributes=01 max-packet-raw=0031 interval=04
+ endpoint=03 attributes=01 max-packet-raw=0031 interval=04
+hci-interface=02 alternate=00 endpoints=0004
+ endpoint=84 attributes=02 max-packet-raw=0200 interval=00
+ endpoint=04 attributes=02 max-packet-raw=0200 interval=00
+ endpoint=85 attributes=03 max-packet-raw=0040 interval=01
+ endpoint=05 attributes=02 max-packet-raw=0200 interval=00
+hci-interface=03 alternate=00 endpoints=0002
+ endpoint=86 attributes=01 max-packet-raw=0000 interval=04
+ endpoint=06 attributes=01 max-packet-raw=0000 interval=04
+hci-interface=03 alternate=01 endpoints=0002
+ endpoint=86 attributes=01 max-packet-raw=0009 interval=04
+ endpoint=06 attributes=01 max-packet-raw=0009 interval=04
+hci-interface=03 alternate=02 endpoints=0002
+ endpoint=86 attributes=01 max-packet-raw=0011 interval=04
+ endpoint=06 attributes=01 max-packet-raw=0011 interval=04
+hci-interface=03 alternate=03 endpoints=0002
+ endpoint=86 attributes=01 max-packet-raw=0019 interval=04
+ endpoint=06 attributes=01 max-packet-raw=0019 interval=04
+hci-interface=03 alternate=04 endpoints=0002
+ endpoint=86 attributes=01 max-packet-raw=0021 interval=04
+ endpoint=06 attributes=01 max-packet-raw=0021 interval=04
+hci-interface=03 alternate=05 endpoints=0002
+ endpoint=86 attributes=01 max-packet-raw=0031 interval=04
+ endpoint=06 attributes=01 max-packet-raw=0031 interval=04
+usb_probe interface_index=0
+usb_probe operation=interface_driver raw_result=0
+usb_probe driver=Unknown binding=unknown
+usb_probe interface_index=1
+usb_probe operation=interface_driver raw_result=0
+usb_probe driver=Unknown binding=unknown
+usb_probe interface_index=2
+usb_probe operation=interface_driver raw_result=0
+usb_probe driver=Unknown binding=unknown
+usb_probe interface_index=3
+usb_probe operation=interface_driver raw_result=0
+usb_probe driver=Unknown binding=unknown
+usb_probe operation=close_device raw_result=0
+usb_probe node=/dev/ugen2.1
+usb_probe operation=open_device raw_result=-1
+usb_probe operation=close_directory raw_result=0
+usb_probe nodes=4 inventory=incomplete
+event=stream_log_unavailable fallback=persistent
+event=payload_exit status=1
+event=payload_return status=1

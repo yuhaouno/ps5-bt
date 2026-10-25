@@ -17,8 +17,10 @@ The user confirmed on-screen notifications and wireless DualSense during the
 diagnostic. Own USB enumeration has now read 1286:2059 with HCI-class interface
 groups 0 and 2. Capture preflight resolved all seven exports; the first full
 capture lifecycle completed with one immediate Empty read and clean shutdown.
-No PCM was acquired. See HW2-EVIDENCE.md and its complete numeric logs.
-Future target is 192.168.1.111; the hardware window has ended. Continue offline.
+The renewed 2026-10-25 window produced 8,192 bytes after a 100 ms settle with
+clean cleanup and user-confirmed normal wireless input. Format/timing remain
+unknown; see HW3-EVIDENCE.md and its complete numeric logs.
+Current target is 192.168.1.111; the user renewed hardware access from the LAN.
 Active HCI operations remain gated on native traffic ownership
 and credits. See HW1-REPAIR.md and RUNTIME-REVIEW.md. Earlier reports describe
 their historical software/transfer baselines and are not current runtime state.
@@ -60,7 +62,7 @@ their historical software/transfer baselines and are not current runtime state.
 | C3 | EXECUTED | lead | export resolved on Slim/13.40; single query returned -1; version/controller remain Unknown |
 | H1 | LIFECYCLE PASS | user + lead | loader kernel init 0, Rust entry and final 2 on Slim/13.40; user confirmed visible notifications and normal wireless input |
 | H2 | PARTIAL | user + lead | USB descriptors and normal pad confirmed; HCI queries/ownership/credits remain unverified and gated by C2 |
-| C4 | LIFECYCLE PASS | capture worker + lead + user | Ipmi/Avcap2 load, seven resolves, initialize/open/start/cleanup succeed; one immediate Empty read; settled-read test requires hardware |
+| C4 | NONEMPTY READ | capture worker + lead + user | settled read returned 8,192 bytes; all lifecycle/cleanup statuses 0 and user-confirmed normal wireless input; native PCM format/timing still unknown |
 | E1a | DONE | sdp_framing + independent/lead review | bounded SDP PDU/continuation/data-element foundation and A2DP Sink discovery client, with transaction/epoch/deadline/continuation and exact UInt16 service semantics; no live query |
 | E1b | PARTIAL (HOST) | lead | bounded initiator-side Classic L2CAP Connection/MTU Configuration/Disconnection plus acceptance-confirmed outbound ACL fragmentation pass scripted tests; responder allocation, Classic baseband connection/pairing/key lifecycle and live activation remain |
 | F1 | PARTIAL (HOST) | lead | bounded complete-frame SBC-over-RTP packetization and AVDTP Discover/Get Capabilities/Set Configuration/Open/Start/Suspend/Close/Abort pass host tests; signaling reassembly, media binding and live transport remain |
@@ -85,8 +87,9 @@ environment. Human-visible notifications and wireless DualSense were confirmed;
 deliberate panic and audio coexistence remain untested. Source/host evidence does not generalize
 that firmware/loader compatibility.
 
-The next platform checks are the read-only binding extension and settled
-capture read, in a newly confirmed hardware window. Those have not executed.
+The read-only binding extension and settled capture read have now executed in
+the renewed window. Driver names remain Unknown; the settled read returned
+8,192 bytes. Native format/timing and target codec execution remain next gates.
 Native HCI command/event/ACL ownership and enforceable credits remain unresolved;
 existing upstream competing readers do not establish shared routing.
 The first offline PCM queue, nominal sample timeline and recovery simulation

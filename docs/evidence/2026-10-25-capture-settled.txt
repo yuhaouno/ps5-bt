@@ -1,0 +1,46 @@
+event=loader_kernel_init_begin
+event=loader_kernel_init_end code=0
+event=payload_start log=/data/ps5-bt-hw1.log
+event=rust_entry abi=1 phase=bootstrap
+event=adapter_unavailable status=unsupported
+event=capture_probe_begin
+event=capture_phase phase=lookup_load edge=begin ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=lookup_load edge=end ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=load_ipmi edge=begin ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=load_ipmi edge=end ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=load_avcap2 edge=begin ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=load_avcap2 edge=end ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=begin ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=end ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=begin ordinal=1 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=end ordinal=1 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=begin ordinal=2 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=end ordinal=2 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=begin ordinal=3 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=end ordinal=3 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=begin ordinal=4 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=end ordinal=4 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=begin ordinal=5 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=end ordinal=5 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=begin ordinal=6 raw_bits=0x0000000000000000
+event=capture_phase phase=resolve_avcap2 edge=end ordinal=6 raw_bits=0x0000000000000000
+event=capture_phase phase=initialize edge=begin ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=initialize edge=end ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=open edge=begin ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=open edge=end ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=start edge=begin ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=start edge=end ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=wait edge=begin ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=wait edge=end ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=read edge=begin ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=read edge=end ordinal=0 raw_bits=0x0000000000002000
+event=capture_phase phase=stop edge=begin ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=stop edge=end ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=close edge=begin ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=close edge=end ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=terminate edge=begin ordinal=0 raw_bits=0x0000000000000000
+event=capture_phase phase=terminate edge=end ordinal=0 raw_bits=0x0000000000000000
+capture_probe_v1 status=ok phase=done calls=0x00000fff resolved=0x0000007f capture_invoked=1 load_lookup_status=0 ipmi_module=18 ipmi_start_result=0 avcap2_module=19 avcap2_start_result=0 module_lookup_status=0 initialize_status=0 open_status=0 start_status=0 wait_status=0 read_kind=data read_raw=0x00002000 read_capacity_bytes=8192 read_bytes=8192 requested_frame_bytes=8 requested_frames=1024 whole_requested_frames=1 discontinuity=0 timestamp_present=0 format=requires_hardware samples_stored=0 stop_status=0 close_status=0 terminate_status=0 cleanup_uncertain=0
+event=stream_log_unavailable fallback=persistent
+event=payload_exit status=2 (expected Unsupported)
+event=payload_return status=2 (expected Unsupported)

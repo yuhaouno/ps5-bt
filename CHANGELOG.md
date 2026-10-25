@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Record the renewed PS5 LAN window: read-only USB binding queries returned
+  Unknown names with incomplete inventory; the single 100 ms settled capture
+  read returned 8,192 bytes and clean cleanup. The user confirmed normal
+  wireless input. PCM format/timing and Bluetooth playback remain unverified.
+
 - Remove host SDK headers from the static-only SBC target build through a
   narrowly scoped freestanding-header patch; retain upstream algorithms and
   verify all reference vectors. Add an atomic bounded ASCII self-test report
