@@ -46,8 +46,8 @@ The earlier second-machine build reproduction remains in
 | Opt-in read-only USB enumeration | Executed on one Slim/13.40 | own four-interface descriptor log; other node opens failed; transport remains Unsupported |
 | Opt-in Avcap2 capture diagnostic | Nonempty data observed on one Slim/13.40 | 100 ms settled read returned 8,192 bytes; all lifecycle/cleanup statuses 0; native PCM format/timing unknown |
 | SBC parameter selection and frame sizing | Implemented | portable validation tests and host encoder boundary |
-| Real PCM-to-SBC encoding | Host-only implementation | safe Rust owner, generic libsbc, 208 encoder/12 decoder vectors; not in PS5 ELF |
-| Generated-signal SBC self-test | Core target-compiles; not yet linked | two fresh init/finish cycles and four deterministic frames with pinned digest; no PS5 execution or audio output |
+| Real PCM-to-SBC encoding | Host implementation and target diagnostic link | safe Rust host owner, generic libsbc, 208 encoder/12 decoder vectors; target generated-signal diagnostic uses separate C boundary |
+| Generated-signal SBC self-test | Inspectable PS5 ELF; Requires hardware | two fresh init/finish cycles and four deterministic frames with pinned digest; replaceable codec archive and matching source/relink materials |
 | SBC-over-RTP/A2DP packetization | Implemented on host | fixed negotiated MTU/frame boundaries, atomic backpressure, sequence/sample timestamps and wrap tests; no AVDTP/live stream |
 | Media send orchestration | Implemented on host | binds complete SBC frames through RTP, L2CAP and acceptance-confirmed ACL fragmentation; no clock, HCI credits or live transport |
 | LAN control/status contract | Implemented on host | bounded authenticated request parser, single-owner command queue and identity-free status JSON; no listener/page or PS5 integration |
@@ -84,6 +84,7 @@ make host-smoke     # C main -> Rust -> unsupported C adapter, on the desktop
 make sbc-codec-test # real offline PCM -> SBC -> RTP/L2CAP/ACL; no PS5/audio output
 make rust-archive   # no_std x86-64 ELF archive; no SDK or console needed
 make ps5-native-query # separate opt-in query ELF; run only after baseline entry test
+make ps5-sbc-selftest # generated-signal codec test; no Bluetooth/capture operation
 python3 tools/mvp_test_kit.py # dry-run next-window plan; no network/deployment
 ```
 
@@ -160,10 +161,13 @@ their history and file-specific licenses when reusing code. No upstream
 Bluetooth protocol stack has been imported; the capture diagnostic adaptation
 has separate provenance. [UPSTREAM.md](docs/UPSTREAM.md)
 records exact revisions, licenses, behavior provenance, credits, and update rules.
-The optional host codec imports selected BlueZ libsbc 2.2 source under
-LGPL-2.1-or-later with two recorded patches. It is not linked into PS5 builds;
-target ABI validation and the codec-enabled ELF relinking/distribution workflow
-remain gates. See [vendored notices](third_party/sbc/VENDORED.md).
+The optional codec imports selected BlueZ libsbc 2.2 source under
+LGPL-2.1-or-later with three recorded patches. Only the separately selected
+target self-test links that archive into a PS5 ELF; production codec execution
+remains unverified. The corresponding-source package includes application
+objects and a working codec replacement/relink script. See
+[target codec workflow](docs/SBC-TARGET.md) and
+[vendored notices](third_party/sbc/VENDORED.md).
 
 Original bootstrap work is **GPL-3.0-or-later**, see [LICENSE](LICENSE).
 The capture diagnostic adaptation is conservatively GPL-3.0-only; its combined

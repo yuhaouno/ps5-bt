@@ -23,7 +23,9 @@ complete SBC frame now passes through bounded RTP/A2DP, L2CAP and synthetic ACL
 framing. A reusable send cursor now preserves complete media PDUs across ACL
 backpressure and requires explicit whole-fragment acceptance. A bounded AVDTP
 initiator signaling session is host-tested, but this is
-not M3a: there is no live media transport, headset output or PS5 codec execution.
+not M3a: there is no live media transport or headset output. A separate
+generated-signal target codec self-test now links with replaceable archive and
+application-object/source materials; its execution still Requires hardware.
 The next implementation and 2026-10-25 hardware preparation plan is
 [MVP-NEXT-RUN.md](docs/MVP-NEXT-RUN.md). Milestones gate evidence and activation,
 not independent host protocol, target-adapter or minimal-control-page development.

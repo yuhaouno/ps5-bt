@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Link the generated-signal SBC self-test into an independently selected PS5
+  ELF with durable numeric status. Build a generic static-only target archive
+  using compiler resource headers, verify the exact external symbol set, and
+  export application objects/source/notices plus a tested replacement/relink
+  script. The baseline transport remains Unsupported.
+
 - Record the renewed PS5 LAN window: read-only USB binding queries returned
   Unknown names with incomplete inventory; the single 100 ms settled capture
   read returned 8,192 bytes and clean cleanup. The user confirmed normal

@@ -7,6 +7,10 @@
 #ifdef PS5_BT_USB_METADATA
 #include "diagnostics/usb_probe.h"
 #endif
+#ifdef PS5_BT_SBC_SELFTEST
+#include "../codec/ps5_bt_sbc_selftest.h"
+static _Alignas(64) uint8_t sbc_selftest_storage[8192];
+#endif
 #ifdef PS5_BT_CAPTURE_PROBE
 #include "bootstrap/bootstrap.h"
 #include "diagnostics/capture_probe.h"
@@ -56,6 +60,28 @@ static void capture_trace(enum ps5_capture_probe_phase phase, uint32_t ordinal,
 
 int main(void) {
   int result = (int)ps5_rust_probe();
+#ifdef PS5_BT_SBC_SELFTEST
+  static const uint8_t begin[] = "event=sbc_selftest_begin\n";
+  static const uint8_t attribution[] =
+      "codec=BlueZ_libsbc_2.2 license=LGPL-2.1-or-later generic=1\n";
+  static const uint8_t encode_failed[] = "event=sbc_selftest_report_failed\n";
+  struct ps5_bt_sbc_selftest_report sbc;
+  char line[PS5_BT_SBC_SELFTEST_REPORT_CAPACITY];
+  size_t length = 0;
+  ps5_platform_log(begin, sizeof begin - 1);
+  ps5_platform_log(attribution, sizeof attribution - 1);
+  int32_t codec_result = ps5_bt_sbc_selftest_run(
+      sbc_selftest_storage, sizeof sbc_selftest_storage, &sbc);
+  if (ps5_bt_sbc_selftest_encode_report(&sbc, line, sizeof line, &length) ==
+      PS5_BT_SBC_SELFTEST_OK) {
+    ps5_platform_log((const uint8_t *)line, (uint32_t)length);
+  } else {
+    ps5_platform_log(encode_failed, sizeof encode_failed - 1);
+    result = 1;
+  }
+  if (codec_result != PS5_BT_SBC_SELFTEST_OK)
+    result = 1;
+#endif
 #ifdef PS5_BT_USB_METADATA
   /* Independent metadata diagnostic; never opens the live transport. */
   int metadata = ps5_usb_probe_run();
@@ -83,8 +109,11 @@ int main(void) {
       "event=capture_probe_encode_failed\n";
   struct ps5_capture_probe_result capture;
   const struct ps5_capture_probe_ops capture_ops = {
-      ps5_bootstrap_lookup, ps5_bootstrap_module_lookup, capture_trace,
-      capture_wait_before_read};
+      .lookup_current = ps5_bootstrap_lookup,
+      .lookup_module = ps5_bootstrap_module_lookup,
+      .trace = capture_trace,
+      .wait_before_read = capture_wait_before_read,
+  };
   char capture_report[PS5_CAPTURE_PROBE_REPORT_CAPACITY];
   size_t capture_length = 0;
   ps5_platform_log(capture_begin, (uint32_t)(sizeof capture_begin - 1));

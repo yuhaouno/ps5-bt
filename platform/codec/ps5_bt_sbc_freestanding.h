@@ -7,10 +7,10 @@
  * headers. These declarations cover only the byte operations supplied by the
  * existing freestanding runtime and the FreeBSD errno values returned by the
  * selected upstream code. No allocator or I/O interface is declared. */
+#include <limits.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
-#include <limits.h>
 
 typedef __INTPTR_TYPE__ ssize_t;
 

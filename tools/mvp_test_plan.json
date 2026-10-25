@@ -47,6 +47,28 @@
         "wait/read exceeds the external timeout",
         "stop, close or terminate is missing or cleanup is uncertain"
       ]
+    },
+    {
+      "id": "sbc-selftest",
+      "order": 3,
+      "artifact": "build/ps5/ps5-bt-sbc-selftest.elf",
+      "build_manifest": "build/ps5/ps5-bt-sbc-selftest.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-sbc-selftest-source.tar.gz",
+      "slot": "ps5-bt-sbc-selftest",
+      "remote_filename": "ps5-bt-sbc-selftest.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=sbc_selftest_begin",
+        "ps5_bt_sbc_selftest_v1 result=0 stage=6 codec=0 cleanup=0",
+        "cycles=2 frames=4 samples=1024 frame_bytes=77",
+        "prefix=0x9cfd206f digest=0x14e0ec79",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "self-test status, digest or cleanup differs from expected",
+        "no final return within the external timeout"
+      ]
     }
   ]
 }

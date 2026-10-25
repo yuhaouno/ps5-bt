@@ -65,7 +65,9 @@ source plus these local patches and build instructions, and use a valid LGPL
 2.1 section 6 arrangement that permits recipients to replace and relink the
 library. Application object materials and concrete working relinking steps are
 therefore required before distributing a codec-enabled ELF. A URL alone is not
-corresponding source. No codec-enabled ELF is built by the current shared build.
+corresponding source. Only the explicit `ps5-sbc-selftest` variant links the
+codec; its source package contains application objects and tested replacement
+relink materials described in docs/SBC-TARGET.md.
 
 This source selection does not establish patent clearance, Bluetooth
 qualification, acoustic quality, interoperability, or PS5 execution.

@@ -112,7 +112,8 @@ def self_test():
             raise AssertionError("unsupported LLVM version accepted")
         suffixes = ("elf", "map", "manifest.json", "inspect.txt", "disasm.txt")
         for stem in ("ps5-bt", "ps5-bt-native-query", "ps5-bt-usb-metadata",
-                     "ps5-bt-capture-preflight", "ps5-bt-capture-once"):
+                     "ps5-bt-capture-preflight", "ps5-bt-capture-once",
+                     "ps5-bt-sbc-selftest"):
             for suffix in suffixes:
                 (base / f"{stem}.{suffix}").write_text(stem)
         invalidate_output("ps5-bt-native-query", base)
@@ -185,6 +186,8 @@ def build(args):
                     ROOT / "platform/ps5/diagnostics/usb_descriptors.c"]
     if args.capture_preflight or args.capture_once:
         sources.append(ROOT / "platform/ps5/diagnostics/capture_probe.c")
+    if args.sbc_selftest:
+        sources.append(ROOT / "platform/codec/ps5_bt_sbc_selftest.c")
     objects = []
     flags = ["-target", "x86_64-sie-ps5", "-std=gnu11", "-O1", "-ffreestanding",
              "-fno-builtin", "-fPIC", "-fno-stack-protector", "-fno-plt",
@@ -200,6 +203,8 @@ def build(args):
         flags.append("-DPS5_BT_CAPTURE_PROBE")
     if args.capture_preflight:
         flags.append("-DPS5_BT_CAPTURE_PREFLIGHT")
+    if args.sbc_selftest:
+        flags.append("-DPS5_BT_SBC_SELFTEST")
     for index, path in enumerate(sources):
         obj = output / f"{stem}-{index}-{path.stem}.o"
         extra = ["-Wno-sign-compare"] if path.name == "kernel.c" else []
@@ -209,11 +214,18 @@ def build(args):
         run([tools["clang"], *flags, *extra, "-c", path, "-o", obj])
         objects.append(obj)
     archive = ROOT / "target/x86_64-unknown-none/release/libps5_runtime.a"
-    run([tools["ld.lld"], "-m", "elf_x86_64", "-pie", "--no-dynamic-linker",
+    codec_archive = None
+    if args.sbc_selftest:
+        from target_sbc import build_archive
+        codec_archive = build_archive(tools["clang"], tools["clang"].with_name("llvm-ar"),
+                                      output / f"{stem}-codec")
+    link_flags = ["-m", "elf_x86_64", "-pie", "--no-dynamic-linker",
          "-e", "_start", "-T", ROOT / "platform/ps5/bootstrap/minimal.ld", "-z", "max-page-size=0x4000",
          "--gc-sections", "--no-undefined", "--build-id=none", "--strip-debug", "--hash-style=gnu",
-         "--undefined=ps5_bootstrap_lookup", "--undefined=__crt_syscall", "--wrap=__crt_syscall",
-         "-Map=" + str(output / f"{stem}.map"), *objects, archive, "-o", elf])
+         "--undefined=ps5_bootstrap_lookup", "--undefined=__crt_syscall", "--wrap=__crt_syscall"]
+    run([tools["ld.lld"], *link_flags,
+         "-Map=" + str(output / f"{stem}.map"), *objects, archive,
+         *([codec_archive] if codec_archive else []), "-o", elf])
     try:
         report = inspect_bytes(elf.read_bytes(), allow_kernel_resolver=args.loader_kernel_resolver)
     except ValueError:
@@ -224,6 +236,7 @@ def build(args):
     report["usb_metadata"] = args.usb_metadata
     report["capture_preflight"] = args.capture_preflight
     report["capture_once"] = args.capture_once
+    report["sbc_selftest"] = args.sbc_selftest
     report["loader_kernel_resolver"] = args.loader_kernel_resolver
     report["rust"] = rust_version
     report["llvm"] = run([tools["clang"], "--version"], capture=True).strip()
@@ -244,6 +257,21 @@ def build(args):
     if args.capture_preflight or args.capture_once:
         name = "platform/ps5/diagnostics/capture_probe.h"
         report["project_sources"][name] = digest(ROOT / name)
+    if args.sbc_selftest:
+        from target_sbc import export_relink, source_inventory
+        report["codec_sources"] = source_inventory()
+        report["codec_archive_sha256"] = digest(codec_archive)
+        relink_manifest = export_relink(
+            output / f"{stem}-relink", objects, archive,
+            ROOT / "platform/ps5/bootstrap/minimal.ld", codec_archive,
+            lld=tools["ld.lld"], readobj=tools["llvm-readobj"],
+            objdump=tools["llvm-objdump"], output_name=f"{stem}.elf")
+        report["relink_files"] = {
+            str(path.relative_to(ROOT)): digest(path)
+            for path in sorted(relink_manifest.parent.rglob("*")) if path.is_file()
+        }
+        for name in ("platform/codec/ps5_bt_sbc_selftest.h",):
+            report["project_sources"][name] = digest(ROOT / name)
     if args.usb_metadata:
         for name in ("usb_probe.h", "usb_descriptors.h"):
             path = ROOT / "platform/ps5/diagnostics" / name
@@ -266,6 +294,8 @@ def build(args):
 
 
 def artifact_stem(args):
+    if args.sbc_selftest:
+        return "ps5-bt-sbc-selftest"
     if args.capture_preflight:
         return "ps5-bt-capture-preflight"
     if args.capture_once:
@@ -289,6 +319,8 @@ if __name__ == "__main__":
                           help="load capture prerequisites and resolve exports only")
     variants.add_argument("--capture-once", action="store_true",
                           help="perform one bounded metadata-only capture cycle")
+    variants.add_argument("--sbc-selftest", action="store_true",
+                          help="encode deterministic generated PCM without Bluetooth or capture")
     parser.add_argument("--loader-kernel-resolver", action="store_true",
                         help="resolve own-process exports through existing loader kernel R/W")
     args = parser.parse_args()

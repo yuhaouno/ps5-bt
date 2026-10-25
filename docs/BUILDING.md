@@ -115,6 +115,7 @@ These never enable the Bluetooth transport and keep the baseline artifact:
 make ps5-usb-metadata
 make ps5-capture-preflight
 make ps5-capture-once
+make ps5-sbc-selftest
 ```
 
 Each target selects a separate `build/ps5/ps5-bt-<variant>.elf` and manifest.
@@ -132,6 +133,16 @@ The no-delay lifecycle executed with an Empty read; the later settling change
 is **Requires hardware**, not a successful PCM test. See HW2-EVIDENCE.md.
 Capture adaptation is GPL-3.0-only; retain its provenance and GPL v3 terms.
 Build and source-package commands never connect to a console.
+
+The SBC self-test links the separately built generic BlueZ libsbc archive with
+caller storage and no allocator/SIMD/host SDK headers. Its numeric report must
+show result 0, stage 6, two cycles, four 77-byte frames, prefix `0x9cfd206f` and
+digest `0x14e0ec79`; final payload 2 still describes the Unsupported Bluetooth
+adapter. The builder additionally requires LLVM 18.1.8 `llvm-ar` and `llvm-nm`,
+exports `build/ps5/ps5-bt-sbc-selftest-relink/`, and actually relinks its supplied
+application objects against the codec archive. Package its manifest with
+`tools/package_source.py` before sharing or deploying the combined ELF; see
+[SBC-TARGET.md](SBC-TARGET.md) for replacing the archive.
 
 `make usb-probe-test` and `make capture-probe-test` exercise injected host
 callbacks; both are included in `make check` and `make check-c-sanitize`.

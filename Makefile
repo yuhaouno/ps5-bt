@@ -9,7 +9,7 @@ NATIVE_QUERY_TEST_SOURCES := platform/ps5/diagnostics/native_query.c tests/platf
 USB_PROBE_TEST_SOURCES := platform/ps5/diagnostics/usb_probe.c platform/ps5/diagnostics/usb_descriptors.c tests/platform/usb_probe_test.c
 CAPTURE_PROBE_TEST_SOURCES := platform/ps5/diagnostics/capture_probe.c tests/platform/capture_probe_test.c
 CAPTURE_OBSERVE_TEST_SOURCES := platform/ps5/diagnostics/capture_observe.c tests/platform/capture_observe_test.c
-.PHONY: usb-probe-test capture-probe-test capture-observe-test sbc-codec-test ps5-usb-metadata ps5-capture-preflight ps5-capture-once
+.PHONY: usb-probe-test capture-probe-test capture-observe-test sbc-codec-test ps5-usb-metadata ps5-capture-preflight ps5-capture-once ps5-sbc-selftest sbc-main-test
 
 all: ps5-link
 
@@ -26,6 +26,7 @@ check:
 	$(MAKE) capture-probe-test
 	$(MAKE) capture-observe-test
 	$(MAKE) sbc-codec-test
+	$(MAKE) sbc-main-test
 	$(MAKE) check-build-tools
 	$(MAKE) rust-archive
 
@@ -78,6 +79,14 @@ ps5-capture-preflight:
 
 ps5-capture-once:
 	python3 tools/build_ps5.py --capture-once --loader-kernel-resolver
+
+ps5-sbc-selftest:
+	python3 tools/build_ps5.py --sbc-selftest --loader-kernel-resolver
+
+sbc-main-test:
+	mkdir -p build/host/sbc-main
+	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include -DPS5_BT_SBC_SELFTEST tests/platform/sbc_main_test.c -o build/host/sbc-main/test
+	build/host/sbc-main/test
 
 usb-descriptors-test:
 	mkdir -p build/host/usb-diagnostics

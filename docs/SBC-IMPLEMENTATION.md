@@ -2,9 +2,10 @@
 
 Status: host-proven Rust -> C -> libsbc offline codec component, 2026-10-24.
 The root workspace includes `bt-codec`, but the real backend is an explicit
-`host-libsbc` feature and is not a dependency of `ps5-runtime`. No PS5 build,
-A2DP/RTP, headset, or live-audio integration is present. No hardware or
-acoustic-quality claim follows from this work.
+`host-libsbc` feature and is not a dependency of `ps5-runtime`. The separate
+`make ps5-sbc-selftest` diagnostic now links a reviewed generic target archive
+and exports tested replacement materials; see SBC-TARGET.md. No headset or
+live-audio integration is present, and execution requires its own hardware log.
 
 ## Implemented boundary
 
@@ -104,7 +105,7 @@ imported. Apply these patches, in order, to a temporary copy:
    allocator, I/O API or codec-algorithm change.
 
 The pristine tree must never be edited in place. The test script rejects an
-extra/missing file or any hash change, applies both patches with zero fuzz, and
+extra/missing file or any hash change, applies all three patches with zero fuzz, and
 builds only the patched temporary copy.
 
 `crates/bt-codec/build.rs` lists every pristine file, patch, wrapper input and
@@ -148,8 +149,9 @@ Homebrew LLVM/Clang 18.1.8 for the target-object probe. It passed:
 The target compile probe uses only LLVM 18 resource headers plus
 `ps5_bt_sbc_freestanding.h`; it no longer consumes the host macOS or Linux SDK.
 The resulting objects are generic x86-64 ELF compile evidence, not PS5
-execution. The existing runtime build remains unchanged and still contains no
-allocator/libc codec module.
+execution. Only the explicitly selected target self-test links the separate
+codec archive; it uses the existing byte-operation implementations and no
+allocator/libc module.
 
 `--no-sanitize` is available only for diagnosing a host without sanitizer
 runtime support; it is not the acceptance command. `--cc` selects another host
@@ -184,8 +186,9 @@ first byte-for-byte; the complete result also requires prefix `0x9cfd206f` and
 four-frame FNV-1a digest `0x14e0ec79`. Its identity-free report contains only
 stages, raw statuses, storage requirements and aggregate counts/digests. It has
 no allocator, clock, I/O, transport or retained media pointer. Host ASan/UBSan
-and freestanding `x86_64-sie-ps5` compilation pass, but the core is not yet
-linked into a PS5 ELF or executed on hardware.
+and freestanding `x86_64-sie-ps5` compilation pass. The core is now linked into
+the independently selected PS5 self-test; no execution result follows from
+that link.
 
 Enabling `host-libsbc` for `x86_64-unknown-none` is an intentional build error.
 That proves the current feature cannot quietly compile host C with macOS headers
@@ -199,8 +202,8 @@ concrete LGPL 2.1 section 6 relinking arrangement. At minimum, recipients need
 prominent library attribution, the complete LGPL text, complete selected
 library source, these local patches, build scripts, application object
 materials, and working instructions that actually replace/relink the library.
-A source URL or FFI boundary alone is insufficient. The current diagnostic
-source-package tool does not yet know about this codec/relinking workflow. The
+A source URL or FFI boundary alone is insufficient. The diagnostic source-
+package tool now embeds tested replacement materials for `sbc_selftest`. The
 isolated archive can be rebuilt for review without Cargo:
 
 ```sh

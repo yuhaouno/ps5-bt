@@ -114,12 +114,18 @@ def validate_candidate(root, candidate, head):
     if manifest.get("sha256") != digest(artifact) or manifest.get("size") != artifact.stat().st_size:
         raise ValueError(f"artifact identity mismatch: {artifact.name}")
     expected_variant = {
-        "usb-binding": (True, False),
-        "capture-settled": (False, True),
+        "usb-binding": "usb_metadata",
+        "capture-settled": "capture_once",
+        "sbc-selftest": "sbc_selftest",
+        "capture-observe": "capture_observe",
     }.get(candidate["id"])
     if expected_variant is None:
         raise ValueError("unreviewed candidate id")
-    if (manifest.get("usb_metadata"), manifest.get("capture_once")) != expected_variant:
+    variants = ("native_query", "usb_metadata", "capture_preflight", "capture_once",
+                "sbc_selftest", "capture_observe")
+    if any(type(manifest.get(key, False)) is not bool for key in variants) or [
+        key for key in variants if manifest.get(key, False)
+    ] != [expected_variant]:
         raise ValueError(f"wrong diagnostic variant: {candidate['id']}")
     if not manifest.get("loader_kernel_resolver"):
         raise ValueError("candidate lacks reviewed loader kernel resolver")
@@ -130,6 +136,12 @@ def validate_candidate(root, candidate, head):
             raise ValueError("source bundle lacks its build manifest") from error
         if packaged_manifest is None or packaged_manifest.read() != manifest_path.read_bytes():
             raise ValueError("source bundle does not match the build manifest")
+        if expected_variant == "sbc_selftest":
+            names = set(archive.getnames())
+            if not {"ps5-bt-source/relink/relink.py",
+                    "ps5-bt-source/relink/bundle-manifest.json",
+                    "ps5-bt-source/project/third_party/sbc/upstream/COPYING.LIB"} <= names:
+                raise ValueError("SBC candidate lacks source/license/relink materials")
     return artifact, manifest_path, source, manifest
 
 
