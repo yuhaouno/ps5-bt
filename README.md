@@ -44,6 +44,7 @@ The earlier second-machine build reproduction remains in
 | Opt-in Avcap2 capture diagnostic | Lifecycle executed | open/start/stop/close/terminate 0; immediate read Empty; no acquired PCM |
 | SBC parameter selection and frame sizing | Implemented | portable validation tests and host encoder boundary |
 | Real PCM-to-SBC encoding | Host-only implementation | safe Rust owner, generic libsbc, 208 encoder/12 decoder vectors; not in PS5 ELF |
+| Generated-signal SBC self-test | Core target-compiles; not yet linked | two fresh init/finish cycles and four deterministic frames with pinned digest; no PS5 execution or audio output |
 | SBC-over-RTP/A2DP packetization | Implemented on host | fixed negotiated MTU/frame boundaries, atomic backpressure, sequence/sample timestamps and wrap tests; no AVDTP/live stream |
 | Media send orchestration | Implemented on host | binds complete SBC frames through RTP, L2CAP and acceptance-confirmed ACL fragmentation; no clock, HCI credits or live transport |
 | LAN control/status contract | Implemented on host | bounded authenticated request parser, single-owner command queue and identity-free status JSON; no listener/page or PS5 integration |

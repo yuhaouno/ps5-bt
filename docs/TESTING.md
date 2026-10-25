@@ -19,6 +19,12 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
   runs the 77-byte real SBC example and the complete 90-byte RTP/A2DP ->
   94-byte L2CAP -> 98-byte synthetic ACL framing example. No headset, capture,
   transport or target execution.
+- Generated-signal SBC self-test: two independent init/finish cycles encode the
+  same two fixed 48 kHz joint-stereo frames, compare both cycles byte-for-byte
+  and require prefix `0x9cfd206f` plus four-frame FNV-1a digest `0x14e0ec79`.
+  Invalid/short/unaligned/overlapping storage fails closed. The core is covered
+  by ASan/UBSan and freestanding target compilation; it is not yet PS5 runtime
+  evidence.
 - SBC-over-RTP packetization: exact RTP/A2DP header bytes, one/three complete
   frames, negotiated MTU and output backpressure, retained marker and state on
   failure, frame count/length/sync rejection, dynamic payload/SSRC validation,

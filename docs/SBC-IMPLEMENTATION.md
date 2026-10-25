@@ -173,6 +173,17 @@ into caller storage, interleaves them, and obtains one real 77-byte joint-stereo
 bitpool-32 SBC frame with sync byte `0x9c`. This is host byte/frame evidence,
 not audible output.
 
+`platform/codec/ps5_bt_sbc_selftest.{c,h}` now provides a separate generated-
+signal diagnostic core for target integration. It runs two fresh init/finish
+cycles and encodes two deterministic frames per cycle at 48 kHz, joint stereo,
+16 blocks, 8 subbands, loudness and bitpool 32. The second cycle must match the
+first byte-for-byte; the complete result also requires prefix `0x9cfd206f` and
+four-frame FNV-1a digest `0x14e0ec79`. Its identity-free report contains only
+stages, raw statuses, storage requirements and aggregate counts/digests. It has
+no allocator, clock, I/O, transport or retained media pointer. Host ASan/UBSan
+and freestanding `x86_64-sie-ps5` compilation pass, but the core is not yet
+linked into a PS5 ELF or executed on hardware.
+
 Enabling `host-libsbc` for `x86_64-unknown-none` is an intentional build error.
 That proves the current feature cannot quietly compile host C with macOS headers
 for the freestanding target. A future target backend needs reviewed headers,

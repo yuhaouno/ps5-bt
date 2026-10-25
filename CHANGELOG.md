@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add a deterministic allocation-free SBC generated-signal self-test core. It
+  performs two independent init/finish cycles, encodes four fixed PCM frames
+  and verifies byte identity plus a pinned prefix/digest without retaining or
+  reporting media. Host and freestanding target compilation pass; PS5 runtime
+  linkage and execution remain separate gates.
+
 - Add a caller-driven bounded capture observation state machine with one
   nonblocking read per step, explicit deadline/call/capacity limits, classified
   Empty/Data/Overrun/error outcomes and an exactly-once cleanup obligation. It

@@ -252,6 +252,7 @@ def try_target_objects(clang: Path | None, build: Path, patched: Path,
         patched / "sbc" / "sbc.c",
         patched / "sbc" / "sbc_primitives.c",
         ROOT / "platform" / "codec" / "ps5_bt_sbc.c",
+        ROOT / "platform" / "codec" / "ps5_bt_sbc_selftest.c",
     ):
         output = target_dir / (source.stem + ".o")
         try:
@@ -301,6 +302,21 @@ def main() -> int:
     environment.setdefault("ASAN_OPTIONS", "detect_leaks=0:abort_on_error=1")
     run([str(self_test)], env=environment)
 
+    generated_self_test = build / "sbc-generated-self-test"
+    compile_program(
+        args.cc,
+        generated_self_test,
+        [
+            *codec_sources,
+            wrapper_source,
+            ROOT / "platform" / "codec" / "ps5_bt_sbc_selftest.c",
+            ROOT / "tests" / "codec" / "sbc_selftest_test.c",
+        ],
+        includes,
+        ["-DSBC_STATIC_ONLY", *sanitizer],
+    )
+    run([str(generated_self_test)], env=environment)
+
     wrapper_tool = build / "sbc-wrapper-vector"
     compile_program(args.cc, wrapper_tool, [*codec_sources, wrapper_source,
                     ROOT / "tests" / "codec" / "sbc_vector_tool.c"], includes,
@@ -314,7 +330,11 @@ def main() -> int:
     compare_reference(wrapper_tool, reference_tool)
 
     audit_objects = []
-    for source in (*codec_sources, wrapper_source):
+    for source in (
+        *codec_sources,
+        wrapper_source,
+        ROOT / "platform" / "codec" / "ps5_bt_sbc_selftest.c",
+    ):
         output = build / (source.stem + "-audit.o")
         compile_object(args.cc, output, source, includes, ["-DSBC_STATIC_ONLY"])
         audit_objects.append(output)
