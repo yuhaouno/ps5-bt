@@ -74,6 +74,7 @@ pub struct Listener<'storage, const N: usize> {
     poisoned: bool,
     port: u16,
     diagnostic: Diagnostic,
+    managed: Option<ManagedClient>,
 }
 fn invalid() -> Diagnostic {
     Diagnostic {
@@ -186,6 +187,7 @@ impl<'storage, const N: usize> Listener<'storage, N> {
             poisoned: false,
             port,
             diagnostic: r,
+            managed: None,
         })
     }
     pub const fn local_port(&self) -> u16 {
@@ -197,7 +199,7 @@ impl<'storage, const N: usize> Listener<'storage, N> {
     pub fn accept<'listener>(
         &'listener mut self,
     ) -> Result<Option<Client<'listener, 'storage, N>>, Diagnostic> {
-        if !self.active {
+        if !self.active || self.managed.is_some() {
             return Err(invalid());
         }
         if self.poisoned {
@@ -241,6 +243,62 @@ impl<'storage, const N: usize> Listener<'storage, N> {
             _ => Err(r),
         }
     }
+    pub(crate) fn managed_for(&self, owner: [usize; 2]) -> Result<bool, Diagnostic> {
+        if !self.active {
+            return Err(invalid());
+        }
+        match self.managed {
+            Some(client) if client.owner != owner => Err(invalid()),
+            client => Ok(client.is_some()),
+        }
+    }
+    pub(crate) fn accept_managed(&mut self, owner: [usize; 2]) -> Result<bool, Diagnostic> {
+        let Some(mut client) = self.accept()? else {
+            return Ok(false);
+        };
+        let state = ManagedClient {
+            owner,
+            token: client.token,
+            terminal: client.terminal,
+            close_result: client.close_result,
+            diagnostic: client.diagnostic,
+        };
+        // The native resource moves into Listener's managed slot. No borrow or
+        // pointer to this movable Rust owner survives the synchronous call.
+        client.active = false;
+        client.listener.managed = Some(state);
+        Ok(true)
+    }
+    pub(crate) fn with_managed<T>(
+        &mut self,
+        owner: [usize; 2],
+        work: impl FnOnce(&mut Client<'_, 'storage, N>) -> T,
+    ) -> Result<T, Diagnostic> {
+        self.managed_for(owner)?;
+        let state = self.managed.take().ok_or_else(invalid)?;
+        let mut client = Client {
+            listener: self,
+            token: state.token,
+            active: true,
+            terminal: state.terminal,
+            close_result: state.close_result,
+            diagnostic: state.diagnostic,
+        };
+        let result = work(&mut client);
+        if client.active {
+            client.listener.managed = Some(ManagedClient {
+                owner,
+                token: client.token,
+                terminal: client.terminal,
+                close_result: client.close_result,
+                diagnostic: client.diagnostic,
+            });
+        }
+        // If work panics, Client's ordinary Drop still consumes the socket.
+        // On a normal return the slot above or close() owns the resource.
+        client.active = false;
+        Ok(result)
+    }
     pub fn close(mut self) -> Result<Diagnostic, Diagnostic> {
         self.close_inner()
     }
@@ -253,6 +311,7 @@ impl<'storage, const N: usize> Listener<'storage, N> {
             };
         }
         self.active = false;
+        self.managed = None;
         let mut r = Diagnostic::default();
         // SAFETY: consumes the unique context exactly once; no borrowed client can
         // coexist with this Rust call. C closes both owned descriptors if necessary.
@@ -273,6 +332,16 @@ impl<const N: usize> Drop for Listener<'_, N> {
     fn drop(&mut self) {
         let _ = self.close_inner();
     }
+}
+#[derive(Clone, Copy)]
+struct ManagedClient {
+    // Stable, exclusively borrowed HTTP buffers identify the one service. A
+    // different live service cannot borrow the same buffers through safe Rust.
+    owner: [usize; 2],
+    token: u64,
+    terminal: bool,
+    close_result: Option<Result<(), i32>>,
+    diagnostic: Diagnostic,
 }
 /// One accepted socket. Its mutable borrow prevents a second accepted client,
 /// listener teardown or concurrent native use while a ConnectionPump owns it.

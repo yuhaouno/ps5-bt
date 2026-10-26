@@ -21,3 +21,8 @@ pub struct BindConfig {
 mod native;
 #[cfg(feature = "external-posix")]
 pub use native::{Client, Listener, ListenerStorage};
+
+#[cfg(feature = "external-posix")]
+mod service;
+#[cfg(feature = "external-posix")]
+pub use service::{ServiceConfig, ServiceProgress, ServiceSnapshot, ServiceState, ServiceStop};

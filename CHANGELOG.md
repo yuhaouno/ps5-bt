@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add a persistent bounded listener service that accepts successive clients,
+  reuses HTTP state without self-reference, preserves admitted command ownership
+  across reply failure, and returns to accept after ordinary client errors.
+  Stop precedes accept/read; total budgets and uncertain cleanup remain sticky.
+  Preserve the existing socket-owning ConnectionPump API and authentication.
+
 - Correlate new Rust diagnostic logs with an embedded build identity and unique
   entered/final markers. Collect bounded local JSON outcomes with explicit
   controller observations, exact profile/cleanup checks, interrupted-run detection

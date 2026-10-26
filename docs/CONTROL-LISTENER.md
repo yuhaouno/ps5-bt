@@ -100,7 +100,11 @@ release the listener borrow, then accept the next client or explicitly close
 the listener. HTTP authentication, generation tickets, CSP and protected/public
 redaction are described in [LAN-MANAGEMENT.md](LAN-MANAGEMENT.md).
 
-There is no network command loop in this crate. The host integration test binds
+The independently usable [persistent service](LISTENER-SERVICE.md) now retains
+HTTP state while this Listener owns the accepted client across short borrows.
+It accepts successive clients, recovers ordinary per-client faults, bounds total
+accepts/lifetime and processes Stop before accepting or reading. Native PS5
+resource/runtime installation remains separate. The original host test binds
 only `127.0.0.1:0`, sends an authenticated typed Scan request, runs the real
 Client -> ConnectionPump -> service path, verifies a queued ticket and 202
 response, and observes socket EOF. Another test expires an idle client's pump,

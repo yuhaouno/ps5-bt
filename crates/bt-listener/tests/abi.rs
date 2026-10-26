@@ -256,3 +256,150 @@ fn failed_or_dirty_client_close_is_sticky_and_prevents_accepting_replacement() {
         assert_eq!((s.closed, s.client_closed), (1, 1));
     }
 }
+
+fn controls() -> (bt_control::Control, bt_control::management::Manager<1>) {
+    use bt_control::{Capability, LinkState, Status, StreamState, management::*};
+    let status = Status {
+        transport: Capability::Unavailable,
+        capture: Capability::Unavailable,
+        codec: Capability::Unavailable,
+        playback: Capability::Unavailable,
+        link: LinkState::Disconnected,
+        stream: StreamState::Stopped,
+        last_error: None,
+        revision: 0,
+    };
+    (
+        bt_control::Control::new(status),
+        Manager::new(
+            1,
+            Snapshot {
+                status,
+                owner_phase: OwnerPhase::Idle,
+                cleanup_required: false,
+                scanning: false,
+                selected: None,
+                approval: None,
+                available: Actions::none(),
+            },
+        )
+        .unwrap(),
+    )
+}
+const POLICY: bt_control::http::Policy<'_> = bt_control::http::Policy {
+    host: b"console",
+    origin: b"http://console",
+    bearer_token: b"synthetic-token",
+};
+fn service_config() -> bt_listener::ServiceConfig {
+    bt_listener::ServiceConfig {
+        request_timeout_us: 100,
+        max_connections: 2,
+        deadline_us: None,
+    }
+}
+#[test]
+fn persistent_service_retains_cleanup_failure_and_never_reaccepts_or_recloses_it() {
+    let _guard = GUARD.lock().unwrap();
+    for mode in [8, 9] {
+        reset(mode);
+        let mut storage = ListenerStorage::<128>::new();
+        let mut listener = Listener::bind(&mut storage, config()).unwrap();
+        let (mut rx, mut tx) = ([0; 1024], [0; 16384]);
+        let mut service =
+            bt_listener::ServiceState::new(service_config(), &mut rx, &mut tx).unwrap();
+        let (mut legacy, mut manager) = controls();
+        service
+            .step(&mut listener, 0, POLICY, &mut legacy, &mut manager)
+            .unwrap();
+        let error = service.cancel(&mut listener).unwrap_err();
+        assert!(error.cleanup.is_some());
+        assert_eq!(service.cancel(&mut listener), Err(error));
+        assert_eq!(
+            service.step(&mut listener, 1, POLICY, &mut legacy, &mut manager),
+            Err(error)
+        );
+        assert_eq!(service.snapshot().last_failure, Some(error));
+        assert_eq!(service.snapshot().accepted, 1);
+        listener.close().unwrap();
+        assert_eq!(STATE.lock().unwrap().client_closed, 1);
+        assert_eq!(STATE.lock().unwrap().closed, 1);
+    }
+}
+#[test]
+fn persistent_service_dirty_accept_and_begin_overflow_consume_owned_resources_once() {
+    let _guard = GUARD.lock().unwrap();
+    for mode in [3, 0] {
+        reset(mode);
+        let mut storage = ListenerStorage::<128>::new();
+        let mut listener = Listener::bind(&mut storage, config()).unwrap();
+        let (mut rx, mut tx) = ([0; 1024], [0; 16384]);
+        let mut service =
+            bt_listener::ServiceState::new(service_config(), &mut rx, &mut tx).unwrap();
+        let (mut legacy, mut manager) = controls();
+        let error = service
+            .step(
+                &mut listener,
+                if mode == 0 { u64::MAX } else { 0 },
+                POLICY,
+                &mut legacy,
+                &mut manager,
+            )
+            .unwrap_err();
+        assert_eq!(
+            error.cause,
+            if mode == 0 {
+                bt_control::pump::Cause::DeadlineOverflow
+            } else {
+                bt_control::pump::Cause::Accept(-1000)
+            }
+        );
+        assert!(service.snapshot().stopped);
+        let _ = listener.close();
+        let state = STATE.lock().unwrap();
+        assert_eq!(state.closed, 1);
+        assert_eq!(state.client_closed, usize::from(mode == 0));
+    }
+}
+#[test]
+fn wrong_service_cannot_take_over_another_service_client_and_stop_latch_skips_accept() {
+    let _guard = GUARD.lock().unwrap();
+    reset(0);
+    let mut storage = ListenerStorage::<128>::new();
+    let mut listener = Listener::bind(&mut storage, config()).unwrap();
+    let (mut rx, mut tx, mut rx2, mut tx2) = ([0; 1024], [0; 16384], [0; 1024], [0; 16384]);
+    let mut first = bt_listener::ServiceState::new(service_config(), &mut rx, &mut tx).unwrap();
+    let mut second = bt_listener::ServiceState::new(service_config(), &mut rx2, &mut tx2).unwrap();
+    let (mut legacy, mut manager) = controls();
+    first
+        .step(&mut listener, 0, POLICY, &mut legacy, &mut manager)
+        .unwrap();
+    assert!(listener.accept().is_err()); // managed ownership cannot escape through borrowed Client API
+    assert_eq!(
+        second
+            .step(&mut listener, 0, POLICY, &mut legacy, &mut manager)
+            .unwrap_err()
+            .cause,
+        bt_control::pump::Cause::ListenerChanged
+    );
+    assert_eq!(STATE.lock().unwrap().client_closed, 0);
+    first.cancel(&mut listener).unwrap();
+    assert_eq!(STATE.lock().unwrap().client_closed, 1);
+    listener.close().unwrap();
+
+    reset(0);
+    let mut storage = ListenerStorage::<128>::new();
+    let mut listener = Listener::bind(&mut storage, config()).unwrap();
+    let (mut rx, mut tx) = ([0; 1024], [0; 16384]);
+    let mut service = bt_listener::ServiceState::new(service_config(), &mut rx, &mut tx).unwrap();
+    service.request_stop();
+    assert!(
+        service
+            .step(&mut listener, 0, POLICY, &mut legacy, &mut manager)
+            .unwrap()
+            .stopped
+    );
+    assert_eq!(service.snapshot().accepted, 0);
+    assert_eq!(STATE.lock().unwrap().client_closed, 0);
+    listener.close().unwrap();
+}

@@ -305,3 +305,46 @@ fn successful_response_with_failed_close_reports_cleanup_uncertainty_once() {
     }
     assert_eq!(shared.borrow().closes, 1);
 }
+
+#[test]
+fn externally_stepped_state_reuses_buffers_without_restarting_a_live_deadline() {
+    let (mut first, first_io) = fake(vec![Ok(request())]);
+    first_io.borrow_mut().write_limit = usize::MAX;
+    let (mut second, second_io) = fake(vec![Err(IoError::WouldBlock)]);
+    let (mut rx, mut tx) = ([0; 1024], [0; 2048]);
+    let (mut manager, mut legacy) = (manager(), Control::new(status()));
+    let mut state = ConnectionState::new(&mut rx, &mut tx).unwrap();
+    assert_eq!(
+        state.step(&mut first, 0, POLICY, &mut legacy, &mut manager),
+        Ok(Progress::Closed)
+    );
+    assert_eq!(first_io.borrow().read_calls, 0);
+    state.begin(10, 100).unwrap();
+    assert_eq!(
+        state.begin(20, 100).unwrap_err().cause,
+        Cause::InvalidConfig
+    );
+    assert_eq!(state.deadline_us(), Some(110));
+    state
+        .step(&mut first, 10, POLICY, &mut legacy, &mut manager)
+        .unwrap();
+    state
+        .step(&mut first, 11, POLICY, &mut legacy, &mut manager)
+        .unwrap();
+    assert!(state.is_closed());
+    assert_eq!(first_io.borrow().closes, 1);
+    state.begin(20, 100).unwrap();
+    assert_eq!(state.deadline_us(), Some(120));
+    state
+        .step(&mut second, 119, POLICY, &mut legacy, &mut manager)
+        .unwrap();
+    assert_eq!(
+        state
+            .step(&mut second, 120, POLICY, &mut legacy, &mut manager)
+            .unwrap_err()
+            .cause,
+        Cause::Timeout
+    );
+    assert_eq!(second_io.borrow().closes, 1);
+    assert!(manager.pending().is_some());
+}

@@ -62,8 +62,10 @@ not expose the private bytes, addresses or keys.
 
 HTTP errors such as a partial request timing out close and disable that client,
 record its error and leave audio running. Uncertain client cleanup is surfaced
-to the enclosing owner. A subsequent accepted client needs a fresh HTTP pump;
-this adapter does not itself perform a PS5 accept call or guess readiness APIs.
+to the enclosing owner. A subsequent accepted client needs fresh connection state. The persistent
+`bt-listener::ServiceState` in LISTENER-SERVICE.md now supplies safe native
+accept/reaccept lending with retained fixed HTTP state; the platform adapter
+binds it to HttpWork. No readiness API is guessed.
 
 ## Actual capture to scheduler to codec seam
 

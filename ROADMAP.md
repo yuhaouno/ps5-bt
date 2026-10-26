@@ -19,6 +19,12 @@ Source-backed isolated transport experiments use AGENTS.md's admission rules;
 production ownership/credit guarantees still gate support. No console window
 is currently available from this chat; the 2026-10-25 window below is historical.
 
+A persistent listener service now safely lends its owned native client to
+reusable HTTP state, accepts successive clients under total budgets and checks
+Stop before accept/read. This closes the single-client wiring gap offline;
+PS5 import/permission and native application activation remain separate gates.
+See [LISTENER-SERVICE.md](docs/LISTENER-SERVICE.md).
+
 The two new Rust diagnostic artifacts now embed matching build identities.
 A bounded local collector records actual numeric outcomes, cleanup, interruption
 and explicit controller observations without copying private log text; host
