@@ -182,11 +182,26 @@ exercise successful/partial failed factory opens, actual CaptureOwner/codec pair
 cleanup, exact epochs, stale evidence, preserved attempt/time budgets and
 exhaustion. Synthetic traffic and reference-encoder equality are offline checks.
 
-The separate fallible clock/finite-wait candidate in PLATFORM-CLOCK.md can now
-consume the loop's bounded wake suggestion; it is not installed by this module.
-An installed native PS5 LoopResources factory, listener acceptance/readiness,
-native timing validation, valid PCM format and actual transport ownership remain
-separate integration requirements. The baseline Unsupported payload and
-existing capture/SBC diagnostics remain selectable. No PS5 hardware run,
+`ApplicationLoopState` now retains pointer-free adapter cursors across per-turn
+`ApplicationLoop::lend` views. Dropping a lending view releases borrows; its
+outer owner remains responsible for explicit stop and cleanup. The original
+owning adapter still aborts on Drop. `StoreSlot` and `StoreLease` allow an actual
+store owner to remain in caller storage while Rust device policy borrows it.
+Absent or reentrant store use is rejected without panicking.
+
+`drive_bounded` installs a fallible clock/wait port on the same resource owner,
+with explicit turn/wait budgets. Initial Stop preempts clock/startup work.
+Committed stopping advances only bounded teardown clock/wait operations so a
+sticky Stop cannot freeze its aggregate drain deadline. Port or budget failure
+forces an observable abort and at most six cleanup steps with no new clock/wait.
+`MainLoop::new_retaining` preserves a preinitialized resource owner when loop
+configuration is rejected. These APIs neither open a Bluetooth route nor restore
+credits from time. Regression checks cover sticky cancellation, stop timeout,
+teardown clock/wait failure and reverse partial-startup cleanup.
+
+Concrete native startup is separately selected by the runtime integration;
+PS5 timing, valid PCM format, transport ownership and real owned allowances
+remain independent activation requirements. The baseline Unsupported payload
+and existing capture/SBC diagnostics remain selectable. No PS5 hardware run,
 Bluetooth playback, audio quality, latency or DualSense coexistence acceptance
 is established here.

@@ -12,6 +12,10 @@ default = []
 host-libsbc = ["bt-audio/host-libsbc"]
 
 [dependencies]
+bt-session = { path = "../bt-session" }
+bt-sdp = { path = "../bt-sdp" }
+bt-channel = { path = "../bt-channel" }
+bt-avdtp = { path = "../bt-avdtp" }
 bt-app = { path = "../bt-app" }
 bt-audio = { path = "../bt-audio" }
 bt-capture = { path = "../bt-capture" }
@@ -26,10 +30,6 @@ bt-link = { path = "../bt-link" }
 
 [dev-dependencies]
 bt-codec = { path = "../bt-codec" }
-bt-avdtp = { path = "../bt-avdtp" }
-bt-channel = { path = "../bt-channel" }
-bt-sdp = { path = "../bt-sdp" }
-bt-session = { path = "../bt-session" }
 
 [lints]
 workspace = true

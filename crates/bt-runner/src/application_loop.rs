@@ -45,6 +45,11 @@ pub trait HttpWork {
         manager: &mut Manager<N>,
     ) -> Result<Quantum, HttpFailure>;
     fn cancel(&mut self) -> Result<(), HttpFailure>;
+    /// A persistent listener service uses Err for owner-wide failure; a single
+    /// ConnectionPump may instead report an isolated, cleanly closed client.
+    fn terminal_on_error(&self) -> bool {
+        false
+    }
 }
 impl<I: SocketIo> HttpWork for ConnectionPump<'_, I> {
     fn step<const N: usize>(
@@ -118,6 +123,59 @@ pub struct ApplicationLoopSnapshot {
     pub pipeline: Option<PipelineSnapshot>,
     pub last_error: Option<ApplicationLoopError>,
 }
+/// Persistent, pointer-free adapter state for per-turn lending. It must remain
+/// paired with the SAME Application/Runner, scratch input and native owners until
+/// closed. Replacing this state is not native cleanup or a new connection epoch.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ApplicationLoopState {
+    pending: Option<OwnedPacket>,
+    stopping: bool,
+    closed: bool,
+    aborted: bool,
+    audio_cleanup: Option<PipelineCleanup>,
+    http_error: Option<HttpFailure>,
+    http_disabled: bool,
+    last_error: Option<ApplicationLoopError>,
+    pipeline: Option<PipelineSnapshot>,
+    bound_connection: Option<Connection>,
+}
+impl ApplicationLoopState {
+    pub fn snapshot(&self) -> ApplicationLoopSnapshot {
+        ApplicationLoopSnapshot {
+            stopping: self.stopping,
+            protocols_closed: self.closed,
+            pending_input: self.pending,
+            audio_cleanup: self.audio_cleanup,
+            http_error: self.http_error,
+            pipeline: self.pipeline,
+            last_error: self.last_error,
+        }
+    }
+}
+// Fixed bounded ownership avoids heap allocation in the portable owner; lending
+// retains only a reference logically even though the enum reserves inline space.
+#[allow(clippy::large_enum_variant)]
+enum StateBorrow<'a> {
+    Owned(ApplicationLoopState),
+    Lent(&'a mut ApplicationLoopState),
+}
+impl core::ops::Deref for StateBorrow<'_> {
+    type Target = ApplicationLoopState;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Owned(state) => state,
+            Self::Lent(state) => state,
+        }
+    }
+}
+impl core::ops::DerefMut for StateBorrow<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            Self::Owned(state) => state,
+            Self::Lent(state) => state,
+        }
+    }
+}
 /// Concrete assembly of existing Rust owners. Native resources and fixed buffers
 /// are constructed by the enclosing MainLoop factory; this adapter borrows them
 /// exclusively and binds every lane to the actual implementation. Native routing,
@@ -149,14 +207,7 @@ pub struct ApplicationLoop<
     http: H,
     policy: Policy<'a>,
     buffers: LoopBuffers<'a>,
-    pending: Option<OwnedPacket>,
-    stopping: bool,
-    closed: bool,
-    aborted: bool,
-    audio_cleanup: Option<PipelineCleanup>,
-    http_error: Option<HttpFailure>,
-    http_disabled: bool,
-    last_error: Option<ApplicationLoopError>,
+    state: StateBorrow<'a>,
 }
 impl<
     'a,
@@ -202,15 +253,29 @@ impl<
             http,
             policy,
             buffers,
-            pending: None,
-            stopping: false,
-            closed: false,
-            aborted: false,
-            audio_cleanup: None,
-            http_error: None,
-            http_disabled: false,
-            last_error: None,
+            state: StateBorrow::Owned(ApplicationLoopState::default()),
         })
+    }
+    /// Lend existing native/application owners for a single quantum without a
+    /// self-reference. Drop releases these borrows without aborting/scrubbing
+    /// persistent state; the enclosing MainLoop MUST stop/cleanup on every exit.
+    #[allow(clippy::too_many_arguments)]
+    pub fn lend(
+        app: &'a mut Application<'storage, S>,
+        runner: &'a mut Runner<'storage, N>,
+        commands: &'a mut C,
+        transport: &'a mut T,
+        input: &'a mut I,
+        http: H,
+        policy: Policy<'a>,
+        buffers: LoopBuffers<'a>,
+        state: &'a mut ApplicationLoopState,
+    ) -> Result<Self, ApplicationLoopError> {
+        let mut owner = Self::new(
+            app, runner, commands, transport, input, http, policy, buffers,
+        )?;
+        owner.state = StateBorrow::Lent(state);
+        Ok(owner)
     }
     pub fn attach_connection(
         &mut self,
@@ -223,7 +288,7 @@ impl<
             .connection()
             .ok_or(ApplicationLoopError::MissingConnection)?;
         if self.connection.is_some()
-            || self.stopping
+            || (self.state.stopping && self.state.bound_connection != Some(connection))
             || input.connection() != connection
             || output.connection() != connection
             || credits.snapshot().context
@@ -234,6 +299,7 @@ impl<
         {
             return Err(ApplicationLoopError::InvalidConfiguration);
         }
+        self.state.bound_connection = Some(connection);
         self.connection = Some(ConnectionWork {
             input,
             output,
@@ -249,7 +315,7 @@ impl<
             .audio
             .as_ref()
             .is_some_and(|audio| !audio.snapshot().stopped)
-            || self.stopping
+            || (self.state.stopping && !audio.snapshot().stopped)
             || self.app.negotiated_parameters() != Some(audio.parameters())
         {
             return Err(ApplicationLoopError::InvalidConfiguration);
@@ -259,13 +325,17 @@ impl<
     }
     pub fn snapshot(&self) -> ApplicationLoopSnapshot {
         ApplicationLoopSnapshot {
-            stopping: self.stopping,
-            protocols_closed: self.closed,
-            pending_input: self.pending,
-            audio_cleanup: self.audio_cleanup,
-            http_error: self.http_error,
-            pipeline: self.audio.as_ref().map(|audio| audio.snapshot()),
-            last_error: self.last_error,
+            stopping: self.state.stopping,
+            protocols_closed: self.state.closed,
+            pending_input: self.state.pending,
+            audio_cleanup: self.state.audio_cleanup,
+            http_error: self.state.http_error,
+            pipeline: self
+                .audio
+                .as_ref()
+                .map(|audio| audio.snapshot())
+                .or(self.state.pipeline),
+            last_error: self.state.last_error,
         }
     }
     pub fn application_status(&self) -> bt_app::Status {
@@ -273,20 +343,20 @@ impl<
     }
     fn stop_audio(&mut self) {
         if let Some(audio) = self.audio.as_mut() {
-            self.audio_cleanup = Some(audio.stop());
+            self.state.audio_cleanup = Some(audio.stop());
         }
     }
     fn network(&mut self, now: u64) -> Result<Quantum, ApplicationLoopError> {
-        if self.stopping || self.http_disabled {
+        if self.state.stopping || self.state.http_disabled {
             return Ok(Quantum::default());
         }
         let (legacy, manager) = self.runner.controls();
         match self.http.step(now, self.policy, legacy, manager) {
             Ok(q) => Ok(q),
             Err(error) => {
-                self.http_error = Some(error);
-                self.http_disabled = true;
-                if error.cleanup.is_some() {
+                self.state.http_error = Some(error);
+                self.state.http_disabled = true;
+                if error.cleanup.is_some() || self.http.terminal_on_error() {
                     Err(ApplicationLoopError::Http(error))
                 } else {
                     Ok(Quantum::default())
@@ -369,13 +439,13 @@ impl<
                 });
             }
         }
-        if self.pending.is_none() {
-            self.pending = self
+        if self.state.pending.is_none() {
+            self.state.pending = self
                 .input
                 .read_once(self.buffers.input)
                 .map_err(ApplicationLoopError::Input)?;
         }
-        let Some(packet) = self.pending else {
+        let Some(packet) = self.state.pending else {
             return Ok(Quantum::default());
         };
         if packet.bytes == 0 || packet.bytes > self.buffers.input.len() {
@@ -399,7 +469,7 @@ impl<
                 if connection.input.pending_basic().is_some() {
                     // Reassembly copied the packet to its retained inbox. It owns
                     // any delivery rejection; never replay the same ACL fragment.
-                    self.pending = None;
+                    self.state.pending = None;
                     self.buffers.input.fill(0);
                 }
                 result.map_err(ApplicationLoopError::Pump)?;
@@ -415,7 +485,7 @@ impl<
                     .map_err(ApplicationLoopError::Pump)?;
             }
         }
-        self.pending = None;
+        self.state.pending = None;
         self.buffers.input.fill(0);
         Ok(Quantum {
             progressed: true,
@@ -446,7 +516,7 @@ impl<
     }
     /// One concrete lane quantum; use MainLoop quotas to bound calls per turn.
     pub fn quantum(&mut self, lane: Lane, now: u64) -> Result<Quantum, ApplicationLoopError> {
-        if self.closed {
+        if self.state.closed {
             return Ok(Quantum::default());
         }
         let result = match lane {
@@ -454,7 +524,7 @@ impl<
             Lane::Control => self.control(now),
             Lane::Input => self.inbound(now),
             Lane::Capture | Lane::Encode
-                if !self.stopping && self.app.status().phase == Phase::Streaming =>
+                if !self.state.stopping && self.app.status().phase == Phase::Streaming =>
             {
                 let audio = self
                     .audio
@@ -471,17 +541,17 @@ impl<
             Lane::Send => self.send(now),
         };
         if let Err(error) = result {
-            self.last_error = Some(error);
+            self.state.last_error = Some(error);
         }
         result
     }
     pub fn request_stop(&mut self, now: u64) -> Result<(), ApplicationLoopError> {
-        if self.stopping {
+        if self.state.stopping {
             return Ok(());
         }
-        self.stopping = true;
+        self.state.stopping = true;
         if let Err(error) = self.http.cancel() {
-            self.http_error = Some(error);
+            self.state.http_error = Some(error);
         }
         self.stop_audio();
         self.runner
@@ -491,10 +561,10 @@ impl<
     /// One receive, control output and healthy media drain at most. The
     /// enclosing owner supplies the aggregate deadline and terminal abort.
     pub fn poll_stop(&mut self, now: u64) -> Result<bool, ApplicationLoopError> {
-        if !self.stopping {
+        if !self.state.stopping {
             return Err(ApplicationLoopError::InvalidConfiguration);
         }
-        if self.closed {
+        if self.state.closed {
             return Ok(true);
         }
         if self
@@ -502,26 +572,26 @@ impl<
             .poll_shutdown(self.app, now)
             .map_err(ApplicationLoopError::Runner)?
         {
-            self.closed = true;
+            self.state.closed = true;
             return Ok(true);
         }
         self.inbound(now)?;
         self.control(now)?;
         self.send(now)?;
-        self.closed = self
+        self.state.closed = self
             .runner
             .poll_shutdown(self.app, now)
             .map_err(ApplicationLoopError::Runner)?;
-        Ok(self.closed)
+        Ok(self.state.closed)
     }
     pub fn abort_stop(&mut self) {
-        if self.aborted || self.closed {
+        if self.state.aborted || self.state.closed {
             return;
         }
-        self.aborted = true;
-        self.stopping = true;
+        self.state.aborted = true;
+        self.state.stopping = true;
         if let Err(error) = self.http.cancel() {
-            self.http_error = Some(error);
+            self.state.http_error = Some(error);
         }
         self.stop_audio();
         if let Some(connection) = self.connection.as_mut() {
@@ -543,8 +613,13 @@ impl<
 > Drop for ApplicationLoop<'_, '_, S, B, E, C, T, I, H, N>
 {
     fn drop(&mut self) {
-        self.abort_stop();
-        self.buffers.input.fill(0);
-        self.buffers.offer.fill(0);
+        if let Some(audio) = self.audio.as_ref() {
+            self.state.pipeline = Some(audio.snapshot());
+        }
+        if matches!(self.state, StateBorrow::Owned(_)) {
+            self.abort_stop();
+            self.buffers.input.fill(0);
+            self.buffers.offer.fill(0);
+        }
     }
 }

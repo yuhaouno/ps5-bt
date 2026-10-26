@@ -156,6 +156,12 @@ pub struct MainLoop<R: LoopResources> {
 }
 impl<R: LoopResources> MainLoop<R> {
     pub fn new(resources: R, config: LoopConfig, now_us: u64) -> Result<Self, i32> {
+        Self::new_retaining(resources, config, now_us).map_err(|(error, _)| error)
+    }
+    /// Preserve caller-owned preinitialized resources on configuration failure,
+    /// allowing explicit native cleanup and its report before releasing storage.
+    #[allow(clippy::result_large_err)]
+    pub fn new_retaining(resources: R, config: LoopConfig, now_us: u64) -> Result<Self, (i32, R)> {
         if config.quotas.iter().any(|&q| q == 0 || q > 64)
             || config.max_wait_us == 0
             || config.stop_timeout_us == 0
@@ -163,7 +169,7 @@ impl<R: LoopResources> MainLoop<R> {
             || now_us.checked_add(config.max_wait_us).is_none()
             || now_us.checked_add(config.stop_timeout_us).is_none()
         {
-            return Err(-1);
+            return Err((-1, resources));
         }
         Ok(Self {
             resources,
@@ -188,6 +194,18 @@ impl<R: LoopResources> MainLoop<R> {
     }
     pub const fn resources(&self) -> &R {
         &self.resources
+    }
+    /// Borrow the same single owner for its fallible clock/wait port. Callers
+    /// must not bypass acquisition/cleanup or independently drive protocol lanes.
+    pub fn resources_mut(&mut self) -> &mut R {
+        &mut self.resources
+    }
+    /// Terminal bounded abort for native clock/wait or outer execution-budget
+    /// failure. Cleanup remains observable through ordinary finite steps.
+    pub fn abort(&mut self, reason: StopReason) {
+        if self.report.phase != LoopPhase::Finished {
+            self.force(reason);
+        }
     }
     /// An out-of-band stop latch; no valid clock is needed to request it.
     pub fn request_stop(&mut self) {
