@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Add the minimal LAN device/pairing page, authenticated v2 service and bounded
+  nonblocking connection pump. Preserve v1, serialize urgent/primary tickets,
+  reject stale generations and expose only actual capabilities and outcomes.
+  Static assets are embedded; native PS5 activation remains pending.
+
 - Implement a protected local bond file store behind a versioned opaque C ABI:
   private directory/record validation, exclusive ownership, atomic replacement,
   fsync boundaries, durable deletion and explicit uncertain outcomes. Separate

@@ -4,6 +4,9 @@
 #![forbid(unsafe_code)]
 
 pub mod http;
+pub mod management;
+pub mod pump;
+pub mod service;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Capability {

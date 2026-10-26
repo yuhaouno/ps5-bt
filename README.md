@@ -59,7 +59,7 @@ The earlier second-machine build reproduction remains in
 | Media send orchestration | Implemented on host | SBC/RTP/L2CAP/ACL submission now uses an external credit owner; Busy/credit stops retain the PDU and terminal errors report cancellation counts; no clock or live transport |
 | Single-owner application driver | Implemented on host | device security, SDP/channel scheduling, explicit start/stop/restart, continuous audio handoff and finite media/recovery budgets; no live PS5 loop, listener or backend |
 | A2DP source session binding | Implemented on host | Classic Ready/context gate, automatic bounded SBC negotiation, explicit sample-gap timestamps, media-channel binding, partial-PDU-aware stop and clean restart; no capture/encoder/pacing, LAN owner loop or PS5 activation |
-| LAN control/status contract | Implemented on host | bounded authenticated request parser, single-owner command queue and identity-free status JSON; no listener/page or PS5 integration |
+| LAN management service/page | Portable candidate | bounded v1/v2 HTTP service, actual-state actions, opaque device/SSP IDs, safe static page and nonblocking connection pump; no PS5 listener or activation |
 | Continuous PCM-to-SBC scheduling | Implemented on host | sample-clock block pacing, retained encoded offers, bounded concealment/rebuffer/expiry and persistent real host codec adapter; normalized input only, no native PS5 capture or target encoder loop |
 | PCM staging, nominal sample timeline and bounded recovery | Host-only implementation | caller-owned stereo i16 queue; synthetic gaps/stalls; no resampler or live audio |
 | Fault-episode recovery controller | Implemented on host | finite attempt/time budgets, capped backoff, cleanup/reconciliation tickets and stable-success reset; no resource reopening or hardware recovery claim |
@@ -158,8 +158,8 @@ credit authority and every live channel remain absent.
 The new source-session binding joins Classic Ready, SBC negotiation, separate
 media-channel binding and the existing credit-aware sender on the host; it has
 no PS5 activation. See [the application binding contract](docs/SOURCE-SESSION.md).
-The bounded LAN request/state contract is host-tested, but has no socket listener
-or page. The [portable application driver](docs/APPLICATION-OWNER.md) now owns
+The bounded LAN management service and static page are implemented; see
+[the control contract](docs/LAN-MANAGEMENT.md). A PS5 socket listener is not active. The [portable application driver](docs/APPLICATION-OWNER.md) now owns
 selected-device security, channel/SDP progression, source negotiation, normalized
 PCM encoding/pacing handoff and bounded stop/recovery. Native capture/target
 encoder integration, a live PS5 owner loop and LAN listener remain absent.

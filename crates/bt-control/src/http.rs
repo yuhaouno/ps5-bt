@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Strict HTTP/1.1 request boundary for a future single-connection LAN server.
+//! Strict HTTP/1.1 boundary shared by the v1 contract and v2 LAN service.
 
 use crate::Command;
 
@@ -7,7 +7,7 @@ pub const MAX_REQUEST_BYTES: usize = 1024;
 pub const MAX_HEADER_LINE_BYTES: usize = 256;
 pub const MAX_HEADERS: usize = 24;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Policy<'a> {
     /// Exact Host header, including a port when the listener uses one.
     pub host: &'a [u8],
@@ -15,6 +15,16 @@ pub struct Policy<'a> {
     pub origin: &'a [u8],
     /// Secret bytes after `Authorization: Bearer `. Never logged or serialized.
     pub bearer_token: &'a [u8],
+}
+
+impl core::fmt::Debug for Policy<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Policy")
+            .field("host", &self.host)
+            .field("origin", &self.origin)
+            .field("bearer_token", &"[REDACTED]")
+            .finish()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -43,6 +53,9 @@ struct Critical<'a> {
     control: Option<&'a [u8]>,
     content_length: Option<&'a [u8]>,
     connection: Option<&'a [u8]>,
+    pub generation: Option<&'a [u8]>,
+    pub device: Option<&'a [u8]>,
+    pub approval: Option<&'a [u8]>,
     count: usize,
 }
 
@@ -55,6 +68,9 @@ impl<'a> Critical<'a> {
             control: None,
             content_length: None,
             connection: None,
+            generation: None,
+            device: None,
+            approval: None,
             count: 0,
         }
     }
@@ -62,7 +78,19 @@ impl<'a> Critical<'a> {
 
 /// Parse one complete request. No body, pipelining, transfer coding, folded
 /// headers, duplicate security headers or query string is accepted.
-pub fn authorize_and_route(request: &[u8], policy: Policy<'_>) -> Result<Route, RequestError> {
+pub(crate) struct Envelope<'a> {
+    pub method: &'a [u8],
+    pub path: &'a [u8],
+    pub generation: Option<&'a [u8]>,
+    pub device: Option<&'a [u8]>,
+    pub approval: Option<&'a [u8]>,
+}
+
+pub(crate) fn envelope<'a>(
+    request: &'a [u8],
+    policy: Policy<'_>,
+    public_assets: bool,
+) -> Result<Envelope<'a>, RequestError> {
     if request.len() > MAX_REQUEST_BYTES {
         return Err(RequestError::TooLarge);
     }
@@ -86,9 +114,14 @@ pub fn authorize_and_route(request: &[u8], policy: Policy<'_>) -> Result<Route, 
     let request_line = trim_cr(lines.next().ok_or(RequestError::Malformed)?);
     let (method, path) = parse_request_line(request_line)?;
     let mut headers = Critical::new();
+    let mut terminated = false;
     for raw_line in lines {
         let line = trim_cr(raw_line);
+        if terminated {
+            return Err(RequestError::BodyNotAllowed);
+        }
         if line.is_empty() {
+            terminated = true;
             continue;
         }
         if line.len() > MAX_HEADER_LINE_BYTES || matches!(line.first(), Some(b' ' | b'\t')) {
@@ -120,34 +153,65 @@ pub fn authorize_and_route(request: &[u8], policy: Policy<'_>) -> Result<Route, 
             set_once(&mut headers.control, value)?;
         } else if eq_ignore_ascii_case(name, b"content-length") {
             set_once(&mut headers.content_length, value)?;
+        } else if eq_ignore_ascii_case(name, b"x-ps5-bt-generation") {
+            set_once(&mut headers.generation, value)?;
+        } else if eq_ignore_ascii_case(name, b"x-ps5-bt-device") {
+            set_once(&mut headers.device, value)?;
+        } else if eq_ignore_ascii_case(name, b"x-ps5-bt-approval") {
+            set_once(&mut headers.approval, value)?;
         } else if eq_ignore_ascii_case(name, b"connection") {
             set_once(&mut headers.connection, value)?;
         }
     }
     if headers.host != Some(policy.host)
-        || headers
-            .connection
-            .is_some_and(|value| !eq_ignore_ascii_case(value, b"close"))
+        || headers.connection.is_some_and(|value| {
+            !(eq_ignore_ascii_case(value, b"close")
+                || public_assets && eq_ignore_ascii_case(value, b"keep-alive"))
+        })
     {
         return Err(RequestError::Malformed);
     }
-    let authorization = headers
-        .authorization
-        .and_then(|value| value.strip_prefix(b"Bearer "))
-        .ok_or(RequestError::Unauthorized)?;
-    if policy.bearer_token.is_empty() || !constant_time_equal(authorization, policy.bearer_token) {
-        return Err(RequestError::Unauthorized);
+    let public = public_assets
+        && method == b"GET"
+        && matches!(
+            path,
+            b"/" | b"/control.css" | b"/control.js" | b"/v2/public-status"
+        );
+    if !public {
+        let authorization = headers
+            .authorization
+            .and_then(|value| value.strip_prefix(b"Bearer "))
+            .ok_or(RequestError::Unauthorized)?;
+        if policy.bearer_token.is_empty()
+            || !constant_time_equal(authorization, policy.bearer_token)
+        {
+            return Err(RequestError::Unauthorized);
+        }
     }
     if headers.content_length.is_some_and(|value| value != b"0") {
         return Err(RequestError::BodyNotAllowed);
     }
+    if method == b"POST"
+        && (public_assets || matches!(path, b"/v1/connect" | b"/v1/start" | b"/v1/stop"))
+        && (headers.origin != Some(policy.origin) || headers.control != Some(b"1"))
+    {
+        return Err(RequestError::CrossSite);
+    }
+    Ok(Envelope {
+        method,
+        path,
+        generation: headers.generation,
+        device: headers.device,
+        approval: headers.approval,
+    })
+}
+
+pub fn authorize_and_route(request: &[u8], policy: Policy<'_>) -> Result<Route, RequestError> {
+    let Envelope { method, path, .. } = envelope(request, policy, false)?;
 
     match (method, path) {
         (b"GET", b"/v1/status") => Ok(Route::Status),
         (b"POST", b"/v1/connect" | b"/v1/start" | b"/v1/stop") => {
-            if headers.origin != Some(policy.origin) || headers.control != Some(b"1") {
-                return Err(RequestError::CrossSite);
-            }
             let command = match path {
                 b"/v1/connect" => Command::Connect,
                 b"/v1/start" => Command::Start,
