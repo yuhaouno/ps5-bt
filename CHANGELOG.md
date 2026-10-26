@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Add a separately selectable nonblocking POSIX control listener with an opaque
+  versioned ABI, one borrowed client, scoped SIGPIPE protection and consume-once
+  cleanup. Exercise real loopback HTTP and idle-client timeout; target native
+  compatibility and PS5 activation remain unverified.
+
 - Join discovery, protected bond metadata, device/SSP management and application
   progression in a bounded Rust runner. Serialize control/media PDUs against one
   real external credit ledger, retain rejected input, enforce aggregate deadlines

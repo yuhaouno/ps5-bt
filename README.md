@@ -60,6 +60,7 @@ The earlier second-machine build reproduction remains in
 | Management/ACL runner | Portable candidate | discovery-to-device/SSP bridge, actual capability gates, retained input and shared-credit control/media ordering; no native PS5 wait loop or ownership authority |
 | Single-owner application driver | Implemented on host | device security, SDP/channel scheduling, explicit start/stop/restart, continuous audio handoff and finite media/recovery budgets; no live PS5 loop, listener or backend |
 | A2DP source session binding | Implemented on host | Classic Ready/context gate, automatic bounded SBC negotiation, explicit sample-gap timestamps, media-channel binding, partial-PDU-aware stop and clean restart; no capture/encoder/pacing, LAN owner loop or PS5 activation |
+| Native control listener | POSIX candidate | single borrowed client, nonblocking I/O and consume-once cleanup; loopback HTTP integration checked, PS5 link/permissions remain unverified |
 | LAN management service/page | Portable candidate | bounded v1/v2 HTTP service, actual-state actions, opaque device/SSP IDs, safe static page and nonblocking connection pump; no PS5 listener or activation |
 | Continuous PCM-to-SBC scheduling | Implemented on host | sample-clock block pacing, retained encoded offers, bounded concealment/rebuffer/expiry and persistent real host codec adapter; normalized input only, no native PS5 capture or target encoder loop |
 | PCM staging, nominal sample timeline and bounded recovery | Host-only implementation | caller-owned stereo i16 queue; synthetic gaps/stalls; no resampler or live audio |
@@ -148,6 +149,7 @@ This policy does not import an upstream stack or transfer its hardware claims. S
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
 The workspace contains `bt-a2dp`, `bt-app`, `bt-audio`, `bt-avdtp`, `bt-channel`,
 `bt-control`, `bt-core`, `bt-device`, `bt-discovery`, `bt-store`, `bt-runner`,
+`bt-listener`,
 `bt-codec`, `bt-hci`, `bt-l2cap`, `bt-link`, `bt-media-session`, `bt-sdp`,
 `bt-session`, `ps5-sys`,
 `ps5-platform`, and `ps5-runtime`. The first initiator-side L2CAP Basic-mode channel machine, SDP
@@ -160,7 +162,8 @@ The new source-session binding joins Classic Ready, SBC negotiation, separate
 media-channel binding and the existing credit-aware sender on the host; it has
 no PS5 activation. See [the application binding contract](docs/SOURCE-SESSION.md).
 The bounded LAN management service and static page are implemented; see
-[the control contract](docs/LAN-MANAGEMENT.md). A PS5 socket listener is not active. The [portable application driver](docs/APPLICATION-OWNER.md) now owns
+[the control contract](docs/LAN-MANAGEMENT.md). An [optional native listener](docs/CONTROL-LISTENER.md) is implemented separately.
+A PS5 socket listener is not active. The [portable application driver](docs/APPLICATION-OWNER.md) now owns
 selected-device security, channel/SDP progression, source negotiation, normalized
 PCM encoding/pacing handoff and bounded stop/recovery. Native capture/target
 encoder integration, a live PS5 owner loop and PS5 LAN listener remain absent.
