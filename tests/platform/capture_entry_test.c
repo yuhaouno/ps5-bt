@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 #define PS5_BT_CAPTURE_STREAM
+#define PS5_BT_DIAGNOSTIC_BUILD_ID                                             \
+  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+#define PS5_BT_DIAGNOSTIC_CANDIDATE "ps5-bt-capture-stream"
 #define main diagnostic_main
 #include "../../platform/ps5/main.c"
 #undef main
@@ -26,18 +29,28 @@ int64_t ps5_bootstrap_lookup(const char *name, void **out) {
   return lookup_status;
 }
 int32_t ps5_rust_probe(void) {
-  assert(phase++ == 0);
+  assert(phase++ == 1);
   return 2;
 }
 int32_t ps5_rust_capture_stream(int32_t (*now)(uint64_t *)) {
-  assert(phase++ == 1 && now == ps5_continuous_now_us);
+  assert(phase++ == 2 && now == ps5_continuous_now_us);
   return codec_status;
 }
+void ps5_platform_log(const uint8_t *data, uint32_t length) {
+  assert(data && length > 0);
+  if (phase == 0) {
+    assert(length > 16 && memcmp(data, "event=run_begin ", 16) == 0);
+  } else {
+    assert(phase == 3 && length > 17 &&
+           memcmp(data, "event=run_finish ", 17) == 0);
+  }
+  ++phase;
+}
 int main(void) {
-  assert(diagnostic_main() == 2 && phase == 2);
+  assert(diagnostic_main() == 2 && phase == 4);
   phase = 0;
   codec_status = -1;
-  assert(diagnostic_main() == 1 && phase == 2);
+  assert(diagnostic_main() == 1 && phase == 4);
   uint64_t out = 99;
   assert(ps5_continuous_now_us(0) == PS5_BT_INVALID);
   seconds = 7;

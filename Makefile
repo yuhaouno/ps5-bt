@@ -56,6 +56,7 @@ application-candidates-test:
 check-build-tools:
 	python3 tools/test_syscall_checked.py
 	python3 tools/build_ps5.py --self-test
+	python3 tests/tools/test_diagnostic_result.py
 	python3 tools/package_source.py --self-test
 	python3 tools/mvp_test_kit.py --self-test
 

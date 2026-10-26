@@ -295,3 +295,14 @@ conversion overflow, nanosecond regression, reentry, sticky failure and close.
 The feature-off workspace still has no clock symbol dependency. The adapter C
 object was compiled/inspected with pinned LLVM18 as little-endian ELF64 x86-64,
 with no undefined imports or SIMD register use. This is no PS5 timing result.
+
+## Identity and local-result checks
+
+`python3 tests/tools/test_diagnostic_result.py` runs 17 adversarial tests covering
+both new profiles, exact native read/status/flag combinations, malformed or
+missing identity/configuration/cleanup, dirty manifests, truncated/interrupted
+runs, numeric bounds and private atomic file/directory-fsync failure behavior.
+Main-entry C tests check begin/probe/experiment/finish ordering. Source-package
+checks reject missing/invalid embedded identity and mismatched candidate names.
+All input logs in these checks are synthetic; controller/audio/persistence
+acceptance is never inferred from them.

@@ -15,6 +15,15 @@ requiring their intended measurements to be established beforehand. Existing
 candidate bounds and production ownership/credit requirements remain intact;
 this update supplies neither a new transport mechanism nor permission to run.
 
+Current offline candidates, 2026-10-26: new Rust capture-stream and continuous
+SBC ELFs exercise the reviewed Rust/C seams independently, without live Bluetooth
+or guessed native PCM. The six-item kit now requires their matching clean
+manifests/source packages. Save each log before another run and collect the new
+identity-bearing profiles through DIAGNOSTIC-RESULTS.md with explicit controller
+observations. The bounded loop, resource rebuild and clock/wait modules remain
+candidates awaiting native factory/routing/format evidence. No current console
+window or execution authorization is supplied by this preparation.
+
 Relay progress on 2026-10-25: L2CAP Classic signaling (`0e32102`), bounded
 SBC-over-RTP plus the real host RTP/L2CAP/ACL scenario (`0c2ecf5`), the concrete
 ownership blocker/experiment audit (`4ef1d00`) and the dry-run-first hardware

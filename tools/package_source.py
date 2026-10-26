@@ -351,6 +351,11 @@ def validate_manifest(root, head, files, manifest_path):
     stem = VARIANTS[variant][0] if variant else "ps5-bt"
     if manifest_path.name != stem + ".manifest.json":
         raise ValueError("manifest filename differs from its selected build variant")
+    if variant in ("sbc_continuous", "capture_stream"):
+        if not valid_sha256(manifest.get("diagnostic_build_id")) or manifest.get("diagnostic_candidate") != stem:
+            raise ValueError("missing or invalid embedded diagnostic identity")
+    elif "diagnostic_build_id" in manifest or "diagnostic_candidate" in manifest:
+        raise ValueError("unexpected embedded diagnostic identity for legacy variant")
     sources = manifest.get("project_sources")
     required = REQUIRED_SOURCES | (VARIANTS[variant][1] if variant else set())
     if not isinstance(sources, dict) or required != sources.keys():
@@ -670,6 +675,9 @@ def self_test():
                 variant_manifest = dict(manifest, **{key: True}, loader_kernel_resolver=True,
                                         sha256=sha256(variant_elf.read_bytes()),
                                         project_sources=variant_sources)
+                if key in ("sbc_continuous", "capture_stream"):
+                    variant_manifest["diagnostic_build_id"] = "a" * 64
+                    variant_manifest["diagnostic_candidate"] = stem
                 if key == "usb_metadata":
                     variant_manifest["sdk_headers"] = USB_SDK_HEADERS.copy()
                 if key in CODEC_VARIANTS:
@@ -728,6 +736,10 @@ def self_test():
                     else:
                         raise AssertionError(label + " accepted")
 
+                if key in ("sbc_continuous", "capture_stream"):
+                    for bad_identity in (None, "invalid", "A" * 64):
+                        reject_variant(dict(variant_manifest, diagnostic_build_id=bad_identity), "invalid embedded build identity")
+                    reject_variant(dict(variant_manifest, diagnostic_candidate="ps5-bt-other"), "wrong embedded candidate")
                 missing_sources = dict(variant_sources)
                 missing_sources.pop(sorted(extra_sources)[0])
                 reject_variant(dict(variant_manifest, project_sources=missing_sources), "missing variant source")

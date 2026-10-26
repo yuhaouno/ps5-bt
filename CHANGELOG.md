@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Correlate new Rust diagnostic logs with an embedded build identity and unique
+  entered/final markers. Collect bounded local JSON outcomes with explicit
+  controller observations, exact profile/cleanup checks, interrupted-run detection
+  and atomic private host persistence. Extend matching source/kit validation;
+  no hardware execution or PS5 power-loss durability is inferred.
+
 - Add a separately selected, fallible native monotonic clock/finite-wait adapter
   with cached exports, raw diagnostics, cancellation, checked deadlines and sticky
   clock/native errors. Each caller step requests at most one 1 ms wait; actual

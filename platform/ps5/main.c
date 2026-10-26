@@ -146,6 +146,10 @@ static void capture_trace(enum ps5_capture_probe_phase phase, uint32_t ordinal,
 #endif
 
 int main(void) {
+#ifdef PS5_BT_DIAGNOSTIC_BUILD_ID
+  static const uint8_t run_begin[] = "event=run_begin build_id=" PS5_BT_DIAGNOSTIC_BUILD_ID " candidate=" PS5_BT_DIAGNOSTIC_CANDIDATE "\n";
+  ps5_platform_log(run_begin, sizeof run_begin - 1);
+#endif
   int result = (int)ps5_rust_probe();
 #ifdef PS5_BT_CAPTURE_STREAM
   if (ps5_rust_capture_stream(ps5_continuous_now_us) != 0)
@@ -253,6 +257,10 @@ int main(void) {
   }
   if (capture.status != PS5_CAPTURE_PROBE_OK)
     result = 1;
+#endif
+#ifdef PS5_BT_DIAGNOSTIC_BUILD_ID
+  static const uint8_t run_finish[] = "event=run_finish build_id=" PS5_BT_DIAGNOSTIC_BUILD_ID "\n";
+  ps5_platform_log(run_finish, sizeof run_finish - 1);
 #endif
   return result;
 }

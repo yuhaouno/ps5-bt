@@ -55,10 +55,11 @@ before validation, so a failure cannot leave a stale package as apparent output.
 Commit changes and rebuild instead of editing a manifest to bypass these checks.
 
 The complete project source contains the pristine selected libsbc source, its
-LGPL text/notices, three local patches and rebuild tests. For the SBC self-test
+LGPL text/notices, three local patches and rebuild tests. For either SBC diagnostic
 variant, packaging requires `codec_sources` to be the exact path/hash map
 returned by `tools/target_sbc.py`, verifies the built codec archive hash, and
-requires a complete `build/ps5/ps5-bt-sbc-selftest-relink/` inventory. Missing,
+requires the exact selected `build/ps5/ps5-bt-sbc-selftest-relink/` or
+`build/ps5/ps5-bt-sbc-continuous-relink/` inventory. Missing,
 extra, modified, escaping or symlinked relink inputs fail closed. Other variants
 reject codec-only manifest fields.
 
@@ -84,11 +85,11 @@ The archive contains:
 - `ps5-bt-source/build-manifest.json`: the original ELF build record, including
   its SHA-256 and the original clean project commit. The standalone associated
   ELF, compiler tools, SDK binaries, console files and Git history are not
-  bundled. The SBC self-test's `relink/` subtree deliberately contains a
+  bundled. Each SBC diagnostic's `relink/` subtree deliberately contains a
   baseline ELF copy and the Rust archive as replacement-link evidence.
 - `ps5-bt-source/README.source.txt`: concrete rebuild commands using the bundled
   selected SDK tree through `PS5_SDK_SOURCE`, Rust 1.90.0 and LLVM 18.1.8.
-- For the SBC self-test only, `ps5-bt-source/relink/`: ordered application
+- For either SBC diagnostic, `ps5-bt-source/relink/`: ordered application
   objects, the Rust archive, linker script, inspection helper, exact library
   source/patch inputs, the default separately linked codec archive and
   `relink.py`. The default baseline ELF and its link map, structural report,
@@ -143,3 +144,14 @@ missing variant-source rejection; boolean/exclusivity rules; capture resolver
 gates; missing/modified header files and pins; path escapes; and removal of
 stale outputs after failure. It never downloads sources, executes target
 payloads or accesses a PS5.
+
+## New Rust diagnostic identities
+
+The independent `--capture-stream` and `--sbc-continuous` builds are packaged by
+the same clean-commit workflow. Their manifests must additionally record a
+valid embedded build identity and matching candidate stem. Both source bundles
+include all tracked capture/clock/runner sources; the continuous SBC bundle also
+includes its exact LGPL source and executable replacement-link materials.
+The kit includes both alongside the original four candidates. Generated outcomes
+and raw hardware logs remain external evidence, not corresponding source.
+See DIAGNOSTIC-RESULTS.md for bounded local outcome collection.

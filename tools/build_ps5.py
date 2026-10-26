@@ -240,6 +240,25 @@ def build(args):
         flags.append("-DPS5_BT_SBC_CONTINUOUS")
     if args.sbc_selftest:
         flags.append("-DPS5_BT_SBC_SELFTEST")
+    diagnostic_build_id = None
+    if args.sbc_continuous or args.capture_stream:
+        identity_headers = [ROOT / "platform/ps5/bootstrap/bootstrap.h",
+                            ROOT / "platform/ps5/include/ps5_bt.h"]
+        if args.capture_stream:
+            identity_headers.append(ROOT / "platform/ps5/capture/capture_stream.h")
+        identity = {
+            "candidate": stem,
+            "rust_archive": digest(ROOT / "target/x86_64-unknown-none/release/libps5_runtime.a"),
+            "codec_archive": digest(codec_archive) if codec_archive else None,
+            "sources": {str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else path.name: digest(path)
+                        for path in [*sources, *identity_headers]},
+            "sdk": SDK_FILES,
+            "flags": flags,
+            "linker": digest(ROOT / "platform/ps5/bootstrap/minimal.ld"),
+        }
+        diagnostic_build_id = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+        flags += [f'-DPS5_BT_DIAGNOSTIC_BUILD_ID="{diagnostic_build_id}"',
+                  f'-DPS5_BT_DIAGNOSTIC_CANDIDATE="{stem}"']
     for index, path in enumerate(sources):
         obj = output / f"{stem}-{index}-{path.stem}.o"
         extra = ["-Wno-sign-compare"] if path.name == "kernel.c" else []
@@ -272,6 +291,9 @@ def build(args):
     report["capture_stream"] = args.capture_stream
     report["sbc_selftest"] = args.sbc_selftest
     report["sbc_continuous"] = args.sbc_continuous
+    if diagnostic_build_id is not None:
+        report["diagnostic_build_id"] = diagnostic_build_id
+        report["diagnostic_candidate"] = stem
     report["loader_kernel_resolver"] = args.loader_kernel_resolver
     report["rust"] = rust_version
     report["llvm"] = run([tools["clang"], "--version"], capture=True).strip()

@@ -68,6 +68,7 @@ The earlier second-machine build reproduction remains in
 | Continuous PCM-to-SBC scheduling | Implemented on host | sample-clock block pacing, retained encoded offers, bounded concealment/rebuffer/expiry and persistent real host codec adapter; declared normalized input and independent target encoder/capture candidates, no playable PS5 integration |
 | PCM staging, nominal sample timeline and bounded recovery | Host-only implementation | caller-owned stereo i16 queue; synthetic gaps/stalls; no resampler or live audio |
 | Fault-episode recovery controller | Implemented on host | finite attempt/time budgets, capped backoff, cleanup/reconciliation tickets and stable-success reset; factory-based reopening candidate; no native hardware recovery claim |
+| Correlated diagnostic result collection | Offline tool | embedded source/build identity for new Rust candidates, bounded numeric-only local JSON, explicit controller observations and host fsync; PS5 persistence remains Unknown |
 | Freestanding Rust archive | Implemented | x86-64 ELF objects inspected; no PS5 execution |
 | PS5 diagnostic ELF with explicit loader kernel resolver | Verified on one environment | Slim/13.40: Rust entry, durable lifecycle and final 2; notifications returned success |
 | Optional read-only native stack-version query | Executed | sysctlbyname resolved; query returned -1; version and controller remain Unknown |

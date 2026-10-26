@@ -131,6 +131,11 @@ def validate_candidate(root, candidate, head):
         raise ValueError(f"wrong diagnostic variant: {candidate['id']}")
     if not manifest.get("loader_kernel_resolver"):
         raise ValueError("candidate lacks reviewed loader kernel resolver")
+    if expected_variant in ("sbc_continuous", "capture_stream"):
+        build_id = manifest.get("diagnostic_build_id")
+        if (not isinstance(build_id, str) or not re.fullmatch(r"[0-9a-f]{64}", build_id)
+                or manifest.get("diagnostic_candidate") != artifact.stem):
+            raise ValueError("candidate lacks its embedded diagnostic identity")
     with tarfile.open(source, "r:gz") as archive:
         try:
             packaged_manifest = archive.extractfile("ps5-bt-source/build-manifest.json")
@@ -174,12 +179,19 @@ def runbook(plan, head, entries):
             "",
             *[f"- `{marker}`" for marker in candidate["expected_markers"]],
             "",
+            *([f"Embedded build identity: `{entry['diagnostic_build_id']}`", ""]
+              if entry.get("diagnostic_build_id") else []),
             "Stop conditions:",
             "",
             *[f"- {condition}" for condition in candidate["stop_conditions"]],
             "",
         ]
     lines += [
+        "For the two identity-bearing Rust candidates, save the local log and use",
+        "`tools/diagnostic_result.py` with its matching manifest and explicit",
+        "before/during/after controller observations. Never infer Unknown as normal.",
+        "A missing matching finish/return remains an interrupted result.",
+        "",
         "No item owns HCI traffic. Binding metadata does not prove ownership, and",
         "an Empty capture read is not PCM success. Never reset the radio, install a",
         "loader, launch automatically or continue after uncertain cleanup.",
@@ -206,6 +218,7 @@ def assemble(plan_path, kit_dir):
             "build_manifest_sha256": digest(manifest_path),
             "source_bundle_sha256": digest(source),
             "runtime": manifest["runtime"],
+            "diagnostic_build_id": manifest.get("diagnostic_build_id"),
         }
         entries.append(entry)
         inputs.append((candidate, artifact, manifest_path, source))

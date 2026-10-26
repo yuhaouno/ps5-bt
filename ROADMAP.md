@@ -19,6 +19,13 @@ Source-backed isolated transport experiments use AGENTS.md's admission rules;
 production ownership/credit guarantees still gate support. No console window
 is currently available from this chat; the 2026-10-25 window below is historical.
 
+The two new Rust diagnostic artifacts now embed matching build identities.
+A bounded local collector records actual numeric outcomes, cleanup, interruption
+and explicit controller observations without copying private log text; host
+persistence does not prove PS5 durability. Six independently selectable artifacts
+have matching source/relink/kit support. See
+[DIAGNOSTIC-RESULTS.md](docs/DIAGNOSTIC-RESULTS.md).
+
 A separate fallible native clock/wait candidate now provides cached reviewed
 exports and a single <=1ms requested wait slice per step. Host fixtures and
 freestanding/object inspection pass; native timing/readiness integration remains

@@ -315,3 +315,15 @@ checks, C ASan/UBSan and external freestanding compilation. Production selection
 is `ps5-platform/external-clock-wait`; its final platform link must explicitly
 include `platform/ps5/scheduler/scheduler_clock.c`. It supplies no native transport
 or readiness backend and adds no diagnostic artifact. See PLATFORM-CLOCK.md.
+
+## Correlated local experiment results
+
+The new Rust capture and continuous SBC candidates embed an input-build identity
+matching `diagnostic_build_id` / `diagnostic_candidate` in their manifest. Their
+unique begin/finish markers precede the runtime's existing termination report.
+After an authorized hardware run and local log collection,
+`tools/diagnostic_result.py` writes private bounded JSON with exact correlation,
+cleanup and abnormal-run classification. All three controller observations must
+be entered explicitly; Unknown remains Unknown. This collector never connects
+to a console. See DIAGNOSTIC-RESULTS.md; `python3 tests/tools/test_diagnostic_result.py`
+checks parser and persistence failure paths.
