@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Implement a protected local bond file store behind a versioned opaque C ABI:
+  private directory/record validation, exclusive ownership, atomic replacement,
+  fsync boundaries, durable deletion and explicit uncertain outcomes. Separate
+  native host builds from target-linked adapters; PS5 behavior remains unverified.
+
 - Add bounded Classic Inquiry/Cancel device discovery with stable scan identities,
   validated EIR names, finite result/event limits and explicit cancellation races.
   Selection requires confirmed quiescence; no PS5 radio access is enabled.

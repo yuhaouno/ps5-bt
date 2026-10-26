@@ -1,0 +1,21 @@
+[package]
+name = "bt-store"
+description = "Protected atomic local bond file store through a versioned C boundary"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+build = "build.rs"
+
+[features]
+default = []
+external-posix = []
+native-posix = ["external-posix"]
+
+[dependencies]
+bt-device = { path = "../bt-device" }
+bt-link = { path = "../bt-link" }
+
+[lints]
+workspace = true

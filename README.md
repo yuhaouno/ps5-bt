@@ -44,6 +44,7 @@ The earlier second-machine build reproduction remains in
 | SDP framing, bounded data elements and A2DP Sink discovery | Implemented on host | correlated transactions/epochs, bounded continuation and strict service-record semantics; no live query |
 | Classic device discovery | Portable candidate | bounded Inquiry/Cancel, stable opaque device IDs, validated names and finite cleanup; PS5 command routing remains unavailable |
 | Selected-device pairing/bond manager | Implemented on host | protected-store contract, versioned bond records, SSP approval, Ready-gated persistence, forget revocation and clock-failure cleanup; no PS5 store, inquiry or live pairing |
+| Protected bond file store | POSIX candidate | versioned Rust/C owner, private-directory validation and atomic durable records; PS5 imports, protection and reboot behavior require hardware |
 | Selected-peer Classic connection/security | Implemented on host | acceptance-correlated connection/cancel, stored-key or approved SSP, authentication/encryption/key-size gate; no inquiry, bond persistence, live transport or PS5 pairing result |
 | AVDTP SBC initiator session | Implemented on host | conservative SBC negotiation/lifecycle plus bounded receive signaling reassembly with epoch/CID/transaction isolation; no live media channel, headset or PS5 execution |
 | C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
@@ -145,7 +146,7 @@ behind a versioned ABI; preserve provenance and explicit state/resource ownershi
 This policy does not import an upstream stack or transfer its hardware claims. See
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
 The workspace contains `bt-a2dp`, `bt-app`, `bt-audio`, `bt-avdtp`, `bt-channel`,
-`bt-control`, `bt-core`, `bt-device`, `bt-discovery`,
+`bt-control`, `bt-core`, `bt-device`, `bt-discovery`, `bt-store`,
 `bt-codec`, `bt-hci`, `bt-l2cap`, `bt-link`, `bt-media-session`, `bt-sdp`,
 `bt-session`, `ps5-sys`,
 `ps5-platform`, and `ps5-runtime`. The first initiator-side L2CAP Basic-mode channel machine, SDP

@@ -146,6 +146,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bt-store"
+version = "0.0.1"
+dependencies = [
+ "bt-device",
+ "bt-link",
+]
+
+[[package]]
 name = "ps5-platform"
 version = "0.0.1"
 dependencies = [
