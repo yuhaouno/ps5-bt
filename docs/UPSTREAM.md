@@ -15,6 +15,14 @@ subset documented below for HW-1; stock CRT and patch.c remain excluded. No prop
 
 ## Inventory
 
+The separately built [first-audio reference](../experiments/hearbridge-reference/README.md)
+uses the pinned HearBridge application and SDK v0.43 stock runtime in an ignored
+build tree, with a recorded bounding/control patch and corresponding sources.
+This is an exception to the historical **research-only relationship** described
+below, not an import into PS5-BT's production link. The earlier minimal-runtime
+exclusions still describe those artifacts. Reference execution remains gated;
+no upstream hardware claim transfers to this project.
+
 Current reuse policy follows [AGENTS.md](../AGENTS.md): a scoped, reviewed C
 protocol/connection module may be a transitional implementation behind a
 versioned ABI, with the same exact-pin, per-file license, modification and

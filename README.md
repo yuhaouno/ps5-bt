@@ -6,6 +6,9 @@ followed by optimization. Start with the concise
 Evaluate a pinned HearBridge reference before porting its C connection/audio
 chain; its competing-read/credit behavior requires a separate execution-scope
 decision. No usable PS5-BT connection backend or headphone playback is claimed.
+The isolated [reference build recipe](experiments/hearbridge-reference/README.md)
+keeps the upstream connection/audio chain separate from the product and records
+the retained transport mechanisms and execution decision.
 
 A Rust-first Bluetooth Audio stack for PlayStation 5 homebrew — built for low
 latency, high quality, and portability.

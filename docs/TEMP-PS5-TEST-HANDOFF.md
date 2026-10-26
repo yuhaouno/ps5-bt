@@ -14,26 +14,45 @@ Do not require our current FileStore, management page or general recovery loop
 for a reference experiment. Keep any necessary bond state private; do not weaken
 the production store to bypass its current failure.
 
-1. Audit the pinned HearBridge startup and USB/link/audio chain for this exact
-   device and loader. Reuse existing source review; inspect only unresolved
-   startup, system side effects, stop/cleanup and credit behavior. Freeze the pin.
-2. Produce a concrete bounded reference-run proposal/build after that audit.
-   Source `cd5b7fce1b8226d8850cdd306437550098c6a62b` explicitly competes with
-   system USB reads and mentions timer credit refill (`src/bt/hci_usb.c:39–47`).
-   These mechanisms remain outside present execution authority. An explicit
-   scope decision is required before a reference run retaining them; do not
-   describe the candidate as safe coexistence or silently run the stock payload.
-3. If admitted, verify the reference on this PS5: select/pair XM4, connect and
-   play a short audible sample; record disconnect/stop and controller behavior.
-   Use existing audio if available rather than first building another tone engine.
-   Failure means fix the specific first failed stage, not restart the old probes.
-4. After reference success, integrate the minimum required C chain into PS5-BT,
+1. The pinned reference is built: see the
+   [recipe and concrete run scope](../experiments/hearbridge-reference/README.md).
+   It retains competing system USB reads, timed credit fallback, event-mask/SSP
+   and conditional scan-setting writes, plus SDK stock own-process permissions.
+   These details require an explicit execution-scope decision. Do not silently
+   deploy/run either the stock baseline or candidate, or claim safe coexistence.
+2. If admitted in a current hardware window, select/pair XM4 and hear the
+   default generated tone, which now works independently of capture. Within the
+   same short media window, turning tone off attempts game/system capture once.
+   Record the first failed stage or audible result, disconnect/stop and controller
+   behavior; collect immediately. Do not restart the directory probes.
+3. After reference success, integrate the minimum required C chain into PS5-BT,
    retaining working interfaces until an actual playback comparison justifies
    Rust substitution or an optimization. Assess latency/stability afterward.
 
 The strict ownership path remains a research/development blocker if the reference
 mechanisms are not admitted; no fast-completion promise is justified in that case.
 Initial reference sound and production safety/stability are separate outcomes.
+
+## Prepared reference — 2026-10-27, not uploaded or executed
+
+- HearBridge pin `cd5b7fce1b8226d8850cdd306437550098c6a62b`; SDK v0.43 pin
+  `d9c9519116944a7f1c22d262012c53b80b3520b7`; LLVM 18.1.8, built from source.
+- Kit: `build/reference/first-audio-candidate`; `manifest.json` records exact
+  patch/source/ELF hashes. ELF: `hearbridge/dist/PS5-BT-HearBridge-reference-1.3.6.elf`,
+  726,992 bytes, SHA-256 `21edbfce50f77292dad90fa245d37b56119975db83cc881dceef0d80df32d9c9`.
+- Fresh-source patch application, target link/import check (71 allowed imports),
+  host control tests including six gateway checks, and stop/deadline/clock tests
+  passed. Existing SDK warnings and unused disabled helper warnings remain;
+  no full Rust suite was run because the product Rust code was not changed.
+- Independent process/state; fresh `/data/ps5-bt-hb-reference` mkdir 0700 must
+  succeed. Existing state is preserved and stops startup. Private `access.json`
+  supplies UI login; never upload it or collect bond files with logs.
+- Cooperative ceiling 180 s after stop initialization; immutable media ceiling
+  30 s. Stop on failure; no outer reconnect. Blocking native calls/joins can
+  overrun. Cleanup uncertainty is reported, not called a clean exit.
+- Primary log: `/data/ps5-bt-hb-reference/hearbridge.log`; also retain diag.txt
+  and status.txt if present. No headset result, capture-format acceptance or
+  comparative performance improvement is established.
 
 ## Current console and retained evidence
 

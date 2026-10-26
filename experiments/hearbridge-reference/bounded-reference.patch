@@ -1,0 +1,1344 @@
+diff --git a/ps5.mk b/ps5.mk
+index b58aef0..ff503e9 100644
+--- a/ps5.mk
++++ b/ps5.mk
+@@ -3,7 +3,7 @@
+ include $(PS5_PAYLOAD_SDK)/toolchain/prospero.mk
+ 
+ VERSION := $(shell sed -n 's/^\#define HEARBRIDGE_VERSION "\(.*\)"/\1/p' src/version.h)
+-ELF   := dist/HearBridge-$(VERSION).elf
++ELF   := dist/PS5-BT-HearBridge-reference-$(VERSION).elf
+ BUILD ?= build/ps5
+ 
+ CFLAGS  := -std=c11 -Wall -Wextra -O2 -Isrc -Isrc/bt -Isrc/a2dp
+diff --git a/src/a2dp/a2dp.c b/src/a2dp/a2dp.c
+index f49579e..4e5baf6 100644
+--- a/src/a2dp/a2dp.c
++++ b/src/a2dp/a2dp.c
+@@ -628,7 +628,7 @@ static int inquiry_scan_off(a2dp_session *s, a2dp_inq_dev *out, int max, int *nf
+ 
+ /* ---- sink pick + Classic SSP pair (Core Vol 3 Part C 5.2.2) ------------ */
+ 
+-#define HEADSET_INI "/data/hearbridge/headset.ini"
++#define HEADSET_INI "/data/ps5-bt-hb-reference/headset.ini"
+ #define T_PAIR_CONN_MS    8000
+ #define T_PAIR_SETUP_MS  10000
+ 
+diff --git a/src/a2dp/a2dp.h b/src/a2dp/a2dp.h
+index aa1bee3..44e4b5d 100644
+--- a/src/a2dp/a2dp.h
++++ b/src/a2dp/a2dp.h
+@@ -80,7 +80,7 @@ int a2dp_pick_sink(const a2dp_inq_dev *found, int n,
+                    const unsigned char prefer_addr[6]);
+ 
+ /* Create ACL + SSP auth/encrypt (Secure Simple Pairing, Core Vol 3 Part C). Stores link
+- * key under /data/hearbridge/headset.ini on success. Disconnects after.
++ * key under /data/ps5-bt-hb-reference/headset.ini on success. Disconnects after.
+  * SDP / AVDTP / SBC are NOT done here. Returns 1 on encrypt+key OK. */
+ int a2dp_pair(a2dp_session *s, const a2dp_inq_dev *target, a2dp_pair_result *out);
+ /* Set: a successful pair leaves the encrypted ACL up (out->handle) for
+diff --git a/src/a2dp/headset_ini.h b/src/a2dp/headset_ini.h
+index e1ff490..2557c6a 100644
+--- a/src/a2dp/headset_ini.h
++++ b/src/a2dp/headset_ini.h
+@@ -3,7 +3,7 @@
+ 
+ #include <stdint.h>
+ 
+-#define HEADSET_INI_PATH "/data/hearbridge/headset.ini"
++#define HEADSET_INI_PATH "/data/ps5-bt-hb-reference/headset.ini"
+ #define HEADSET_NAME_MAX 64
+ 
+ typedef struct {
+diff --git a/src/a2dp/paired.h b/src/a2dp/paired.h
+index c3add77..ca50966 100644
+--- a/src/a2dp/paired.h
++++ b/src/a2dp/paired.h
+@@ -1,5 +1,5 @@
+ /* Developed by X-F1REBALL-X.
+- * The list of paired headsets (/data/hearbridge/paired.ini), newest first.
++ * The list of paired headsets (/data/ps5-bt-hb-reference/paired.ini), newest first.
+  * headset.ini keeps holding the one in use, so older files keep working. */
+ #ifndef HB_PAIRED_H
+ #define HB_PAIRED_H
+diff --git a/src/avcap2.c b/src/avcap2.c
+index 869e6f6..86bcf2b 100644
+--- a/src/avcap2.c
++++ b/src/avcap2.c
+@@ -54,6 +54,9 @@ typedef int (*fn_Start)(int64_t handle);
+ typedef int (*fn_Stop)(int64_t handle);
+ typedef int (*fn_Read)(int64_t handle, void *buf, size_t buflen, void *out_meta, int flag);
+ 
++static int g_cleanup_unknown;
++int avcap2_cleanup_unknown(void) { return g_cleanup_unknown; }
++
+ static int resolve_libkernel(uint32_t *out)
+ {
+     static const char *names[] = {
+@@ -158,6 +161,7 @@ static int open_and_start(fn_Init Init, fn_Term Term, fn_Open Open, fn_Close Clo
+     int64_t handle = 0;
+     int rv;
+ 
++    if (auth_mode != 0) return -1; /* Reference never elevates capture credentials. */
+     if (auth_mode == 1)
+         elevate(AUTHID_AVCAP2);
+     else if (auth_mode == 2)
+@@ -170,17 +174,9 @@ static int open_and_start(fn_Init Init, fn_Term Term, fn_Open Open, fn_Close Clo
+     rv = Init();
+     log_line("avcap2: Initialize -> %#x", (unsigned)rv);
+     if (rv != 0) {
+-        if (Term) {
+-            log_line("avcap2: before Terminate (Init failed, clear)");
+-            log_line("avcap2: Terminate -> %#x", (unsigned)Term());
+-        }
+-        log_line("avcap2: before Initialize (retry)");
+-        rv = Init();
+-        log_line("avcap2: Initialize (retry) -> %#x", (unsigned)rv);
+-        if (rv != 0) {
+-            diag_set("audio open", "auth_mode %d: sceAvcap2Initialize failed %#x", auth_mode, (unsigned)rv);
+-            return rv;
+-        }
++        diag_set("audio open", "Initialize failed %#x; no retry", (unsigned)rv);
++        g_cleanup_unknown = 1; /* No acquired-init contract proves quiescence. */
++        return rv;
+     }
+ 
+     fill_open_param(open_param);
+@@ -194,10 +190,9 @@ static int open_and_start(fn_Init Init, fn_Term Term, fn_Open Open, fn_Close Clo
+     diag_set("audio open", "auth_mode %d: Initialize ok, OpenAudio rv %#x handle %#llx",
+              auth_mode, (unsigned)rv, (unsigned long long)handle);
+     if (rv != 0 || handle == 0) {
+-        if (Term) {
+-            log_line("avcap2: before Terminate (Open failed)");
+-            log_line("avcap2: Terminate -> %#x", (unsigned)Term());
+-        }
++        int term = Term ? Term() : -1;
++        log_line("reference capture cleanup after Open failure: term=%#x", term);
++        if (term || handle != 0 || rv == 0) g_cleanup_unknown = 1;
+         return rv != 0 ? rv : -1;
+     }
+ 
+@@ -205,12 +200,9 @@ static int open_and_start(fn_Init Init, fn_Term Term, fn_Open Open, fn_Close Clo
+     rv = Start(handle);
+     log_line("avcap2: Start -> %#x", (unsigned)rv);
+     if (rv != 0) {
+-        diag_set("audio open", "auth_mode %d: Start failed %#x", auth_mode, (unsigned)rv);
+-        Close(handle);
+-        if (Term) {
+-            log_line("avcap2: before Terminate (Start failed)");
+-            log_line("avcap2: Terminate -> %#x", (unsigned)Term());
+-        }
++        int closed = Close(handle), term = Term ? Term() : -1;
++        log_line("reference capture cleanup after Start failure: close=%#x term=%#x", closed, term);
++        if (closed || term) g_cleanup_unknown = 1;
+         return rv;
+     }
+ 
+@@ -308,6 +300,7 @@ avcap2_session *avcap2_session_open(void)
+     fn_LoadStart LoadStart = NULL;
+     int mode, opened = 0;
+ 
++    if (g_cleanup_unknown) return NULL;
+     s = calloc(1, sizeof *s);
+     if (!s) return NULL;
+ 
+@@ -333,7 +326,7 @@ avcap2_session *avcap2_session_open(void)
+     s->Start = (fn_Start)kernel_dynlib_resolve(-1, ah, NID_Avcap2Start);
+     s->Stop  = (fn_Stop)kernel_dynlib_resolve(-1, ah, NID_Avcap2Stop);
+     s->Read  = (fn_Read)kernel_dynlib_resolve(-1, ah, NID_Avcap2ReadAudio);
+-    if (!s->Init || !s->Open || !s->Start || !s->Read || !s->Stop || !s->Close) {
++    if (!s->Term || !s->Init || !s->Open || !s->Start || !s->Read || !s->Stop || !s->Close) {
+         log_line("avcap2: missing NIDs");
+         diag_set("audio session", "FAILED: Avcap2 functions missing");
+         (void)diag_save();
+@@ -343,7 +336,7 @@ avcap2_session *avcap2_session_open(void)
+     s->buf = (float *)malloc((size_t)READ_BYTES);
+     if (!s->buf) { free(s); return NULL; }
+ 
+-    for (mode = 0; mode <= 2; mode++) {
++    for (mode = 0; mode <= 0; mode++) {
+         if (open_and_start(s->Init, s->Term, s->Open, s->Close, s->Start,
+                            &s->handle, mode) == 0 && s->handle) {
+             s->auth_mode = mode;
+@@ -356,8 +349,8 @@ avcap2_session *avcap2_session_open(void)
+         log_line("avcap2: session Open/Start failed");
+         diag_set("audio session", "FAILED: Open/Start failed in every auth mode");
+         (void)diag_save();
+-        free(s->buf);
+-        free(s);
++        if (!g_cleanup_unknown) { free(s->buf); free(s); }
++        else log_line("reference capture open quiescence UNKNOWN; backing retained");
+         return NULL;
+     }
+     s->read_flag = 1;
+@@ -373,13 +366,21 @@ avcap2_session *avcap2_session_open(void)
+ 
+ void avcap2_session_close(avcap2_session *s)
+ {
++    int stop = 0, closed = 0, term = 0;
+     if (!s) return;
+     if (s->handle) {
+-        s->Stop(s->handle);
+-        s->Close(s->handle);
+-        s->handle = 0;
++        int64_t handle = s->handle;
++        s->handle = 0; /* consume once */
++        stop = s->Stop(handle);
++        closed = s->Close(handle);
++    }
++    if (s->Term) term = s->Term();
++    log_line("reference capture cleanup: stop=%#x close=%#x term=%#x", stop, closed, term);
++    if (stop || closed || term) {
++        g_cleanup_unknown = 1;
++        log_line("reference capture: quiescence UNKNOWN; retaining backing memory");
++        return;
+     }
+-    if (s->Term) s->Term();
+     free(s->buf);
+     free(s);
+ }
+@@ -510,7 +511,7 @@ int avcap2_session_read_s16(avcap2_session *s, int16_t *out, int max_frames,
+             log_line("avcap2: Read INVALID #%llu %#x",
+                      (unsigned long long)s->reads_invalid, (unsigned)got);
+         if (now - s->last_ok_ms > 800 && now - s->last_restart_ms > 800 &&
+-            s->restarts < 3) {
++            0 && s->restarts < 3) {
+             s->restarts++;
+             s->last_restart_ms = now;
+             if (s->restarts == 2) s->read_flag = 0;
+diff --git a/src/avcap2.h b/src/avcap2.h
+index f4155b1..2e858db 100644
+--- a/src/avcap2.h
++++ b/src/avcap2.h
+@@ -13,6 +13,7 @@ typedef struct avcap2_session avcap2_session;
+ 
+ avcap2_session *avcap2_session_open(void);
+ void            avcap2_session_close(avcap2_session *s);
++int avcap2_cleanup_unknown(void);
+ 
+ /* Diagnostics only: load libSceIpmi/libSceAvcap2 and check that the Avcap2
+  * functions resolve (no capture is started). Results go to diag.h.
+diff --git a/src/backup.h b/src/backup.h
+index ea4b9c2..03d8ec7 100644
+--- a/src/backup.h
++++ b/src/backup.h
+@@ -2,13 +2,13 @@
+  * (paired.ini + headset.ini, link keys included so they reconnect without
+  * pairing again), their settings (prefs/), the gain and the per-game
+  * profiles. Written to a USB drive (/mnt/usbN/hearbridge-backup) or the
+- * console (/data/hearbridge-backup) as hearbridge-YYYYMMDD-HHMMSS.json plus
++ * console (/data/ps5-bt-hb-reference-backup) as hearbridge-YYYYMMDD-HHMMSS.json plus
+  * hearbridge-latest.json; index.txt lists them, newest first (the payload
+  * has no directory listing). Developed by X-F1REBALL-X. */
+ #ifndef HEARBRIDGE_BACKUP_H
+ #define HEARBRIDGE_BACKUP_H
+ 
+-#define HB_BACKUP_INTERNAL "/data/hearbridge-backup"
++#define HB_BACKUP_INTERNAL "/data/ps5-bt-hb-reference-backup"
+ #define HB_BACKUP_SUB      "hearbridge-backup"
+ #define HB_BACKUP_LATEST   "hearbridge-latest.json"
+ #define HB_BACKUP_KEEP     20
+diff --git a/src/bt/blocklist.h b/src/bt/blocklist.h
+index 59e8bbb..eb92d01 100644
+--- a/src/bt/blocklist.h
++++ b/src/bt/blocklist.h
+@@ -1,14 +1,14 @@
+ /* Manual Bluetooth address blocklist (#34). A blocked address is always left
+  * to the system: never paged, accepted, paired or listed by HearBridge, and
+  * its Connection Request makes us stop reading the shared pipes for a while
+- * (hci_usb_yield). Saved in /data/hearbridge/blocked.txt, one
++ * (hci_usb_yield). Saved in /data/ps5-bt-hb-reference/blocked.txt, one
+  * "XX:XX:XX:XX:XX:XX manual|auto|allow" per line. Thread safe (page thread + stream loop).
+  * Developed by X-F1REBALL-X. */
+ #ifndef HEARBRIDGE_BLOCKLIST_H
+ #define HEARBRIDGE_BLOCKLIST_H
+ 
+ #define HB_BLOCK_MAX  16
+-#define HB_BLOCK_PATH "/data/hearbridge/blocked.txt"
++#define HB_BLOCK_PATH "/data/ps5-bt-hb-reference/blocked.txt"
+ 
+ /* Load from path (NULL: HB_BLOCK_PATH). Returns the count loaded. */
+ int  hb_block_load(const char *path);
+diff --git a/src/bt/btchip.h b/src/bt/btchip.h
+index 2ea4a6a..678825b 100644
+--- a/src/bt/btchip.h
++++ b/src/bt/btchip.h
+@@ -25,7 +25,7 @@ void btchip_describe(int vid, int pid, char *out, int cap);
+  * behaviour 1.1.0 had. */
+ enum { BTCHIP_PROFILE_DEFAULT = 0, BTCHIP_PROFILE_MEDIATEK = 1 };
+ 
+-/* Override from /data/hearbridge/chip: "mediatek"/"mtk" -> MEDIATEK,
++/* Override from /data/ps5-bt-hb-reference/chip: "mediatek"/"mtk" -> MEDIATEK,
+  * "marvell"/"nxp"/"default" -> DEFAULT, anything else (or NULL) -> -1
+  * (none). Leading/trailing blanks and case are ignored. */
+ int btchip_parse_override(const char *text);
+diff --git a/src/bt/hci_usb.c b/src/bt/hci_usb.c
+index c303f5b..8e4e842 100644
+--- a/src/bt/hci_usb.c
++++ b/src/bt/hci_usb.c
+@@ -38,6 +38,9 @@
+ #include "btchip.h"
+ #include "txpath.h"
+ 
++static int g_cleanup_unknown;
++int hci_usb_cleanup_unknown(void) { return g_cleanup_unknown; }
++
+ enum {
+     RING_DEPTH      = 64,
+     /* The system stack reads the same endpoints; whoever has a transfer
+@@ -217,7 +220,11 @@ static void slot_abort(struct usb_hci *u, int idx)
+     struct usb_fs_stop sp;
+     if (!u->sl[idx].busy) return;
+     sp.ep_index = (uint8_t)idx;
+-    (void)ioctl(u->fd, USB_FS_STOP, &sp);
++    if (ioctl(u->fd, USB_FS_STOP, &sp) < 0) {
++        g_cleanup_unknown = 1;
++        log_line("reference USB STOP slot %d failed errno=%d; cleanup UNKNOWN", idx, errno);
++        hb_stop_request();
++    }
+     u->sl[idx].busy = 0;
+ }
+ 
+@@ -597,18 +604,34 @@ static void op_close(void *self)
+     if (!u) return;
+     if (g_open == u) g_open = NULL;
+     if (u->fd >= 0) {
++        int fd = u->fd;
+         for (i = 0; i < SLOT_COUNT; i++) {
+             struct usb_fs_close cl;
+             slot_abort(u, i);
+             if (!u->sl[i].open) continue;
++            u->sl[i].open = 0;
+             cl.ep_index = (uint8_t)i;
+-            (void)ioctl(u->fd, USB_FS_CLOSE, &cl);
++            if (ioctl(fd, USB_FS_CLOSE, &cl) < 0) {
++                g_cleanup_unknown = 1;
++                log_line("reference USB CLOSE slot %d failed errno=%d", i, errno);
++            }
+         }
+         memset(&un, 0, sizeof un);
+-        (void)ioctl(u->fd, USB_FS_UNINIT, &un);
+-        close(u->fd);
++        if (ioctl(fd, USB_FS_UNINIT, &un) < 0) {
++            g_cleanup_unknown = 1;
++            log_line("reference USB UNINIT failed errno=%d", errno);
++        }
++        u->fd = -1;
++        if (close(fd) != 0) {
++            g_cleanup_unknown = 1;
++            log_line("reference USB close failed errno=%d", errno);
++        }
+     }
+-    log_line("hci_usb: released %s", u->node);
++    if (g_cleanup_unknown) {
++        log_line("reference USB quiescence UNKNOWN; retaining backing memory");
++        return;
++    }
++    log_line("reference USB cleanup calls acknowledged");
+     free(u);
+ }
+ 
+@@ -780,15 +803,16 @@ fail:
+         struct usb_fs_close cl;
+         if (!u->sl[i].open) continue;
+         cl.ep_index = (uint8_t)i;
+-        (void)ioctl(u->fd, USB_FS_CLOSE, &cl);
++        if (ioctl(u->fd, USB_FS_CLOSE, &cl) < 0) g_cleanup_unknown = 1;
+     }
+     if (inited) {
+         struct usb_fs_uninit un;
+         memset(&un, 0, sizeof un);
+-        (void)ioctl(u->fd, USB_FS_UNINIT, &un);
++        if (ioctl(u->fd, USB_FS_UNINIT, &un) < 0) g_cleanup_unknown = 1;
+     }
+-    close(u->fd);
++    if (close(u->fd) != 0) g_cleanup_unknown = 1;
+     u->fd = -1;
++    if (g_cleanup_unknown) { hb_stop_request(); return 0; }
+     memset(u->sl, 0, sizeof u->sl);
+     memset(u->fsep, 0, sizeof u->fsep);
+     return (e == ENOMEM || e == EBUSY) ? -1 : 0;
+@@ -807,7 +831,7 @@ int hci_usb_open(hci_t *out)
+     size_t i;
+     long until = now_ms() + HCI_BUSY_RETRY_MS;
+     int tries = 0;
+-    if (!out) return 0;
++    if (!out || g_cleanup_unknown) return 0;
+     memset(out, 0, sizeof *out);
+     u = calloc(1, sizeof *u);
+     if (!u) return 0;
+@@ -836,7 +860,7 @@ int hci_usb_open(hci_t *out)
+         tries++;
+         usleep(500 * 1000);
+     }
+-    free(u);
++    if (!g_cleanup_unknown) free(u);
+     diag_set("bt controller", "NOT FOUND: no Bluetooth controller at /dev/ugen0.2, 0.3, 1.2 or 0.1 could be used");
+     return 0;
+ }
+diff --git a/src/bt/hci_usb.h b/src/bt/hci_usb.h
+index 5aff0ee..8d423eb 100644
+--- a/src/bt/hci_usb.h
++++ b/src/bt/hci_usb.h
+@@ -13,6 +13,7 @@
+ /* Find and open the controller, filling *out on success.
+  * Returns 1 on success, 0 on failure (out is left zeroed). */
+ int hci_usb_open(hci_t *out);
++int hci_usb_cleanup_unknown(void);
+ 
+ /* USB VID:PID of the opened controller (see btchip.h for the vendor).
+  * Returns 1 once hci_usb_open() succeeded, else 0 with both set to -1. */
+diff --git a/src/bt/hcidbg.h b/src/bt/hcidbg.h
+index aeb4f1a..422dc6f 100644
+--- a/src/bt/hcidbg.h
++++ b/src/bt/hcidbg.h
+@@ -10,7 +10,7 @@
+ 
+ #include "hci.h"
+ 
+-/* Off unless /data/hearbridge/hci_debug exists at start-up (main.c). */
++/* Off unless /data/ps5-bt-hb-reference/hci_debug exists at start-up (main.c). */
+ void hcidbg_enable(void);
+ int  hcidbg_enabled(void);
+ 
+diff --git a/src/ctl.c b/src/ctl.c
+index 4379748..e454ead 100644
+--- a/src/ctl.c
++++ b/src/ctl.c
+@@ -19,16 +19,8 @@ long ctl_uptime_s(const hb_ctl *c) { return mono_s() - c->t0_s; }
+ 
+ hb_ctl g_ctl;
+ 
+-static uint64_t mix64(uint64_t x)
+-{
+-    x ^= x >> 30; x *= 0xbf58476d1ce4e5b9ULL;
+-    x ^= x >> 27; x *= 0x94d049bb133111ebULL;
+-    return x ^ (x >> 31);
+-}
+-
+ void ctl_new_token(hb_ctl *c)
+ {
+-    static uint64_t counter;
+     unsigned char b[HB_TOKEN_LEN / 2];
+     size_t got = 0;
+     int i;
+@@ -39,22 +31,13 @@ void ctl_new_token(hb_ctl *c)
+         fclose(f);
+     }
+     if (got != sizeof b) {
+-        /* No /dev/urandom: not cryptographic, but unguessable enough for a
+-         * LAN page (clock nanoseconds, pid, stack address, call count). */
+-        struct timespec rt, mt;
+-        uint64_t s;
+-        clock_gettime(CLOCK_REALTIME, &rt);
+-        clock_gettime(CLOCK_MONOTONIC, &mt);
+-        s = (uint64_t)rt.tv_sec * 1000000007ULL ^ (uint64_t)rt.tv_nsec ^
+-            ((uint64_t)mt.tv_nsec << 21) ^ ((uint64_t)getpid() << 40) ^
+-            (uint64_t)(uintptr_t)&s ^ ++counter;
+-        for (i = 0; i < (int)sizeof b; i++) {
+-            if (!(i % 8)) s = mix64(s + 0x9e3779b97f4a7c15ULL);
+-            b[i] = (unsigned char)(s >> (8 * (i % 8)));
+-        }
++        memset(b, 0, sizeof b);
++        c->token[0] = 0;
++        return;
+     }
+     for (i = 0; i < (int)sizeof b; i++)
+         snprintf(c->token + 2 * i, 3, "%02x", b[i]);
++    memset(b, 0, sizeof b);
+ }
+ 
+ void ctl_init(hb_ctl *c, const char *version)
+@@ -62,6 +45,7 @@ void ctl_init(hb_ctl *c, const char *version)
+     memset(c, 0, sizeof *c);
+     pthread_mutex_init(&c->mu, NULL);
+     c->gain_pct = HB_GAIN_DEFAULT_PCT;
++    c->tone = 1; /* First audible reference is generated tone, not unverified capture. */
+     c->req_hs_volume = -1;
+     c->hs_volume = -1;
+     c->key_vol = 1;
+@@ -73,7 +57,7 @@ void ctl_init(hb_ctl *c, const char *version)
+     c->link_rssi = 127;
+     c->link_lq = -1;
+     c->link_score = -1;
+-    strcpy(c->state_dir, "/data/hearbridge");
++    strcpy(c->state_dir, "/data/ps5-bt-hb-reference");
+     strcpy(c->mnt_root, "/mnt");
+     c->latency_ms = HB_QUEUE_LOW_MS;
+     c->latency_auto = 1;
+diff --git a/src/ctl.h b/src/ctl.h
+index 6e53683..0354a8a 100644
+--- a/src/ctl.h
++++ b/src/ctl.h
+@@ -104,7 +104,7 @@ typedef struct {
+     int lat_normal_ms;     /* last delay estimate at the default 200 ms target, 0 none */
+     /* backup / restore */
+     int req_reload;        /* restore wrote new settings: reload them */
+-    char state_dir[64];    /* /data/hearbridge (tests point it elsewhere) */
++    char state_dir[64];    /* /data/ps5-bt-hb-reference (tests point it elsewhere) */
+     char mnt_root[32];     /* /mnt (USB drives at <mnt_root>/usbN) */
+     long t0_s;             /* monotonic seconds at ctl_init (uptime base) */
+ } hb_ctl;
+diff --git a/src/diag.h b/src/diag.h
+index 7cd4559..ebb5702 100644
+--- a/src/diag.h
++++ b/src/diag.h
+@@ -3,7 +3,7 @@
+  * Collected while HearBridge starts (firmware, model, credentials, every
+  * step of the home-screen tile, USB devices, audio libraries) and kept in
+  * memory so the web server can return it at /api/diag. diag_save() also
+- * writes it to a file (/data/hearbridge/diag.txt on the console) so it can
++ * writes it to a file (/data/ps5-bt-hb-reference/diag.txt on the console) so it can
+  * be fetched over FTP when the page does not open.
+  * Thread-safe. Developed by X-F1REBALL-X. */
+ #ifndef HEARBRIDGE_DIAG_H
+diff --git a/src/gameprof.h b/src/gameprof.h
+index 4ad7f0a..b3599f3 100644
+--- a/src/gameprof.h
++++ b/src/gameprof.h
+@@ -1,12 +1,12 @@
+ /* Per-game audio profile: EQ, boost and headset volume saved for one game
+  * (title id like PPSA01234), applied while that game runs and dropped back
+  * to the headset's own settings when it closes. One text file,
+- * /data/hearbridge/games.txt, one line per game. Pure (no system calls),
++ * /data/ps5-bt-hb-reference/games.txt, one line per game. Pure (no system calls),
+  * the console side is game_sys.c. Developed by X-F1REBALL-X. */
+ #ifndef HEARBRIDGE_GAMEPROF_H
+ #define HEARBRIDGE_GAMEPROF_H
+ 
+-#define HB_GAMES_PATH "/data/hearbridge/games.txt"
++#define HB_GAMES_PATH "/data/ps5-bt-hb-reference/games.txt"
+ #define HB_GAME_MAX    32                          /* games */
+ #define HB_GAME_HS_MAX 4                           /* headsets per game */
+ #define HB_GPROF_MAX   (HB_GAME_MAX * HB_GAME_HS_MAX)
+diff --git a/src/hsprefs.h b/src/hsprefs.h
+index dceb0e3..8f06acb 100644
+--- a/src/hsprefs.h
++++ b/src/hsprefs.h
+@@ -1,10 +1,10 @@
+ /* Per-headset settings (codec, latency target, equalizer), one small text
+- * file per Bluetooth address under /data/hearbridge/prefs/.
++ * file per Bluetooth address under /data/ps5-bt-hb-reference/prefs/.
+  * Parsing and formatting are pure so the host tests cover them. */
+ #ifndef HEARBRIDGE_HSPREFS_H
+ #define HEARBRIDGE_HSPREFS_H
+ 
+-#define HB_PREFS_DIR "/data/hearbridge/prefs"
++#define HB_PREFS_DIR "/data/ps5-bt-hb-reference/prefs"
+ 
+ enum { HB_CODEC_AUTO = 0, HB_CODEC_SBC = 1, HB_CODEC_SBC_HQ = 2, HB_CODEC_SBC_XQ = 3, HB_CODEC_N };
+ 
+diff --git a/src/http.c b/src/http.c
+index 0797ef5..a3d3b3e 100644
+--- a/src/http.c
++++ b/src/http.c
+@@ -23,6 +23,8 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <time.h>
++#include "reference_secret.h"
++_Static_assert(sizeof(HB_REF_BASIC_AUTH) > 7, "private Basic credential required");
+ 
+ /* ---- request handling (pure) ----------------------------------------- */
+ 
+@@ -100,6 +102,49 @@ static int token_ok(const char *got, const char *want)
+     return d == 0;
+ }
+ 
++/* Isolated reference: authenticate every network resource before routing.
++ * The private generated header is deliberately absent from the reusable patch.
++ */
++static int reference_reply(char *out, int max, int code)
++{
++    int n = snprintf(out, (size_t)max,
++        "HTTP/1.1 %d %s\r\n%sContent-Length: 0\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
++        code, code == 401 ? "Unauthorized" : code == 403 ? "Forbidden" : "Not Found",
++        code == 401 ? "WWW-Authenticate: Basic realm=\"PS5-BT reference\"\r\n" : "");
++    return n > 0 && n < max ? n : 0;
++}
++static int reference_origin(const char *value, const char *host)
++{
++    size_t n = strlen(host);
++    return !strncmp(value, "http://", 7) && !strncmp(value + 7, host, n) &&
++           (!value[7 + n] || value[7 + n] == '/');
++}
++int http_reference_gate(const char *req, int reqlen, char *out, int max)
++{
++    char auth[256], host[128], origin[256], method[8], path[128];
++    static const char *const reads[] = {"/", "/index.html", "/font.woff2", "/api/status", "/api/devices", "/api/saved", "/api/diag", "/api/blocked"};
++    static const char *const writes[] = {"/api/select", "/api/forget", "/api/scan", "/api/reconnect", "/api/connect", "/api/disconnect", "/api/volume", "/api/mute", "/api/tone", "/api/stop"};
++    int i = 0, j = 0, allowed = 0;
++    size_t k;
++    if (!header_value(req, reqlen, "Authorization", auth, sizeof auth) ||
++        !token_ok(auth, HB_REF_BASIC_AUTH)) return reference_reply(out, max, 401);
++    while (i < reqlen && req[i] != ' ' && j < (int)sizeof method - 1) method[j++] = req[i++];
++    method[j] = 0;
++    if (i >= reqlen || req[i++] != ' ') return reference_reply(out, max, 403);
++    j = 0;
++    while (i < reqlen && req[i] != ' ' && req[i] != '?' && j < (int)sizeof path - 1) path[j++] = req[i++];
++    path[j] = 0;
++    if (!strcmp(method, "GET")) {
++        for (k = 0; k < sizeof reads / sizeof reads[0]; k++) if (!strcmp(path, reads[k])) allowed = 1;
++    } else if (!strcmp(method, "POST")) {
++        for (k = 0; k < sizeof writes / sizeof writes[0]; k++) if (!strcmp(path, writes[k])) allowed = 1;
++        if (!header_value(req, reqlen, "Host", host, sizeof host) || !host[0]) return reference_reply(out, max, 403);
++        if (header_value(req, reqlen, "Origin", origin, sizeof origin) && !reference_origin(origin, host)) return reference_reply(out, max, 403);
++        if (header_value(req, reqlen, "Referer", origin, sizeof origin) && !reference_origin(origin, host)) return reference_reply(out, max, 403);
++    }
++    return allowed ? 0 : reference_reply(out, max, 404);
++}
++
+ static int is_write_path(const char *path)
+ {
+     static const char *const w[] = {
+@@ -867,7 +912,7 @@ static void console_ip(char *ip, size_t n)
+ static int send_all(int fd, const char *b, int n)
+ {
+     int off = 0;
+-    while (off < n) {
++    while (off < n && !hb_stop_requested()) {
+         int w = (int)send(fd, b + off, (size_t)(n - off), MSG_NOSIGNAL);
+         if (w <= 0) return -1;
+         off += w;
+@@ -910,7 +955,7 @@ static void serve_one(int fd)
+ #ifdef SO_NOSIGPIPE
+     { int one = 1; setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof one); }
+ #endif
+-    while (got < (int)sizeof req - 1) {
++    while (got < (int)sizeof req - 1 && !hb_stop_requested()) {
+         n = (int)recv(fd, req + got, sizeof req - 1 - (size_t)got, 0);
+         if (n <= 0) break;
+         got += n;
+@@ -928,11 +973,9 @@ static void serve_one(int fd)
+         }
+         if (need >= 0 && got >= need) break;
+     }
+-    if (got <= 0) return;
+-    {
+-        char gid[16];
+-        if (http_gameicon_id(req, got, gid, sizeof gid) && send_gameicon(fd, gid)) return;
+-    }
++    if (got <= 0 || hb_stop_requested()) return;
++    n = http_reference_gate(req, got, out, (int)sizeof out);
++    if (n) { (void)send_all(fd, out, n); return; }
+     n = http_handle(g_c, req, got, out, (int)sizeof out);
+     {
+         int stop;
+@@ -943,7 +986,7 @@ static void serve_one(int fd)
+     }
+     {
+         int off = 0;
+-        while (off < n) {
++        while (off < n && !hb_stop_requested()) {
+             int w = (int)send(fd, out + off, (size_t)(n - off), MSG_NOSIGNAL);
+             if (w <= 0) break;
+             off += w;
+@@ -1014,7 +1057,7 @@ static void *srv_main(void *arg)
+     int errs = 0;
+     (void)arg;
+     console_ip(last_ip, sizeof last_ip);
+-    while (!g_quit) {
++    while (!g_quit && !hb_stop_requested()) {
+         fd_set rs;
+         struct timeval tv = { 0, 500000 };
+         int fd, r;
+diff --git a/src/http.h b/src/http.h
+index 67da1b4..95a275d 100644
+--- a/src/http.h
++++ b/src/http.h
+@@ -19,6 +19,8 @@
+ /* 1 when req is "GET /api/gameicon?id=<title id>" (id copied out). */
+ int http_gameicon_id(const char *req, int reqlen, char *id, int idmax);
+ 
++int http_reference_gate(const char *req, int reqlen, char *out, int max);
++
+ int http_handle(hb_ctl *c, const char *req, int reqlen, char *out, int max);
+ 
+ /* Start the server thread on HB_HTTP_PORT (tries the next few ports if
+diff --git a/src/main.c b/src/main.c
+index a80e716..28eee2e 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -6,7 +6,7 @@
+  * stop file appears; reconnects when the link drops.
+  *
+  * Shares the controller with the system stack (never resets it).
+- * Stop: create /data/hearbridge/stop (polled every ~500 ms).
++ * Stop: create /data/ps5-bt-hb-reference/stop (polled every ~500 ms).
+  * Headphones/speaker: pairing mode for first use; powered on afterwards.
+  * Developed by X-F1REBALL-X.
+  */
+@@ -69,7 +69,7 @@
+ #include <string.h>
+ #include <unistd.h>
+ 
+-#define STATE_DIR "/data/hearbridge"
++#define STATE_DIR "/data/ps5-bt-hb-reference"
+ #define LOG_PATH  STATE_DIR "/hearbridge.log"
+ #define LOCK_PATH STATE_DIR "/hearbridge.lock"
+ #define TONE_PATH STATE_DIR "/tone"          /* exists → 1 kHz test tone */
+@@ -974,7 +974,7 @@ static int try_device_(a2dp_session *asess, hci_t hci, const a2dp_inq_dev *d,
+                 if (pr2 < 0) return 0;                                /* k freed */  /* k freed */
+             }
+         }
+-        /* SDP did not work on the kept link: close it, page as before. */
++        /* Reference stops this failed paired-link attempt without re-paging. */
+         log_line("select: SDP on the pairing link failed (%d) — closing it and paging", sdp);
+         if (k) {
+             if (btlink_is_up(k)) btlink_disconnect(k);
+@@ -982,10 +982,8 @@ static int try_device_(a2dp_session *asess, hci_t hci, const a2dp_inq_dev *d,
+              * are reused controller-wide, never close one blindly */
+             btlink_destroy(k);
+         }
+-        {
+-            long w = now_ms() + 1000;
+-            while (now_ms() < w) idle_pump(hci, 50);
+-        }
++        write_status("error paired-link-setup");
++        return 0;
+     }
+     {
+         int r = connect_and_probe(hci, ini, linkp, psm, 45000);
+@@ -1514,8 +1512,9 @@ static int discover_and_select(a2dp_session *asess, hci_t hci, headset_ini *ini,
+             if (c.kind == CMD_RECONNECT) ok = try_all_saved(hci, ini, linkp, psm, HB_PAGE_MS, HB_PAGE_MS);
+             else ok = try_pick(asess, hci, &c, found, order, ncand, ini, linkp, psm);
+             if (ok) return 1;
+-            if (c.kind != CMD_ADDR) write_status("waiting-selection %d", ncand);
+-            else t_keep_err = now_ms();
++            log_line("reference: selected pairing/connection attempt failed; stopping");
++            hb_stop_request();
++            return 0;
+         }
+         if (!cmd_waiting()) {
+             idle_pump(hci, 100);
+@@ -2340,6 +2339,7 @@ static int run_session(a2dp_session *asess, hci_t hci, headset_ini *ini)
+     unsigned av_psm = 0, mtu;
+     int16_t pcm[PCM_CAP_FRAMES * 2];
+     int rc = RUN_FAIL, r = 0;
++    long reference_media_start = -1;
+     long t_start, t_stat, samples = 0, reads_ok = 0, reads_empty = 0;
+     double tone_phase = 0.0, sine_phase = 0.0;
+     float peak_seen = 0.f;
+@@ -2471,7 +2471,7 @@ static int run_session(a2dp_session *asess, hci_t hci, headset_ini *ini)
+                    ini->name[0] ? ini->name : "this device");
+             goto done;
+         }
+-        if (!av_ok && g_kept_link && !hb_stop_requested()) {
++        if (0 && !av_ok && g_kept_link && !hb_stop_requested()) {
+             /* Kept pairing link: AVDTP failed there — close, page, retry once. */
+             log_line("stream: AVDTP on the pairing link failed — closing it and paging");
+             btlink_disconnect(link);
+@@ -2534,11 +2534,7 @@ stream_setup:
+         goto done;
+     }
+ 
+-    if (!cap) cap = avcap2_session_open();
+-    if (!cap) {
+-        log_line("stream: Avcap2 open failed");
+-        goto done;
+-    }
++    /* Reference starts with generated tone; capture opens only on explicit toggle. */
+ 
+     memset(&pk, 0, sizeof pk);
+     hb_tune_init(&pk.tune);
+@@ -2581,9 +2577,9 @@ stream_setup:
+              "(adapts %d-%d)", mtu, pk.fsz, pk.per_pkt, sbc_encoder_bitpool(enc),
+              pk.rate.lo, pk.rate.hi);
+ 
+-    /* Debug only: create /data/hearbridge/media_dump to write the first
++    /* Debug only: create /data/ps5-bt-hb-reference/media_dump to write the first
+      * media payloads to media_dump.bin (checked with tests/decode_dump). */
+-    if (file_exists(DUMP_FLAG_PATH)) {
++    if (0 && file_exists(DUMP_FLAG_PATH)) {
+         if (avdtp_dump_open(&av, DUMP_PATH, DUMP_PKTS))
+             log_line("stream: dumping first %d media payloads to %s", DUMP_PKTS, DUMP_PATH);
+         else
+@@ -2636,6 +2632,7 @@ stream_setup:
+     xq_bad_s = xq_low_s = 0;
+     xq_drops = btlink_tx_dropped(link);
+     t_start = t_stat = now_ms();
++    if (reference_media_start < 0) reference_media_start = t_start;
+     memcpy(g_stream_addr, ini->addr, 6);
+     g_switch_req = 0;
+     g_stream_up = 1;
+@@ -2646,6 +2643,10 @@ stream_setup:
+         float peak = 0.f;
+         long now, ahead_ms;
+ 
++        if (now_ms() - reference_media_start >= 30000) {
++            log_line("reference: 30-second media observation complete; stopping");
++            hb_stop_request();
++        }
+         if (hb_stop_requested()) { rc = RUN_STOP; break; }
+         if (btlink_pump(link, 1) < 0 || !btlink_is_up(link)) {
+             /* 0x13 remote user: buds went in the case or were switched
+@@ -2869,9 +2870,21 @@ stream_setup:
+             t_start = now - samples * 1000L / scfg.sample_rate;
+         }
+ 
+-        nframes = avcap2_session_read_s16(cap, pcm, PCM_CAP_FRAMES, &peak);
++        if (tone) nframes = PCM_CAP_FRAMES / 4;
++        else {
++            if (!cap) {
++                cap = avcap2_session_open();
++                if (!cap) {
++                    log_line("reference: requested capture open failed; no retry");
++                    rc = RUN_FAIL;
++                    break;
++                }
++            }
++            nframes = avcap2_session_read_s16(cap, pcm, PCM_CAP_FRAMES, &peak);
++            if (nframes < 0) { rc = RUN_FAIL; break; }
++        }
+         if (nframes > 0) {
+-            reads_ok++;
++            if (!tone) reads_ok++;
+             if (peak > peak_seen) peak_seen = peak;
+         } else {
+             /* No capture data: keep the clock running with silence, only
+@@ -3316,27 +3329,8 @@ done:
+  * process remove_tile (the running instance did that). */
+ static void home_tile(int second)
+ {
+-    if (!second && access(RM_TILE_PATH, F_OK) == 0) {
+-        tile_uninstall();
+-        (void)diag_save();
+-        unlink(RM_TILE_PATH);
+-        { FILE *f = fopen(NO_TILE_PATH, "w"); if (f) fclose(f); }
+-    } else if (access(NO_TILE_PATH, F_OK) != 0 && access(RM_TILE_PATH, F_OK) != 0) {
+-        char u[200] = "";
+-        tile_report tr;
+-        FILE *f = fopen(TILE_URL_PATH, "r");
+-        if (f) {
+-            if (!fgets(u, sizeof u, f)) u[0] = 0;
+-            fclose(f);
+-            u[strcspn(u, "\r\n ")] = 0;
+-            if (!strcmp(u, "start")) snprintf(u, sizeof u, "%s", HB_TILE_START_URL);
+-        }
+-        if (tile_install(u, &tr) != 0)
+-            notify("HearBridge: home-screen icon not added (%s, code %#x). Details: %s",
+-                   tr.failed ? tr.failed : "?", (unsigned)tr.code, second ? LOG_PATH : DIAG_PATH);
+-    } else {
+-        diag_set("tile", "disabled (%s exists)", NO_TILE_PATH);
+-    }
++    (void)second;
++    diag_set("tile", "disabled in bounded reference");
+ }
+ 
+ /* When Bluetooth cannot start, keep the web page (and
+@@ -3559,8 +3553,12 @@ int main(void)
+     hb_set_proc_name(HB_PROC_NAME);   /* "hearbridge.elf" in process lists, not payload.elf (#24) */
+     notify("HearBridge %s: starting", HEARBRIDGE_VERSION);
+ 
+-    if (mkdir(STATE_DIR, 0755) != 0 && errno != EEXIST) mk_errno = errno;
+-    unlink(DEVICES_JSON);      /* a list from an older run or build is stale */
++    /* First-run reference only: never reuse existing files or bond keys. */
++    umask(0077);
++    if (mkdir(STATE_DIR, 0700) != 0) {
++        notify("Reference: fresh state directory required; existing state preserved");
++        return 1;
++    }
+ 
+     /* Log first so a lock problem is written down too (a second instance
+      * only appends a few lines before it exits). */
+@@ -3595,49 +3593,14 @@ int main(void)
+     diag_set("hearbridge", "%s (one build for all firmwares, compiled %s)", HEARBRIDGE_VERSION,
+              __DATE__);
+     if (prev_tail[0]) diag_set("previous run ended with", "%s", prev_tail);
+-    /* A newly sent ELF always wins, whatever version is running (same
+-     * one included): the old instance is asked to stop (stop file +
+-     * SIGTERM; it closes the headset, the page and the Bluetooth device),
+-     * killed if it has not stopped after 10 s, and this one starts. */
+-    {
+-        long old_pid = 0;
+-        lock_rc = lock_take_over(LOCK_PATH, HB_STOP_PATH, 10000, 3000, &lock_errno, &old_pid);
+-        if (old_pid && lock_rc != LOCK_BUSY) {
+-            /* The lock is free once its file is closed; the process may still
+-             * be releasing the USB device. Wait until it is really gone. */
+-            if (!hb_wait_pid_gone(old_pid, 5000))
+-                log_line("takeover: pid %ld still listed 5 s after it let go of the lock", old_pid);
+-        } else if (lock_rc != LOCK_BUSY) {
+-            /* No lock holder, but a copy may still run without one: its state
+-             * folder was deleted (#25), or it is from before 1.3.1 and has no
+-             * name of its own. Found by name, or by the page port it holds. */
+-            old_pid = hb_stop_named(HB_PROC_NAME, HB_STOP_PATH, 10000);
+-            if (hb_port_takeover(HB_HTTP_PORT, HB_STOP_PATH, 12000) > 0 && !old_pid) old_pid = -1;
+-            if (old_pid && lock_rc == LOCK_OK) {
+-                /* Its exit deleted the lock file we had just written: write it again. */
+-                lock_release();
+-                lock_rc = lock_take_ex(LOCK_PATH, &lock_errno);
+-                if (lock_rc == LOCK_BUSY) lock_rc = LOCK_OK;   /* carry on, as before the takeover */
+-            }
+-        }
+-        if (old_pid && lock_rc != LOCK_BUSY) {
+-            if (old_pid > 0)
+-                log_line("HearBridge PS5 %s: replaced the running instance (pid %ld)", HEARBRIDGE_VERSION, old_pid);
+-            else
+-                log_line("HearBridge PS5 %s: replaced the running instance (found by its page port)", HEARBRIDGE_VERSION);
+-            notify("HearBridge %s: replaced the running copy", HEARBRIDGE_VERSION);
+-            usleep(500 * 1000);   /* let the controller settle after its teardown */
+-        }
+-    }
+-    if (lock_rc == LOCK_BUSY) {
+-        /* Could not stop it: still bring back a deleted icon. */
+-        log_line("HearBridge PS5 %s: the running instance would not stop; refreshing the home-screen icon only",
+-                 HEARBRIDGE_VERSION);
+-        home_tile(1);
+-        notify("HearBridge: already running and could not be stopped. Use Stop on the page, then run it again.");
++    /* Reference never signals or replaces another payload. */
++    lock_rc = lock_take_ex(LOCK_PATH, &lock_errno);
++    if (lock_rc != LOCK_OK) {
++        log_line("reference: lock unavailable; no takeover attempted");
+         log_close();
+         return 1;
+     }
++    unlink(DEVICES_JSON);
+     diag_set_path(DIAG_PATH);
+     if (lock_rc == LOCK_NO_WRITE) {
+         /* Not "already running": the state folder is not writable. Carry on
+@@ -3652,7 +3615,7 @@ int main(void)
+              lock_rc == LOCK_OK ? "ok" : "NOT WRITABLE", lock_errno, log_ok ? "ok" : "NOT WRITABLE");
+     (void)diag_save();
+     log_line("attach to running controller (no reset); stop file %s", HB_STOP_PATH);
+-    if (file_exists(HCI_DEBUG_PATH)) {
++    if (0 && file_exists(HCI_DEBUG_PATH)) {
+         hcidbg_enable();
+         log_line("debug: %s present: HCI trace at /api/hcilog, raw commands at /api/hci", HCI_DEBUG_PATH);
+     }
+@@ -3668,6 +3631,7 @@ int main(void)
+         }
+     }
+     ctl_init(&g_ctl, HEARBRIDGE_VERSION);
++    if (!g_ctl.token[0]) { log_line("reference: entropy unavailable; refusing LAN startup"); goto out; }
+     snprintf(g_ctl.devices_path, sizeof g_ctl.devices_path, "%s", DEVICES_JSON);
+     snprintf(g_ctl.select_path, sizeof g_ctl.select_path, "%s", SELECT_TXT);
+     snprintf(g_ctl.saved_path, sizeof g_ctl.saved_path, "%s", SAVED_JSON);
+@@ -3714,17 +3678,17 @@ int main(void)
+     /* Diagnostics: firmware, audio libraries and every USB device
+      * (read-only). They run only after the page and the icon are up, so
+      * everything before this point is the 1.0.2 startup path. */
+-    sysinfo_collect();
+-    (void)avcap2_probe();
+-    (void)hci_usb_survey();
++    /* Reference omits optional system inventory/game/rest modules. */
++    /* Capture resolves its own modules only when actually selected. */
++
+     /* Game detection and the rest mode watch look their system calls up
+      * here, one after the other: the kernel_dynlib_* helpers are not safe
+      * to run from several threads at once (fw 10.20 lost lookups when the
+      * game thread raced avcap2_probe). The threads start after that. */
+-    (void)hb_game_sys_avail();
+-    (void)hb_rest_sys_avail();
+-    g_game_thr_up = pthread_create(&g_game_thr, NULL, game_thread, NULL) == 0;
+-    g_rest_thr_up = pthread_create(&g_rest_thr, NULL, rest_thread, NULL) == 0;
++
++
++    g_game_thr_up = 0;
++    g_rest_thr_up = 0;
+     (void)diag_save();
+ 
+     if (!headset_ini_load(&ini) && !ini.have_addr)
+@@ -3771,196 +3735,15 @@ int main(void)
+     }
+     hci_scan_check(hci);   /* page scan left off by a copy that died mid-pause */
+ 
+-    /* Stream until stopped; reconnect after a drop or failure. The web
+-     * page can pause (Disconnect) and resume (Connect). */
+-    for (;;) {
+-        int r, paused;
+-        if (transport_dead(hci)) {
+-            CTL_LOCK(&g_ctl);
+-            paused = g_ctl.paused;
+-            CTL_UNLOCK(&g_ctl);
+-            if (!reopen_bt(&hci, &asess, &opts, &ini)) { rc = 0; break; }
+-            (void)headset_ini_load(&ini);
+-            g_rest_resume = g_rest_wake = 0;   /* the reconnect below covers it */
+-            if (ini.ok && !paused && !held(ini.addr)) {
+-                /* Back from rest mode: the headset we were using, right away. */
+-                memset(&g_pending, 0, sizeof g_pending);
+-                g_pending.kind = CMD_RECONNECT;
+-            }
+-        }
+-        r = run_session(asess, hci, &ini);
++    /* One reference session only: no automatic reconnect or rest resume. */
++    if (transport_dead(hci)) rc = 2;
++    else {
++        int r = run_session(asess, hci, &ini);
+         persist_gain_if_dirty();
+-        if (r == RUN_STOP) { rc = 0; break; }
+-        if (r == RUN_SWITCH || r == RUN_FORGOT) continue;   /* g_pending: the next step */
+-        CTL_LOCK(&g_ctl);
+-        paused = g_ctl.paused;
+-        g_ctl.req_connect = 0;
+-        CTL_UNLOCK(&g_ctl);
+-        /* A Disconnect on the page stays idle. A drop does not page hard:
+-         * listen, a few short pages, then sit until the headset connects in. */
+-        if ((r == RUN_PAUSED || paused) && ini.ok && !g_rest_resume) hold_add(ini.addr, 1);
+-        if (r == RUN_DROPPED) {
+-            g_want_until = 0;
+-            notify("HearBridge: connection lost");
+-        }
+-        /* Case / power-off (RUN_AWAY): stay disconnected and listen.
+-         * Don't page a headset that just went away. */
+-        if (r == RUN_DROPPED && !paused && ini.ok && !held(ini.addr)) {
+-            int j = gentle_rejoin(hci, &ini);
+-            if (j == 1) continue;
+-            if (hb_stop_requested()) { rc = 0; break; }
+-            if (j == 2) {
+-                (void)headset_ini_load(&ini);
+-                continue;
+-            }
+-        }
+-        publish_saved(NULL);
+-        if (r == RUN_PAUSED || paused || r == RUN_DROPPED || r == RUN_AWAY || !g_ctl.detail[0] ||
+-            strncmp(g_ctl.detail, "error", 5)) {
+-            write_status("disconnected");
+-            ctl_set_state("disconnected", NULL);
+-        } else {
+-            ctl_set_state("error", NULL);     /* keep the error label (e.g. page-timeout) */
+-        }
+-        CTL_LOCK(&g_ctl);
+-        g_ctl.device[0] = 0;
+-        CTL_UNLOCK(&g_ctl);
+-        log_line("hearbridge: idle — waiting for Connect");
+-        if (g_npaired || ini.ok) btlink_page_scan_hold(hci, 1);   /* once for the idle period */
+-        {
+-            /* Auto-connect: headsets that page us on power-on are accepted
+-             * (listen below). For ones that only wait to be paged: one short
+-             * page of the most recent saved headset every 12 s, for 10 min,
+-             * never after a manual Disconnect or a case close (it pages us
+-             * itself when it comes out), never while a page command waits. */
+-            long idle_t0 = now_ms(), next_auto = now_ms() + hb_auto_gap_ms(g_bg_pages), window = 600000;
+-            int auto_ok = r != RUN_AWAY;
+-            if (g_bg_pages && !hb_auto_page_ok(g_bg_pages))
+-                log_line("auto: background pages used up (%d), only listening until Connect or a wake", g_bg_pages);
+-            (void)woke_up();
+-            g_lw_used = 0;
+-            for (;;) {
+-                int go;
+-                if (hb_stop_requested()) break;
+-                if (transport_dead(hci)) break;          /* reopened at the top */
+-                if (g_rest_resume && (g_rest_wake || woke_up())) {
+-                    /* We stopped it for rest mode: the same headset, now. */
+-                    g_rest_resume = g_rest_wake = 0;
+-                    note_event("Console woke up, reconnecting the headset");
+-                    if (ini.ok) {
+-                        memset(&g_pending, 0, sizeof g_pending);
+-                        g_pending.kind = CMD_RECONNECT;
+-                        g_user_connect = 1;
+-                        break;
+-                    }
+-                }
+-                if (woke_up()) {
+-                    /* Rest mode ended: a fresh window of background pages,
+-                     * even after a case close (the headset may be on now). */
+-                    note_event("Console woke up, looking for the headset");
+-                    idle_t0 = now_ms();
+-                    window = HB_RESUME_PAGE_WINDOW_MS;
+-                    next_auto = now_ms() + 1500;
+-                    auto_ok = 1;
+-                    g_bg_pages = 0;
+-                }
+-                bg_tick(&ini);
+-                lw_tick(&ini);
+-                CTL_LOCK(&g_ctl);
+-                go = g_ctl.req_connect;
+-                g_ctl.req_connect = 0;
+-                g_ctl.req_disconnect = 0;     /* nothing up to disconnect: never carried into the next stream */
+-                if (go) g_ctl.paused = 0;
+-                CTL_UNLOCK(&g_ctl);
+-                if (go && !g_pending.kind) {
+-                    (void)poll_cmd(&g_pending, &ini);   /* a pick from the page wins */
+-                    if (!g_pending.kind) g_nhold = 0;   /* plain Connect: the current one again */
+-                }
+-                if (!go && poll_cmd(&g_pending, &ini)) go = 1;
+-                if (go) {
+-                    CTL_LOCK(&g_ctl);
+-                    g_ctl.paused = 0;
+-                    CTL_UNLOCK(&g_ctl);
+-                    g_user_connect = 1;
+-                    if (g_pending.kind != CMD_SCAN) g_bg_pages = 0;
+-                    break;
+-                }
+-                {
+-                    int reset = 0;
+-                    CTL_LOCK(&g_ctl);
+-                    reset = g_ctl.req_reset;
+-                    if (reset) g_ctl.req_reset = 0;
+-                    CTL_UNLOCK(&g_ctl);
+-                    if (reset && ini.ok) {
+-                        unsigned h = acl_track_handle(ini.addr);
+-                        btlink *rl = btlink_create(hci, 1021, 7);
+-                        if (hci.ops && hci.ops->cmd)
+-                            hci.ops->cmd(hci.ctx, 0x0402, NULL, 0); /* our inquiry */
+-                        if (rl) {
+-                            if (hci.ops && hci.ops->cmd)
+-                                hci.ops->cmd(hci.ctx, 0x0408, ini.addr, 6); /* our page */
+-                            if (h) btlink_drop_handle(rl, h, 800); /* this headset only */
+-                            btlink_destroy(rl);
+-                        }
+-                        note_event("Connection reset");
+-                        log_line("link: reset our page and our headset ACL only");
+-                    }
+-                }
+-                persist_gain_if_dirty();
+-                if (g_npaired || ini.ok) {
+-                    btlink *back = NULL;
+-                    unsigned bpsm = 0;
+-                    if (answer_saved_calls(hci, &ini, &back, &bpsm) ||
+-                        listen_any_saved(hci, &ini, &back, &bpsm, 400)) {
+-                        g_ready = back;
+-                        g_ready_psm = bpsm;
+-                        break;
+-                    }
+-                    (void)woke_up();
+-
+-                } else {
+-                    idle_pump(hci, 100);
+-                }
+-                CTL_LOCK(&g_ctl);
+-                paused = g_ctl.paused;
+-                CTL_UNLOCK(&g_ctl);
+-                if (auto_ok && !paused && ini.ok && !held(ini.addr) && !cmd_waiting() &&
+-                    hb_auto_page_ok(g_bg_pages) &&
+-                    now_ms() >= next_auto && now_ms() - idle_t0 < window) {
+-                    btlink *back = NULL;
+-                    unsigned bpsm = 0;
+-                    int got;
+-                    log_line("auto: one background page of %s", ini.name[0] ? ini.name : "the saved headset");
+-                    g_user_connect = 0;
+-                    btlink_page_scan_hold(hci, 0);
+-                    g_bg_page = 1;
+-                    got = try_saved(hci, &ini, &back, &bpsm, HB_PAGE_MS);
+-                    g_bg_page = 0;
+-                    (void)woke_up();              /* the page blocked up to 5 s */
+-                    g_bg_pages++;
+-                    if (!got && !hb_auto_page_ok(g_bg_pages))
+-                        log_line("auto: %d background pages done, now only listening", g_bg_pages);
+-                    if (got) {
+-                        note_event("%s turned on, connecting", ini.name[0] ? ini.name : "Headset");
+-                        g_ready = back;
+-                        g_ready_psm = bpsm;
+-                        break;
+-                    }
+-                    if (hb_stop_requested() || transport_dead(hci)) break;
+-                    btlink_page_scan_hold(hci, 1);
+-                    set_why("");
+-                    write_status("disconnected");
+-                    ctl_set_state("disconnected", NULL);
+-                    next_auto = now_ms() + hb_auto_gap_ms(g_bg_pages);   /* backoff after this attempt */
+-                }
+-            }
+-        }
+-        lw_end("leaving idle");
+-        if (!transport_dead(hci)) btlink_page_scan_hold(hci, 0);   /* put back once */
+-        if (hb_stop_requested()) { rc = 0; break; }
+-        (void)headset_ini_load(&ini);
+-        continue;
++        log_line("reference: first session ended (%d); no reconnect loop", r);
++        rc = r == RUN_STOP ? 0 : 2;
+     }
++    hb_stop_request();
+ 
+     if (asess) a2dp_close(asess);
+ close_hci:
+@@ -3991,7 +3774,11 @@ out:
+     }
+     if (hb_stop_requested()) {
+         write_status("stopped");
+-        log_line("stop: clean exit");
++        log_line("stop: cooperative exit; native cleanup acceptance requires retained results");
++    }
++    if (hci_usb_cleanup_unknown() || avcap2_cleanup_unknown()) {
++        log_line("reference: cleanup UNKNOWN; no subsequent run authorized as recovery");
++        rc = 2;
+     }
+     hb_stop_clear();
+     log_close();
+diff --git a/src/stop.c b/src/stop.c
+index f495e8c..bb42aa5 100644
+--- a/src/stop.c
++++ b/src/stop.c
+@@ -12,6 +12,7 @@ static volatile sig_atomic_t g_stop;
+ static volatile sig_atomic_t g_sig;      /* last SIGTERM/SIGINT seen, not yet logged */
+ static volatile sig_atomic_t g_hup;      /* SIGHUPs seen, not yet logged */
+ static long g_last_check = -1;
++static long g_reference_started;
+ 
+ static void on_signal(int sig)
+ {
+@@ -43,6 +44,11 @@ int hb_stop_requested(void)
+     }
+     if (g_stop) return 1;
+     t = now_ms();
++    if (t < 0 || g_reference_started < 0 || (g_last_check >= 0 && t < g_last_check) || t < g_reference_started || t - g_reference_started >= 180000) {
++        log_line("reference: elapsed 180-second window or clock regression; stopping");
++        g_stop = 1;
++        return 1;
++    }
+     if (g_last_check >= 0 && t - g_last_check < STOP_POLL_MS) return 0;
+     g_last_check = t;
+     if (access(HB_STOP_PATH, F_OK) == 0) {
+@@ -59,6 +65,9 @@ void hb_stop_request(void)
+ 
+ void hb_stop_init(void)
+ {
++    g_stop = g_sig = g_hup = 0;
++    g_last_check = -1;
++    g_reference_started = now_ms();
+     signal(SIGTERM, on_signal);
+     signal(SIGINT, on_signal);
+     signal(SIGHUP, on_hup);
+diff --git a/src/stop.h b/src/stop.h
+index 6a586b3..873fd9c 100644
+--- a/src/stop.h
++++ b/src/stop.h
+@@ -1,8 +1,8 @@
+-/* stop.h - clean shutdown request via /data/hearbridge/stop. */
++/* stop.h - clean shutdown request via /data/ps5-bt-hb-reference/stop. */
+ #ifndef HEARBRIDGE_STOP_H
+ #define HEARBRIDGE_STOP_H
+ 
+-#define HB_STOP_PATH "/data/hearbridge/stop"
++#define HB_STOP_PATH "/data/ps5-bt-hb-reference/stop"
+ 
+ /* 1 once a stop was requested (stop file seen or SIGTERM/SIGINT; SIGHUP and SIGPIPE are ignored).
+  * The file is checked at most every ~500 ms; cheap to call often. */
+diff --git a/src/takeover.h b/src/takeover.h
+index 6e2d875..996afb9 100644
+--- a/src/takeover.h
++++ b/src/takeover.h
+@@ -4,7 +4,7 @@
+ #ifndef HEARBRIDGE_TAKEOVER_H
+ #define HEARBRIDGE_TAKEOVER_H
+ 
+-#define HB_PROC_NAME "hearbridge.elf"
++#define HB_PROC_NAME "ps5bt-hb-ref"
+ 
+ /* Name this process (p_comm, what process lists show) like other PS5
+  * payloads do: thr_set_name on the main thread. */
+diff --git a/src/tile.h b/src/tile.h
+index 79b98ed..e626d10 100644
+--- a/src/tile.h
++++ b/src/tile.h
+@@ -25,7 +25,7 @@
+  * Media->Games once left a leftover Media icon when uninstall was skipped or
+  * the Shell kept a stale tab entry — version 4 hardens that path. */
+ #define HB_TILE_VERSION  "10"  /* 10: explanation page stays, silent retries; 9: Checking state shows only title + Checking...; 8: clear offline page; 7: no PS5 on the page; 6: probes; 5: Media + AppCache (#22, #33) */
+-#define HB_TILE_VER_PATH "/data/hearbridge/tile.ver"
++#define HB_TILE_VER_PATH "/data/ps5-bt-hb-reference/tile.ver"
+ 
+ /* 1 when stored tile version (text of HB_TILE_VER_PATH, NULL if missing)
+  * is not HB_TILE_VERSION. Independent of whether the console reports the
+diff --git a/src/util.c b/src/util.c
+index d96d4d0..0defce5 100644
+--- a/src/util.c
++++ b/src/util.c
+@@ -11,6 +11,6 @@ long now_ms(void)
+ 
+     if (ph_clock_hook)
+         return ph_clock_hook();
+-    clock_gettime(CLOCK_MONOTONIC, &t);
++    if (clock_gettime(CLOCK_MONOTONIC, &t) != 0) return -1;
+     return (long)t.tv_sec * 1000L + (long)(t.tv_nsec / 1000000L);
+ }
+diff --git a/tests/test_control.c b/tests/test_control.c
+index 9125e20..e462527 100644
+--- a/tests/test_control.c
++++ b/tests/test_control.c
+@@ -8,6 +8,7 @@
+ #include "avrcp.h"
+ #include "sdp_server.h"
+ #include "btchip.h"
++#include "reference_secret.h"
+ 
+ #include <math.h>
+ #include <stdarg.h>
+@@ -51,6 +52,26 @@ int main(int argc, char **argv)
+     hb_ctl c;
+     int n;
+ 
++    /* Actual network gateway: no token/password appears in these reports. */
++    {
++        char req[768];
++        const char *unauth = "GET /api/status HTTP/1.1\r\nHost: ps5\r\n\r\n";
++        n = http_reference_gate(unauth, (int)strlen(unauth), out, sizeof out);
++        CHECK(n > 0 && strstr(out, "401 Unauthorized"), "reference: all resources require Basic authentication");
++        snprintf(req, sizeof req, "GET / HTTP/1.1\r\nHost: ps5\r\nAuthorization: %s\r\n\r\n", HB_REF_BASIC_AUTH);
++        CHECK(http_reference_gate(req, (int)strlen(req), out, sizeof out) == 0, "reference: authenticated UI admitted");
++        snprintf(req, sizeof req, "POST /api/scan HTTP/1.1\r\nHost: ps5\r\nAuthorization: %s\r\nOrigin: http://evil\r\n\r\n", HB_REF_BASIC_AUTH);
++        n = http_reference_gate(req, (int)strlen(req), out, sizeof out);
++        CHECK(n > 0 && strstr(out, "403 Forbidden"), "reference: foreign Origin rejected even with credentials");
++        snprintf(req, sizeof req, "POST /api/scan HTTP/1.1\r\nHost: ps5\r\nAuthorization: %s\r\nOrigin: http://ps5\r\n\r\n", HB_REF_BASIC_AUTH);
++        CHECK(http_reference_gate(req, (int)strlen(req), out, sizeof out) == 0, "reference: same-origin pairing workflow admitted");
++        snprintf(req, sizeof req, "POST /api/backup?where=download HTTP/1.1\r\nHost: ps5\r\nAuthorization: %s\r\n\r\n", HB_REF_BASIC_AUTH);
++        n = http_reference_gate(req, (int)strlen(req), out, sizeof out);
++        CHECK(n > 0 && strstr(out, "404 Not Found"), "reference: bond-key backup export disabled");
++        snprintf(req, sizeof req, "GET /api/hcilog HTTP/1.1\r\nHost: ps5\r\nAuthorization: %s\r\n\r\n", HB_REF_BASIC_AUTH);
++        n = http_reference_gate(req, (int)strlen(req), out, sizeof out);
++        CHECK(n > 0 && strstr(out, "404 Not Found"), "reference: raw HCI/key trace disabled");
++    }
+     /* ---- HTTP ---- */
+     ctl_init(&c, "1.0.9");
+     strcpy(c.url, "http://10.0.0.5:8090");
+diff --git a/tests/test_reference_stop.c b/tests/test_reference_stop.c
+new file mode 100644
+index 0000000..6d70ead
+--- /dev/null
++++ b/tests/test_reference_stop.c
+@@ -0,0 +1,55 @@
++/* Bounded reference stop policy with synthetic time/files/signals only. */
++#define _POSIX_C_SOURCE 200809L
++#include <assert.h>
++#include <signal.h>
++#include <time.h>
++#include <unistd.h>
++static long tick;
++static int clock_fail;
++static int reference_clock_gettime(clockid_t c, struct timespec *t)
++{
++    (void)c;
++    if (clock_fail) return -1;
++    t->tv_sec = tick / 1000;
++    t->tv_nsec = (tick % 1000) * 1000000;
++    return 0;
++}
++#define clock_gettime reference_clock_gettime
++#include "../src/util.c"
++#undef clock_gettime
++static int reference_access(const char *p, int mode) { (void)p; (void)mode; return -1; }
++static int reference_unlink(const char *p) { (void)p; return 0; }
++static void (*reference_signal(int s, void (*fn)(int)))(int) { (void)s; return fn; }
++#define access reference_access
++#define unlink reference_unlink
++#define signal reference_signal
++#include "../src/stop.c"
++#undef access
++#undef unlink
++#undef signal
++void log_line(const char *fmt, ...) { (void)fmt; }
++int main(void)
++{
++    tick = 1000;
++    hb_stop_init();
++    assert(!hb_stop_requested());
++    tick = 180999;
++    assert(!hb_stop_requested());
++    tick = 181000;
++    assert(hb_stop_requested());
++    tick = 1000;
++    hb_stop_init();
++    tick = 10000;
++    assert(!hb_stop_requested());
++    tick = 9000; /* Rollback still above the start must stop. */
++    assert(hb_stop_requested());
++    tick = 1000;
++    hb_stop_init();
++    hb_stop_request();
++    assert(hb_stop_requested());
++    clock_fail = 1;
++    assert(now_ms() == -1);
++    hb_stop_init();
++    assert(hb_stop_requested());
++    return 0;
++}

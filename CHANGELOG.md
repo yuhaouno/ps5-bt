@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Prepare an isolated pinned HearBridge first-audio reference with SDK v0.43,
+  a reproducible source build and private per-build LAN access. Retain the
+  upstream connection/audio chain separately from PS5-BT, document stock runtime
+  permissions and the competing-reader/timed-credit execution decision, and
+  preserve corresponding sources. No headset playback or superiority claim.
+
 - Prioritize first real headset connection/audio over architecture expansion.
   Shorten working rules and the current handoff, hold the uploaded raw-openat
   probe, and make checks proportional to changed code. Add `make check-fast`

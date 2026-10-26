@@ -6,6 +6,9 @@ chain and optimize with measurements. Defer directory probes and broader app
 infrastructure. Use the [current handoff](docs/TEMP-PS5-TEST-HANDOFF.md) for the
 execution queue; dated plans below are historical. A reference using excluded
 transport mechanisms still needs a separate scope decision before execution.
+The [isolated reference recipe](experiments/hearbridge-reference/README.md)
+now defines the first connection/tone/capture experiment and retains exact
+upstream source identity; playback and comparative improvements remain pending.
 
 Milestones are evidence gates, not dates or promises. A compiling archive, a
 linked ELF, execution on a PS5, and stable audio are different achievements.
