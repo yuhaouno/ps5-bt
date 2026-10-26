@@ -23,7 +23,10 @@ input before/during/after. No data observation or comparison was reached.
 The exact `e219c8d` kit and both collections are retained. No wrapper defect was
 found; native permission/API cause remains Unknown. Next is an independently
 selected [relative-vs-absolute open comparison](OPEN-COMPARE.md), now implemented
-without fstatat retries or store protection changes. Do not reload blocked application tests.
+without fstatat retries or store protection changes. Clean `8639164` is now built,
+packaged and uploaded with matching remote hash; only its open-compare slot
+remains after completed namespace-slot cleanup. Manual execution and controller
+observations are pending. Do not reload blocked application tests.
 
 ## New-machine test preparation, 2026-10-26
 

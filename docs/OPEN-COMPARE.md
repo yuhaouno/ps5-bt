@@ -174,3 +174,35 @@ handoff 19; builder/source/kit self-tests pass. Target compile/link, pinned head
 dependency closure, runtime synthetic log/error tests and final ELF inspection
 pass. Native comparison outcome remains untested. Full `make check` was not run;
 the previously documented ARM-host x86 syscall-fixture limitation remains.
+
+## Uploaded manual-run checkpoint, 2026-10-27
+
+Clean source `86391641d28947f40e9201cb35e70d6a97134810` passed doctor and all
+three build/package/assembly steps. The immutable kit is
+`build/ps5/open-compare-window-kit-8639164`; its adjacent preparation identity is
+`ready`. Existing pinned tools sufficed; no installation was needed.
+
+- ELF SHA-256: `98a63a4342218a1f199a3ab61169051a9e6f226deceb11e1d9f82874f51eeb4f`.
+- ELF size: 75104 bytes.
+- Embedded build ID: `908401d2fd3b72aa419f7bd58cf3569144aab59f2de1b168545a942242d41ca4`.
+- Build manifest SHA-256: `0ac84d1a753b6ecbbf9cd9503b511bf85c9366e52c0092f43a59b39a10ed7d39`.
+- Matching source bundle SHA-256: `baa0a213ab98e4a972ada5c96fd452269d4cdcf8fe92cb72de417d1cf64b7765`.
+
+Within the ongoing authorized window, PayloadManager version/inventory again
+confirmed 0.6.3 at .111:8084. The absent exact slot was imported with the reviewed
+`mode=new` route. FTP preflight verified matching metadata, size and full ELF
+SHA-256; saved output is `build/ps5/open-compare-preflight-8639164.json`.
+After preserving both previous namespace collections and verifying the new
+upload, the completed namespace slot was removed through the reviewed manager
+route. Final inventory contains only **`local/ps5-bt-application-open-compare`**
+among PS5-BT slots; all unrelated slot records are unchanged. Original kits and
+logs remain intact, including the remote dedicated namespace log.
+
+**No agent launch or new comparison hardware result.** The operator should
+refresh and manually run `ps5-bt-application-open-compare` once, observe the
+wireless controller before/during/after and stop if return is missing at 15 seconds
+or input changes. When completion is reported, immediately collect the dedicated
+`/data/ps5-bt-open-compare.log` with the command above and
+`--kit build/ps5/open-compare-window-kit-8639164`. Do not treat this preparation
+record as authority for a future session or as permission to clear any store,
+format, Bluetooth ownership or credit gate.

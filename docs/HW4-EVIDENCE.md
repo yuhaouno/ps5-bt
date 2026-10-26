@@ -265,3 +265,10 @@ Unknown-observation record remains intact alongside the confirmed record.
 No wrapper argument mismatch was found; EPERM's underlying mechanism remains
 Unknown. The next useful comparison is an independently selected, fixed-target
 relative-vs-absolute directory open, not a repeat or a permission exemption.
+
+On 2026-10-27, the continuing session prepared and uploaded clean `8639164`'s
+separate [open comparison](OPEN-COMPARE.md#uploaded-manual-run-checkpoint-2026-10-27),
+with full remote hash verification. Completed namespace-slot cleanup leaves only
+the new open-compare entry; unrelated slots and retained logs are unchanged.
+Manual execution and controller observations are pending; there is no new
+comparison hardware result in this record.

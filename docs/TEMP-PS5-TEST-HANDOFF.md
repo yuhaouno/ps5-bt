@@ -3,7 +3,17 @@
 Prepared 2026-10-26. Keep this temporary handoff until the next window has a
 reviewed outcome. English is canonical. Read `AGENTS.md` before changing code.
 
-Window update, 2026-10-26: read [HW4-EVIDENCE.md](HW4-EVIDENCE.md) first.
+Window update, 2026-10-27: read [HW4-EVIDENCE.md](HW4-EVIDENCE.md) first.
+
+Current pending manual entry: **`ps5-bt-application-open-compare`**. Clean
+`8639164` completed doctor/build/package/assembly and full remote hash readback.
+One PS5-BT slot remains; the completed namespace entry was removed after evidence
+was saved, and unrelated slots are unchanged. The kit is
+`build/ps5/open-compare-window-kit-8639164`; collect its independent
+`/data/ps5-bt-open-compare.log` immediately after the operator reports execution.
+Run once, keep the 15-second ceiling and truthful before/during/after controller
+observations. The agent has not launched it. Exact identities are in the
+[uploaded checkpoint](OPEN-COMPARE.md#uploaded-manual-run-checkpoint-2026-10-27).
 
 Latest retained result: **`ps5-bt-application-namespace`** from clean `e219c8d`
 failed at root-dot fstatat (stage 4, return -1, errno 1), after successful root
@@ -14,8 +24,8 @@ collections are retained; see the [result](NAMESPACE-PROBE.md#observed-root-dot-
 Do not repeat it or reload blocked application profiles. The next proposed
 independent [comparison candidate](OPEN-COMPARE.md) is now implemented for
 relative-vs-absolute directory open with separate
-case results and no protection relaxation. Current slot identity is still the
-completed namespace candidate until a later verified replacement is recorded.
+case results and no protection relaxation. The current pending entry above
+supersedes the completed namespace slot.
 
 The clean `20a5d66` six-item kit was built, uploaded and fully read back. The
 retained generated-application run failed Store directory acquisition (errno 1).
