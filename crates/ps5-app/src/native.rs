@@ -240,6 +240,33 @@ impl<'storage, 'config> NativeFactory<'storage, 'config> {
             },
         )
     }
+    /// Bind a pending capture budget after the owned clock has been observed.
+    /// No capture resource may have been acquired or handed off yet. This changes
+    /// neither format evidence nor the optional resource set, and never restarts.
+    pub fn set_capture_budget_before_start(
+        &mut self,
+        budget: bt_capture::Budget,
+        now_us: u64,
+    ) -> Result<(), ConfigError> {
+        if self.report().phase != FactoryPhase::Starting
+            || !self.report().acquired[ResourceKind::Clock as usize]
+            || self.report().acquired[ResourceKind::Capture as usize]
+            || self.report().cleanup[ResourceKind::Capture as usize].is_some()
+            || budget.max_reads == 0
+            || budget.deadline_us <= now_us
+        {
+            return Err(ConfigError::CaptureBudget);
+        }
+        let mut next = self.config;
+        let Some(capture) = next.capture.as_mut() else {
+            return Err(ConfigError::ModeResources);
+        };
+        capture.budget = budget;
+        next.validate()?;
+        self.config = next;
+        self.ports.config = next;
+        Ok(())
+    }
     pub fn clock_mut(&mut self) -> Option<&mut NativeClock<'storage>> {
         self.ports.clock.as_mut()
     }

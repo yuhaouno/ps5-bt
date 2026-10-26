@@ -190,7 +190,42 @@ fn actual_native_factory_control_store_handoff_generated_sbc_and_capture_observa
             format: Format::UNKNOWN,
         });
         let mut factory = NativeFactory::create(&mut storage, config, resolvers()).unwrap();
+        let budget = Budget {
+            max_reads: 2,
+            deadline_us: 100,
+        };
+        assert_eq!(
+            factory.set_capture_budget_before_start(budget, 0),
+            Err(ConfigError::CaptureBudget)
+        );
+        factory.acquire(ResourceKind::Clock, 0).unwrap();
+        assert_eq!(
+            factory.set_capture_budget_before_start(
+                Budget {
+                    max_reads: 0,
+                    ..budget
+                },
+                0
+            ),
+            Err(ConfigError::CaptureBudget)
+        );
+        assert_eq!(
+            factory.set_capture_budget_before_start(budget, 100),
+            Err(ConfigError::CaptureBudget)
+        );
+        factory.set_capture_budget_before_start(budget, 0).unwrap();
+        assert_eq!(factory.config().capture.unwrap().budget, budget);
         acquire(&mut factory);
+        assert_eq!(
+            factory.set_capture_budget_before_start(
+                Budget {
+                    max_reads: 20,
+                    deadline_us: 200
+                },
+                1
+            ),
+            Err(ConfigError::CaptureBudget)
+        );
         let parts = factory.parts_mut();
         assert!(parts.encoder.is_none());
         let read = parts.capture.unwrap().read_once(1, &mut [0; 16]).unwrap();

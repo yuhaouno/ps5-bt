@@ -87,7 +87,7 @@ pub struct FactoryFailure {
 }
 pub struct ResourceFactory<'config, P: ResourcePorts> {
     pub(crate) ports: P,
-    config: Config<'config>,
+    pub(crate) config: Config<'config>,
     report: FactoryReport,
 }
 impl<'config, P: ResourcePorts> ResourceFactory<'config, P> {
