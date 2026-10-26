@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Optional existing host-only codec adapter; no target codec feature is implied.
-use crate::BlockEncoder;
+//! Shared persistent codec adapter; archive selection stays in bt-codec.
+use crate::{BlockEncoder, FinishEncoder};
 use bt_core::{Error, SbcParameters};
 
 /// Reuses the existing reviewed encoder owner and caller interleaving storage.
 /// `Encoder` still exclusively owns its C storage and remains !Send/!Sync.
-pub struct HostSbcEncoder<'encoder, 'scratch, const N: usize> {
+pub struct SbcEncoder<'encoder, 'scratch, const N: usize> {
     encoder: bt_codec::Encoder<'encoder, N>,
     interleaved: &'scratch mut [i16],
 }
 
-impl<'encoder, 'scratch, const N: usize> HostSbcEncoder<'encoder, 'scratch, N> {
+impl<'encoder, 'scratch, const N: usize> SbcEncoder<'encoder, 'scratch, N> {
     pub fn new(
         encoder: bt_codec::Encoder<'encoder, N>,
         interleaved: &'scratch mut [i16],
@@ -31,7 +31,7 @@ impl<'encoder, 'scratch, const N: usize> HostSbcEncoder<'encoder, 'scratch, N> {
     }
 }
 
-impl<const N: usize> BlockEncoder for HostSbcEncoder<'_, '_, N> {
+impl<const N: usize> BlockEncoder for SbcEncoder<'_, '_, N> {
     fn parameters(&self) -> SbcParameters {
         self.encoder.parameters()
     }
@@ -46,5 +46,11 @@ impl<const N: usize> BlockEncoder for HostSbcEncoder<'_, '_, N> {
         self.encoder
             .encode_frame(self.interleaved, output)
             .map(|frame| frame.bytes)
+    }
+}
+
+impl<const N: usize> FinishEncoder for SbcEncoder<'_, '_, N> {
+    fn finish(self) -> Result<(), Error> {
+        SbcEncoder::finish(self)
     }
 }

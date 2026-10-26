@@ -122,8 +122,10 @@ This imports no new upstream source. It reuses the already reviewed selected
 BlueZ libsbc 2.2 component and provenance/license/relink obligations in
 [SBC-IMPLEMENTATION.md](SBC-IMPLEMENTATION.md) and [UPSTREAM.md](UPSTREAM.md).
 The host feature retains `TARGET == HOST`: enabling it for the freestanding
-PS5 target is intentionally unsupported. A target codec adapter requires its own
-reviewed feature/link path; the generated-signal PS5 diagnostic is not replaced.
+PS5 target is intentionally unsupported by that host feature. The independent
+`target-libsbc` feature now selects the same persistent `SbcEncoder` against a
+reviewed external target archive. [SBC-CONTINUOUS.md](SBC-CONTINUOUS.md) describes
+the separately built Rust diagnostic; the short C self-test remains selectable.
 
 ## Development checks and PS5 acceptance
 
@@ -144,7 +146,7 @@ explicit synthetic completions. That is two seconds of nominal sample positions,
 not two seconds of audio playback, real-time performance or RF behavior.
 
 Real PS5 acceptance still needs established transport/channel/credit ownership,
-reviewed native PCM conversion, a target codec adapter, capture/encode timing,
+reviewed native PCM conversion, target codec execution, capture/encode timing,
 actual headset playback, bounded failure/stop cleanup and wireless pad coexistence.
 All audible-gap, quality, latency, drift and stability outcomes remain
 **Requires hardware**. No Linux Bluetooth backend or desktop audio demonstration

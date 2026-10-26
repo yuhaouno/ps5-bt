@@ -47,6 +47,10 @@ static void native_l2cap_trace(enum ps5_native_l2cap_phase phase, int entering,
 #include "../codec/ps5_bt_sbc_selftest.h"
 static _Alignas(64) uint8_t sbc_selftest_storage[8192];
 #endif
+#ifdef PS5_BT_SBC_CONTINUOUS
+int32_t ps5_continuous_now_us(uint64_t *out);
+int32_t ps5_rust_sbc_continuous(int32_t (*now_us)(uint64_t *out));
+#endif
 #ifdef PS5_BT_CAPTURE_PROBE
 #include "bootstrap/bootstrap.h"
 #include "diagnostics/capture_probe.h"
@@ -138,6 +142,11 @@ static void capture_trace(enum ps5_capture_probe_phase phase, uint32_t ordinal,
 
 int main(void) {
   int result = (int)ps5_rust_probe();
+#ifdef PS5_BT_SBC_CONTINUOUS
+  /* Independent generated input; target transport remains Unsupported. */
+  if (ps5_rust_sbc_continuous(ps5_continuous_now_us) != 0)
+    result = 1;
+#endif
 #ifdef PS5_BT_NATIVE_L2CAP_PROBE
   static const uint8_t begin[] = "event=native_l2cap_begin\n";
   static const uint8_t failed[] = "event=native_l2cap_report_failed\n";

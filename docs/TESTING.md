@@ -248,3 +248,16 @@ end-to-end latency distributions using a repeatable external timing setup plus
 capture/buffer/encoder/queue/pacing telemetry. Report receiver uncertainty,
 sample count, method and confidence; HCI completion time is not acoustic latency.
 No numeric quality or latency results exist yet.
+
+## Continuous Rust target SBC checks
+
+The optional `bt-audio/host-libsbc` suite additionally verifies the finite
+continuous diagnostic, exact 750-block bitstream digest, clock/budget failures
+and cleanup; the existing independent persistent-encoder comparison remains.
+`make continuous-main-test` covers C-main invocation and pinned clock layout,
+raw errors, dirty lookups, invalid timespec and overflow.
+`python3 tests/codec/target_archive_test.py` rejects wrong object architecture,
+missing wrapper exports and allocator imports. `make ps5-sbc-continuous` performs
+the actual target link, ELF inspection and baseline replacement link. The source
+packager tests both independent codec variants, complete relink identities and
+failure rejection. None executes on PS5 or establishes real-time encoding.

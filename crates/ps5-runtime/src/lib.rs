@@ -3,6 +3,9 @@
 //! This one-response exercise is not a credit-aware live HCI dispatcher.
 #![cfg_attr(target_os = "none", no_std)]
 
+#[cfg(feature = "continuous-sbc")]
+mod continuous_sbc;
+
 use bt_core::{BluetoothTransport, Error, PacketKind};
 use ps5_platform::{Transport, log};
 

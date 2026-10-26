@@ -10,6 +10,7 @@ publish.workspace = true
 [features]
 default = []
 host-libsbc = ["dep:bt-codec", "bt-codec/host-libsbc"]
+target-libsbc = ["dep:bt-codec", "bt-codec/target-libsbc"]
 
 [dependencies]
 bt-core = { path = "../bt-core" }

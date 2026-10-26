@@ -19,7 +19,14 @@ Source-backed isolated transport experiments use AGENTS.md's admission rules;
 production ownership/credit guarantees still gate support. No console window
 is currently available from this chat; the 2026-10-25 window below is historical.
 
-The latest discovery/management wave implements bounded Inquiry/Cancel, concrete
+The Rust target SBC seam now has a separately selected `target-libsbc` feature
+and `ps5-sbc-continuous` candidate: generated PCM traverses the persistent Rust
+scheduler/codec owner with finite operation/time budgets. Host checks and target
+ELF/replacement links are development evidence; continuous PS5 execution,
+captured-audio integration and headset acceptance remain pending. See
+[SBC-CONTINUOUS.md](docs/SBC-CONTINUOUS.md).
+
+Prior discovery/management wave: implements bounded Inquiry/Cancel, concrete
 optional POSIX bond files, the minimal LAN device/pairing service/page, a
 single-client native listener candidate and the portable management/ACL runner.
 Commands remain capability-gated; no native PS5 backend is activated. Native

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Bounded codec ownership. The real encoder is explicitly host-gated for now.
+//! Bounded codec ownership. Host and target archive linking are separately selected.
 #![no_std]
 
-#[cfg(feature = "host-libsbc")]
+#[cfg(any(feature = "host-libsbc", feature = "target-libsbc"))]
 mod sbc;
 
-#[cfg(feature = "host-libsbc")]
+#[cfg(any(feature = "host-libsbc", feature = "target-libsbc"))]
 pub use sbc::{EncodedFrame, Encoder, EncoderStorage, StorageRequirements};

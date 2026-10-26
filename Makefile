@@ -31,6 +31,8 @@ check:
 	$(MAKE) capture-observe-test
 	$(MAKE) sbc-codec-test
 	$(MAKE) sbc-main-test
+	$(MAKE) continuous-main-test
+	python3 tests/codec/target_archive_test.py
 	$(MAKE) check-build-tools
 	$(MAKE) rust-archive
 
@@ -183,3 +185,12 @@ ps5-hw1:
 
 ps5-native-query:
 	python3 tools/build_ps5.py --native-query
+
+.PHONY: ps5-sbc-continuous continuous-main-test
+ps5-sbc-continuous:
+	python3 tools/build_ps5.py --sbc-continuous --loader-kernel-resolver
+
+continuous-main-test:
+	mkdir -p build/host/continuous-main
+	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include tests/platform/continuous_main_test.c -o build/host/continuous-main/test
+	build/host/continuous-main/test

@@ -192,6 +192,7 @@ dependencies = [
 name = "ps5-runtime"
 version = "0.0.1"
 dependencies = [
+ "bt-audio",
  "bt-core",
  "bt-hci",
  "ps5-platform",

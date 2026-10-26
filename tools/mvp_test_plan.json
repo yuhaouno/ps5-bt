@@ -91,6 +91,33 @@
         "clock, wait, read or cleanup error",
         "more than 20 reads or no final return within 15 seconds"
       ]
+    },
+    {
+      "id": "sbc-continuous",
+      "order": 5,
+      "artifact": "build/ps5/ps5-bt-sbc-continuous.elf",
+      "build_manifest": "build/ps5/ps5-bt-sbc-continuous.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-sbc-continuous-source.tar.gz",
+      "slot": "ps5-bt-sbc-continuous",
+      "remote_filename": "ps5-bt-sbc-continuous.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=sbc_continuous_begin schema=1 generated=1 nominal_clock=synthetic sink=discard",
+        "sbc_continuous_outcome=0x00000000",
+        "sbc_continuous_blocks=0x000002ee",
+        "sbc_continuous_pcm_frames=0x00017700",
+        "sbc_continuous_bytes=0x0000e196",
+        "sbc_continuous_prefix=0x9cfd20cb",
+        "sbc_continuous_digest=0x7784d1fb",
+        "sbc_continuous_cleanup_attempted=0x00000001",
+        "event=sbc_continuous_complete",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "clock, budget, bitstream, encode or cleanup failure",
+        "no final return within external timeout; preserve incomplete log as an abnormal run"
+      ]
     }
   ]
 }

@@ -5,7 +5,9 @@ Slim / firmware 13.40 environment. Both init/finish cycles, all four frames and
 the pinned digest matched the host, with user-confirmed normal wireless input.
 See HW3-EVIDENCE.md for exact artifact identity and the complete log. This path
 encodes a generated signal only; captured-audio and live Bluetooth integration
-remain unimplemented. No hardware encode duration was measured.
+remain unverified. No hardware encode duration was measured. A separately
+selected Rust continuous generated-PCM candidate now reuses this archive; see
+[SBC-CONTINUOUS.md](SBC-CONTINUOUS.md). It has no PS5 execution result.
 
 ## Target archive boundary
 
@@ -116,3 +118,15 @@ artifact. They do not waive attribution/source obligations, establish patent
 clearance, or make the codec a Bluetooth-qualified implementation. Preserve
 `COPYING.LIB`, upstream authorship, all selected source, local patches and the
 working scripts with any distributed codec-enabled ELF.
+
+## Continuous Rust consumer
+
+`make ps5-sbc-continuous` builds the separate bounded Rust scheduler/encoder
+candidate documented in [SBC-CONTINUOUS.md](SBC-CONTINUOUS.md). Its explicit
+`target-libsbc` feature accepts only the reviewed Rust target and re-inspects
+the external archive before linking. `host-libsbc` remains host-only. Codec
+objects are excluded from the Rust static archive with `static:-bundle`;
+the final link and exported replacement materials keep the codec replaceable.
+Both SBC artifact variants require the same modified-source, notices and working
+replacement/relink materials. The short C self-test and its pinned result are
+preserved independently. No new upstream source or codec algorithm is imported.

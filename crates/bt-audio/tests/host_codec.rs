@@ -181,5 +181,5 @@ fn host_adapter_checks_complete_input_and_caller_interleaving_storage() {
     let mut output = [0; 119];
     assert_eq!(encoder.encode_stereo(&[[0; 2]; 128], &mut output), Ok(77));
     assert_eq!(output[0], 0x9c);
-    encoder.finish().unwrap();
+    bt_audio::FinishEncoder::finish(encoder).unwrap();
 }

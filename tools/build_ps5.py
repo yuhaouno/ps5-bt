@@ -37,10 +37,10 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def run(command, capture=False):
+def run(command, capture=False, env=None):
     print("+ " + " ".join(map(str, command)), flush=True)
     return subprocess.run(list(map(str, command)), cwd=ROOT, check=True,
-                          text=True, stdout=subprocess.PIPE if capture else None).stdout
+                          text=True, stdout=subprocess.PIPE if capture else None, env=env).stdout
 
 
 def sdk_sources(source=None, usb_metadata=False):
@@ -172,10 +172,21 @@ def build(args):
     rust_version = run(["rustc", "--version"], capture=True).strip()
     if not rust_version.startswith("rustc 1.90.0 "):
         raise ValueError(f"expected pinned Rust 1.90.0, got {rust_version}")
-    run(["cargo", "build", "-p", "ps5-runtime", "--release", "--target",
-         "x86_64-unknown-none", "--target-dir", ROOT / "target", "--locked"])
     output = ROOT / "build/ps5"
     output.mkdir(parents=True, exist_ok=True)
+    codec_archive = None
+    if args.sbc_selftest or args.sbc_continuous:
+        from target_sbc import build_archive
+        codec_archive = build_archive(tools["clang"], tools["clang"].with_name("llvm-ar"),
+                                      output / f"{stem}-codec")
+    rust_command = ["cargo", "build", "-p", "ps5-runtime", "--release", "--target",
+                    "x86_64-unknown-none", "--target-dir", ROOT / "target", "--locked"]
+    rust_env = os.environ.copy()
+    if args.sbc_continuous:
+        rust_command += ["--features", "continuous-sbc"]
+        rust_env["PS5_BT_SBC_ARCHIVE"] = str(codec_archive)
+        rust_env["PS5_BT_SBC_NM"] = str(tools["clang"].with_name("llvm-nm"))
+    run(rust_command, env=rust_env)
     elf = output / f"{stem}.elf"
     elf.unlink(missing_ok=True)
     sources = [ROOT / "platform/ps5/bootstrap/start.S",
@@ -194,6 +205,8 @@ def build(args):
     if args.capture_preflight or args.capture_once or args.capture_observe:
         sources += [ROOT / "platform/ps5/diagnostics/capture_probe.c",
                     ROOT / "platform/ps5/diagnostics/capture_observe.c"]
+    if args.sbc_continuous:
+        sources.append(ROOT / "platform/ps5/diagnostics/continuous_clock.c")
     if args.sbc_selftest:
         sources.append(ROOT / "platform/codec/ps5_bt_sbc_selftest.c")
     objects = []
@@ -215,6 +228,8 @@ def build(args):
         flags.append("-DPS5_BT_CAPTURE_OBSERVE")
     if args.capture_preflight:
         flags.append("-DPS5_BT_CAPTURE_PREFLIGHT")
+    if args.sbc_continuous:
+        flags.append("-DPS5_BT_SBC_CONTINUOUS")
     if args.sbc_selftest:
         flags.append("-DPS5_BT_SBC_SELFTEST")
     for index, path in enumerate(sources):
@@ -226,18 +241,14 @@ def build(args):
         run([tools["clang"], *flags, *extra, "-c", path, "-o", obj])
         objects.append(obj)
     archive = ROOT / "target/x86_64-unknown-none/release/libps5_runtime.a"
-    codec_archive = None
-    if args.sbc_selftest:
-        from target_sbc import build_archive
-        codec_archive = build_archive(tools["clang"], tools["clang"].with_name("llvm-ar"),
-                                      output / f"{stem}-codec")
     link_flags = ["-m", "elf_x86_64", "-pie", "--no-dynamic-linker",
          "-e", "_start", "-T", ROOT / "platform/ps5/bootstrap/minimal.ld", "-z", "max-page-size=0x4000",
          "--gc-sections", "--no-undefined", "--build-id=none", "--strip-debug", "--hash-style=gnu",
          "--undefined=ps5_bootstrap_lookup", "--undefined=__crt_syscall", "--wrap=__crt_syscall"]
     run([tools["ld.lld"], *link_flags,
-         "-Map=" + str(output / f"{stem}.map"), *objects, archive,
-         *([codec_archive] if codec_archive else []), "-o", elf])
+         "-Map=" + str(output / f"{stem}.map"), *objects,
+         *(["--start-group", archive, codec_archive, "--end-group"] if codec_archive else [archive]),
+         "-o", elf])
     try:
         report = inspect_bytes(elf.read_bytes(), allow_kernel_resolver=args.loader_kernel_resolver)
     except ValueError:
@@ -251,6 +262,7 @@ def build(args):
     report["capture_once"] = args.capture_once
     report["capture_observe"] = args.capture_observe
     report["sbc_selftest"] = args.sbc_selftest
+    report["sbc_continuous"] = args.sbc_continuous
     report["loader_kernel_resolver"] = args.loader_kernel_resolver
     report["rust"] = rust_version
     report["llvm"] = run([tools["clang"], "--version"], capture=True).strip()
@@ -275,7 +287,7 @@ def build(args):
         for name in ("platform/ps5/diagnostics/capture_probe.h",
                      "platform/ps5/diagnostics/capture_observe.h"):
             report["project_sources"][name] = digest(ROOT / name)
-    if args.sbc_selftest:
+    if args.sbc_selftest or args.sbc_continuous:
         from target_sbc import export_relink, source_inventory
         report["codec_sources"] = source_inventory()
         report["codec_archive_sha256"] = digest(codec_archive)
@@ -288,7 +300,8 @@ def build(args):
             str(path.relative_to(ROOT)): digest(path)
             for path in sorted(relink_manifest.parent.rglob("*")) if path.is_file()
         }
-        for name in ("platform/codec/ps5_bt_sbc_selftest.h",):
+        if args.sbc_selftest:
+            name = "platform/codec/ps5_bt_sbc_selftest.h"
             report["project_sources"][name] = digest(ROOT / name)
     if args.usb_metadata:
         for name in ("usb_probe.h", "usb_descriptors.h"):
@@ -312,6 +325,8 @@ def build(args):
 
 
 def artifact_stem(args):
+    if args.sbc_continuous:
+        return "ps5-bt-sbc-continuous"
     if args.native_l2cap_probe:
         return "ps5-bt-native-l2cap-probe"
     if args.capture_observe:
@@ -345,6 +360,8 @@ if __name__ == "__main__":
                           help="perform one bounded metadata-only capture cycle")
     variants.add_argument("--capture-observe", action="store_true",
                           help="observe first capture data for at most 20 reads/two seconds")
+    variants.add_argument("--sbc-continuous", action="store_true",
+                          help="run bounded Rust continuous generated-PCM/SBC diagnostic")
     variants.add_argument("--sbc-selftest", action="store_true",
                           help="encode deterministic generated PCM without Bluetooth or capture")
     parser.add_argument("--loader-kernel-resolver", action="store_true",

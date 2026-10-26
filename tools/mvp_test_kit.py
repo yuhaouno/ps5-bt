@@ -117,12 +117,13 @@ def validate_candidate(root, candidate, head):
         "usb-binding": "usb_metadata",
         "capture-settled": "capture_once",
         "sbc-selftest": "sbc_selftest",
+        "sbc-continuous": "sbc_continuous",
         "capture-observe": "capture_observe",
     }.get(candidate["id"])
     if expected_variant is None:
         raise ValueError("unreviewed candidate id")
     variants = ("native_query", "native_l2cap_probe", "usb_metadata", "capture_preflight", "capture_once",
-                "sbc_selftest", "capture_observe")
+                "sbc_selftest", "capture_observe", "sbc_continuous")
     if any(type(manifest.get(key, False)) is not bool for key in variants) or [
         key for key in variants if manifest.get(key, False)
     ] != [expected_variant]:
@@ -136,7 +137,7 @@ def validate_candidate(root, candidate, head):
             raise ValueError("source bundle lacks its build manifest") from error
         if packaged_manifest is None or packaged_manifest.read() != manifest_path.read_bytes():
             raise ValueError("source bundle does not match the build manifest")
-        if expected_variant == "sbc_selftest":
+        if expected_variant in ("sbc_selftest", "sbc_continuous"):
             names = set(archive.getnames())
             if not {"ps5-bt-source/relink/relink.py",
                     "ps5-bt-source/relink/bundle-manifest.json",

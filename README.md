@@ -52,7 +52,7 @@ The earlier second-machine build reproduction remains in
 | Opt-in read-only USB enumeration | Executed on one Slim/13.40 | own four-interface descriptor log; other node opens failed; transport remains Unsupported |
 | Opt-in Avcap2 capture diagnostic | Nonempty data observed on one Slim/13.40 | 100 ms settled read returned 8,192 bytes; all lifecycle/cleanup statuses 0; native PCM format/timing unknown |
 | SBC parameter selection and frame sizing | Implemented | portable validation tests and host encoder boundary |
-| Real PCM-to-SBC encoding | Host implementation and target diagnostic link | safe Rust host owner, generic libsbc, 208 encoder/12 decoder vectors; target generated-signal diagnostic uses separate C boundary |
+| Real PCM-to-SBC encoding | Host implementation and experimental Rust target link | safe persistent Rust/C owner; independent short C self-test and bounded 750-block Rust target candidate; continuous target execution requires hardware |
 | Generated-signal SBC self-test | Executed on one Slim/13.40 environment | two fresh init/finish cycles, four 77-byte frames and pinned digest match host; clean cleanup; no measured encode duration or Bluetooth output |
 | Bounded capture observation | Executed on one Slim/13.40 environment | immediate Empty then 8,192 bytes after one wait; checked clock call and clean cleanup; native PCM format/timestamp still unknown |
 | SBC-over-RTP/A2DP packetization | Implemented on host | fixed negotiated MTU/frame boundaries, atomic backpressure, sequence/sample timestamps and wrap tests; no AVDTP/live stream |

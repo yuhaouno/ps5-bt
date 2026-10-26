@@ -6,7 +6,12 @@ caller storage size/alignment and retains only pointers inside that borrowed
 allocation until finish; it never retains PCM/output buffers. It neither
 changes this transport ABI nor establishes a capture audio ABI. The separate
 generated-signal SBC self-test now links the target codec through that C
-boundary; hardware execution remains separately recorded.
+boundary; hardware execution remains separately recorded. The independent
+`continuous-sbc` Rust runtime feature calls that same owner through
+`ps5_rust_sbc_continuous(int32_t (*now_us)(uint64_t *out))`. Its synchronous
+callback writes a host monotonic microsecond observation only on status zero,
+retains no pointer and never supplies native capture timestamp units. Null,
+error, regression and elapsed overflow fail closed; see SBC-CONTINUOUS.md.
 
 The header `platform/ps5/include/ps5_bt.h` is the bootstrap source of truth.
 These are our symbols, not existing PS5 SDK functions. ABI value `0x00010000`

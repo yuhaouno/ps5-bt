@@ -42,6 +42,16 @@ SBC_SELFTEST_SOURCES = {
 }
 TARGET_SBC_SOURCE_FILES = frozenset(target_sbc_source_inventory())
 SBC_RELINK_DIRECTORY = PurePosixPath("build/ps5/ps5-bt-sbc-selftest-relink")
+SBC_CONTINUOUS_SOURCES = {"platform/ps5/diagnostics/continuous_clock.c"}
+CODEC_VARIANTS = ("sbc_selftest", "sbc_continuous")
+
+
+def relink_directory(manifest):
+    variant = selected_variant(manifest)
+    if variant not in CODEC_VARIANTS:
+        raise ValueError("relink materials require a codec variant")
+    return PurePosixPath("build/ps5/" + VARIANTS[variant][0] + "-relink")
+
 VARIANTS = {
     "native_l2cap_probe": ("ps5-bt-native-l2cap-probe", NATIVE_L2CAP_SOURCES, "--native-l2cap-probe"),
     "native_query": ("ps5-bt-native-query", NATIVE_SOURCES, "--native-query"),
@@ -50,6 +60,7 @@ VARIANTS = {
     "capture_once": ("ps5-bt-capture-once", CAPTURE_SOURCES, "--capture-once"),
     "capture_observe": ("ps5-bt-capture-observe", CAPTURE_SOURCES, "--capture-observe"),
     "sbc_selftest": ("ps5-bt-sbc-selftest", SBC_SELFTEST_SOURCES, "--sbc-selftest"),
+    "sbc_continuous": ("ps5-bt-sbc-continuous", SBC_CONTINUOUS_SOURCES, "--sbc-continuous"),
 }
 REQUIRED_FILES = REQUIRED_SOURCES | {
     "LICENSE", "Makefile", "Cargo.lock", "Cargo.toml", "rust-toolchain.toml",
@@ -156,10 +167,12 @@ def validate_codec_sources(files, manifest):
 
 
 def validate_relink_files(root, files, manifest, codec_sources):
+    directory_relative = relink_directory(manifest)
+    stem = VARIANTS[selected_variant(manifest)][0]
     recorded = manifest.get("relink_files")
     if not isinstance(recorded, dict) or not recorded:
         raise ValueError("missing relink file inventory")
-    directory = root.joinpath(*SBC_RELINK_DIRECTORY.parts)
+    directory = root.joinpath(*directory_relative.parts)
     if not directory.is_dir() or directory.is_symlink():
         raise ValueError("missing or invalid SBC relink directory")
 
@@ -177,7 +190,7 @@ def validate_relink_files(root, files, manifest, codec_sources):
         raise ValueError("relink manifest differs from the complete bundle contents")
 
     for name, expected in recorded.items():
-        relative = safe_relative(name, SBC_RELINK_DIRECTORY)
+        relative = safe_relative(name, directory_relative)
         if not valid_sha256(expected):
             raise ValueError(f"invalid relink SHA-256: {name}")
         path = root.joinpath(*relative.parts)
@@ -185,7 +198,7 @@ def validate_relink_files(root, files, manifest, codec_sources):
         if sha256(data) != expected:
             raise ValueError(f"relink file hash mismatch: {name}")
         checks[path] = expected
-        bundle_name = relative.relative_to(SBC_RELINK_DIRECTORY).as_posix()
+        bundle_name = relative.relative_to(directory_relative).as_posix()
         entries[PREFIX + "relink/" + bundle_name] = (
             data, 0o755 if path.stat().st_mode & 0o111 else 0o644)
 
@@ -195,7 +208,7 @@ def validate_relink_files(root, files, manifest, codec_sources):
     except (OSError, json.JSONDecodeError) as error:
         raise ValueError("invalid SBC relink bundle manifest") from error
     if (bundle.get("schema") != 1 or bundle.get("target") != "x86_64-sie-ps5" or
-            bundle.get("output_name") != "ps5-bt-sbc-selftest.elf"):
+            bundle.get("output_name") != stem + ".elf"):
         raise ValueError("unexpected SBC relink bundle identity")
 
     app_objects = bundle.get("app_objects")
@@ -234,7 +247,7 @@ def validate_relink_files(root, files, manifest, codec_sources):
         raise ValueError("relink immutable inventory is incomplete or unexpected")
     for name, expected in immutable.items():
         safe_relative(name)
-        recorded_name = (SBC_RELINK_DIRECTORY / name).as_posix()
+        recorded_name = (directory_relative / name).as_posix()
         if not valid_sha256(expected) or recorded.get(recorded_name) != expected:
             raise ValueError(f"relink immutable hash mismatch: {name}")
     for name, expected in codec_sources.items():
@@ -247,7 +260,6 @@ def validate_relink_files(root, files, manifest, codec_sources):
             files["tools/inspect_elf.py"][0]):
         raise ValueError("relink inspection helper differs from committed project source")
 
-    stem = "ps5-bt-sbc-selftest"
     artifacts = {
         f"artifacts/{stem}.elf",
         f"artifacts/{stem}.map",
@@ -264,7 +276,7 @@ def validate_relink_files(root, files, manifest, codec_sources):
         *artifacts,
     }
     actual_bundle_files = {
-        PurePosixPath(name).relative_to(SBC_RELINK_DIRECTORY).as_posix()
+        PurePosixPath(name).relative_to(directory_relative).as_posix()
         for name in actual_names
     }
     if actual_bundle_files != expected_files:
@@ -280,7 +292,7 @@ def validate_relink_files(root, files, manifest, codec_sources):
         raise ValueError("SBC relink script is not executable")
 
     def recorded_hash(name):
-        return recorded[(SBC_RELINK_DIRECTORY / name).as_posix()]
+        return recorded[(directory_relative / name).as_posix()]
 
     if recorded_hash("codec/libps5_bt_sbc.a") != codec_sha256:
         raise ValueError("default relink codec does not match built codec archive")
@@ -347,7 +359,7 @@ def validate_manifest(root, head, files, manifest_path):
         if actual != expected:
             raise ValueError(f"manifest source hash mismatch: {name}")
     relink_entries = {}
-    if variant == "sbc_selftest":
+    if variant in CODEC_VARIANTS:
         codec_sources = validate_codec_sources(files, manifest)
         relink_checks, relink_entries = validate_relink_files(
             root, files, manifest, codec_sources)
@@ -380,10 +392,10 @@ def source_readme(manifest, manifest_name):
     relink_contents = (
         "  relink/                  Application objects, Rust archive, default codec archive,\n"
         "                           linker script, inspection helper and replacement-link script.\n"
-        if variant == "sbc_selftest" else "")
+        if variant in CODEC_VARIANTS else "")
     relink_notice = (
         """
-This SBC self-test combines GPL application/runtime material with the selected
+This SBC diagnostic combines GPL application/runtime material with the selected
 BlueZ libsbc 2.2 library under LGPL-2.1-or-later. The complete selected library
 source, notices and local patches are present in project/third_party/sbc and are
 also copied under relink/source/ with exact hashes. relink/ contains the linked
@@ -403,7 +415,7 @@ The script checks the immutable object/source/linker hashes, records the actual
 replacement codec hash and emits inspection/disassembly/result files beside the
 chosen output. Relinking is a build result, not PS5 execution or codec quality
 evidence. See project/docs/SBC-IMPLEMENTATION.md.
-""" if variant == "sbc_selftest" else "")
+""" if variant in CODEC_VARIANTS else "")
     return f"""PS5-BT diagnostic corresponding source
 
 Original project commit: {manifest['git_head']}
@@ -512,7 +524,7 @@ def self_test():
             root.mkdir()
             git(root, "init", "-q")
             fixture_files = (REQUIRED_FILES | NATIVE_SOURCES | NATIVE_L2CAP_SOURCES | USB_SOURCES |
-                             CAPTURE_SOURCES | SBC_SELFTEST_SOURCES)
+                             CAPTURE_SOURCES | SBC_SELFTEST_SOURCES | SBC_CONTINUOUS_SOURCES)
             for name in fixture_files:
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -541,7 +553,9 @@ def self_test():
             rust.write_bytes(b"synthetic Rust archive")
 
             def synthetic_relink_bundle(variant_elf):
-                directory = root.joinpath(*SBC_RELINK_DIRECTORY.parts)
+                stem = variant_elf.stem
+                directory_relative = PurePosixPath("build/ps5/" + stem + "-relink")
+                directory = root.joinpath(*directory_relative.parts)
                 directory.mkdir(parents=True)
                 payloads = {
                     ".ps5-bt-target-sbc-owned.json": b'{"kind":"relink","schema":1}\n',
@@ -551,11 +565,11 @@ def self_test():
                     "codec/libps5_bt_sbc.a": b"synthetic replaceable codec archive",
                     "linker/minimal.ld": files["platform/ps5/bootstrap/minimal.ld"][0],
                     "support/inspect_elf.py": files["tools/inspect_elf.py"][0],
-                    "artifacts/ps5-bt-sbc-selftest.elf": variant_elf.read_bytes(),
-                    "artifacts/ps5-bt-sbc-selftest.map": b"synthetic link map",
-                    "artifacts/ps5-bt-sbc-selftest.structure.json": b"{}\n",
-                    "artifacts/ps5-bt-sbc-selftest.inspect.txt": b"synthetic inspection",
-                    "artifacts/ps5-bt-sbc-selftest.disasm.txt": b"synthetic disassembly",
+                    f"artifacts/{stem}.elf": variant_elf.read_bytes(),
+                    f"artifacts/{stem}.map": b"synthetic link map",
+                    f"artifacts/{stem}.structure.json": b"{}\n",
+                    f"artifacts/{stem}.inspect.txt": b"synthetic inspection",
+                    f"artifacts/{stem}.disasm.txt": b"synthetic disassembly",
                 }
                 for name in TARGET_SBC_SOURCE_FILES:
                     payloads["source/" + name] = files[name][0]
@@ -570,30 +584,30 @@ def self_test():
                 immutable = {name: sha256(payloads[name]) for name in immutable_names}
                 result = {
                     "schema": 1,
-                    "elf": "synthetic/ps5-bt-sbc-selftest.elf",
+                    "elf": f"synthetic/{stem}.elf",
                     "elf_sha256": sha256(
-                        payloads["artifacts/ps5-bt-sbc-selftest.elf"]),
+                        payloads[f"artifacts/{stem}.elf"]),
                     "codec": "synthetic/libps5_bt_sbc.a",
                     "codec_sha256": sha256(
                         payloads["codec/libps5_bt_sbc.a"]),
                     "map_sha256": sha256(
-                        payloads["artifacts/ps5-bt-sbc-selftest.map"]),
+                        payloads[f"artifacts/{stem}.map"]),
                     "structure_sha256": sha256(
-                        payloads["artifacts/ps5-bt-sbc-selftest.structure.json"]),
+                        payloads[f"artifacts/{stem}.structure.json"]),
                     "inspection_sha256": sha256(
-                        payloads["artifacts/ps5-bt-sbc-selftest.inspect.txt"]),
+                        payloads[f"artifacts/{stem}.inspect.txt"]),
                     "disassembly_sha256": sha256(
-                        payloads["artifacts/ps5-bt-sbc-selftest.disasm.txt"]),
+                        payloads[f"artifacts/{stem}.disasm.txt"]),
                     "lld": "LLD 18.1.8",
                     "llvm_readobj": "LLVM 18.1.8",
                     "llvm_objdump": "LLVM 18.1.8",
                 }
-                payloads["artifacts/ps5-bt-sbc-selftest.relink-result.json"] = (
+                payloads[f"artifacts/{stem}.relink-result.json"] = (
                     json.dumps(result, indent=2, sort_keys=True) + "\n").encode()
                 bundle = {
                     "schema": 1,
                     "target": "x86_64-sie-ps5",
-                    "output_name": "ps5-bt-sbc-selftest.elf",
+                    "output_name": f"{stem}.elf",
                     "app_objects": ["objects/00-main.o"],
                     "rust_archive": "archives/libps5_runtime.a",
                     "linker_script": "linker/minimal.ld",
@@ -644,6 +658,7 @@ def self_test():
                 for name in SDK_FILES:
                     assert archive.extractfile(PREFIX + f"sdk/{SDK_REVISION}/" + name).read() == (source / name).read_bytes()
             for key, (stem, extra_sources, flag) in VARIANTS.items():
+                directory_relative = PurePosixPath("build/ps5/" + stem + "-relink")
                 variant_elf = elf.with_name(stem + ".elf")
                 variant_elf.write_bytes(("synthetic optional ELF " + key).encode())
                 variant_sources = dict(manifest["project_sources"])
@@ -653,7 +668,7 @@ def self_test():
                                         project_sources=variant_sources)
                 if key == "usb_metadata":
                     variant_manifest["sdk_headers"] = USB_SDK_HEADERS.copy()
-                if key == "sbc_selftest":
+                if key in CODEC_VARIANTS:
                     codec_sha256, relink_files, codec_sources = synthetic_relink_bundle(
                         variant_elf)
                     variant_manifest.update(
@@ -683,7 +698,7 @@ def self_test():
                         assert archive.extractfile(sdk_prefix + name).read() == (source / name).read_bytes()
                     if key == "usb_metadata":
                         assert "file-specific BSD and other notices" in readme
-                    elif key == "sbc_selftest":
+                    elif key in CODEC_VARIANTS:
                         assert "--codec /absolute/path/to/rebuilt/libps5_bt_sbc.a" in readme
                         relink_prefix = PREFIX + "relink/"
                         assert {
@@ -692,7 +707,7 @@ def self_test():
                             if item.name.startswith(relink_prefix)
                         } == {
                             PurePosixPath(name).relative_to(
-                                SBC_RELINK_DIRECTORY).as_posix()
+                                directory_relative).as_posix()
                             for name in relink_files
                         }
                     else:
@@ -736,7 +751,7 @@ def self_test():
                     header_path.unlink()
                     reject_variant(variant_manifest, "missing header bytes")
                     header_path.write_bytes(original)
-                if key == "sbc_selftest":
+                if key in CODEC_VARIANTS:
                     missing_codec_sources = dict(codec_sources)
                     missing_codec_sources.pop(next(iter(missing_codec_sources)))
                     reject_variant(dict(variant_manifest,
@@ -757,7 +772,7 @@ def self_test():
                                         codec_archive_sha256="0" * 64),
                                    "replacement codec hash mismatch")
                     relink_script = root.joinpath(
-                        *SBC_RELINK_DIRECTORY.parts, "relink.py")
+                        *directory_relative.parts, "relink.py")
                     original_relink_script = relink_script.read_bytes()
                     relink_script.write_bytes(b"modified relink script")
                     reject_variant(variant_manifest, "modified relink file")

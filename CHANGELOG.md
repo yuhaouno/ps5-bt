@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add independent target SBC linking and a persistent Rust `BlockEncoder`, with
+  per-object ELF/import checks and external replaceable codec archives. Build a
+  separate bounded 750-block generated-PCM Rust scheduler diagnostic with clock
+  fault handling, exact bitstream checks and matching source/relink materials;
+  PS5 execution remains pending and the short C self-test stays available.
+
 - Record the discovery/management integration milestone and add one optional
   host candidate-check target covering native/external adapters, fault harnesses
   and page state. PS5 hardware gates and the diagnostic remain unchanged.

@@ -218,6 +218,31 @@ def build_archive(
         return archive
 
 
+REQUIRED_WRAPPER = {
+    "ps5_bt_sbc_storage_size", "ps5_bt_sbc_storage_alignment",
+    "ps5_bt_sbc_init", "ps5_bt_sbc_encode", "ps5_bt_sbc_finish",
+}
+
+
+def verify_archive(archive: str | Path, nm: str | Path) -> dict[str, object]:
+    """Inspect replacement-friendly target objects and the narrow runtime seam."""
+    try:
+        from .inspect_archive import inspect
+    except ImportError:
+        from inspect_archive import inspect
+    path = Path(archive).resolve(strict=True)
+    nm_path = _require_llvm18(nm, "llvm-nm")
+    inspect(path)
+    undefined = _symbols(nm_path, "--undefined-only", [path])
+    defined = _symbols(nm_path, "--defined-only", [path])
+    external = undefined - defined
+    if external != EXPECTED_EXTERNAL:
+        raise ValueError(f"unexpected target SBC external imports: {sorted(external)}")
+    if not REQUIRED_WRAPPER <= defined:
+        raise ValueError(f"missing SBC wrapper exports: {sorted(REQUIRED_WRAPPER - defined)}")
+    return {"archive_sha256": _digest(path), "external_symbols": sorted(external)}
+
+
 RELINK_SCRIPT = r'''#!/usr/bin/env python3
 import argparse
 import hashlib
@@ -428,12 +453,17 @@ def export_relink(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--build-archive", type=Path)
+    parser.add_argument("--verify-archive", type=Path)
+    parser.add_argument("--nm", default="llvm-nm")
     parser.add_argument("--clang", default="clang")
     parser.add_argument("--ar", default="llvm-ar")
     args = parser.parse_args()
-    if args.build_archive is None:
-        parser.error("--build-archive is required; use export_relink() from the builder")
-    print(build_archive(args.clang, args.ar, args.build_archive))
+    if (args.build_archive is None) == (args.verify_archive is None):
+        parser.error("select exactly one of --build-archive or --verify-archive")
+    if args.verify_archive is not None:
+        print(json.dumps(verify_archive(args.verify_archive, args.nm), sort_keys=True))
+    else:
+        print(build_archive(args.clang, args.ar, args.build_archive))
     return 0
 
 

@@ -275,3 +275,22 @@ Redistributing a linked ELF requires the selected corresponding source,
 notices, GPL text and project/build sources; GitHub links alone are not a
 complete source distribution. There is no release distribution yet. See
 [UPSTREAM.md](UPSTREAM.md) for attribution, exact selection and update rules.
+
+## Rust continuous SBC candidate
+
+`make ps5-sbc-continuous` (with LLVM_CONFIG as above) builds a separate
+`build/ps5/ps5-bt-sbc-continuous.elf`. It builds/inspects the generic target
+archive first, selects `ps5-runtime/continuous-sbc` with independent target codec
+linking, and exports matching replacement materials. The old short C self-test
+and baseline remain independently selectable. See [SBC-CONTINUOUS.md](SBC-CONTINUOUS.md)
+for exact budgets, expected reports and hardware admission.
+
+After a clean commit and rebuild, package this candidate with:
+
+```sh
+python3 tools/package_source.py --manifest build/ps5/ps5-bt-sbc-continuous.manifest.json
+```
+
+The test-kit plan now includes this fifth independent candidate; build/package
+it alongside the other four before assembly. No new slot is created by the
+uploader. A new hardware window and execution authorization remain required.

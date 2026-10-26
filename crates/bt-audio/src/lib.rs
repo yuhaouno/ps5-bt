@@ -7,10 +7,16 @@
 use bt_core::media::{MediaError, PcmQueue, RenderOutcome, SampleClock, TimedStereoFrame};
 use bt_core::{Error as CodecError, SbcChannelMode, SbcParameters};
 
+#[cfg(any(feature = "host-libsbc", feature = "target-libsbc"))]
+mod codec;
+#[cfg(any(feature = "host-libsbc", feature = "target-libsbc"))]
+pub use codec::SbcEncoder;
 #[cfg(feature = "host-libsbc")]
-mod host;
-#[cfg(feature = "host-libsbc")]
-pub use host::HostSbcEncoder;
+pub use codec::SbcEncoder as HostSbcEncoder;
+#[cfg(feature = "target-libsbc")]
+pub use codec::SbcEncoder as TargetSbcEncoder;
+#[cfg(any(feature = "host-libsbc", feature = "target-libsbc"))]
+pub mod diagnostic;
 
 /// One persistent, single-owner codec. Errors are terminal to this scheduler:
 /// the encoder may have advanced even when it cannot provide a complete block.
@@ -19,6 +25,12 @@ pub use host::HostSbcEncoder;
 pub trait BlockEncoder {
     fn parameters(&self) -> SbcParameters;
     fn encode_stereo(&mut self, pcm: &[[i16; 2]], output: &mut [u8]) -> Result<usize, CodecError>;
+}
+
+/// Consuming codec cleanup for application resource owners. Cleanup consumes
+/// ownership even on failure; never retry finish or hide its result in Drop.
+pub trait FinishEncoder: BlockEncoder + Sized {
+    fn finish(self) -> Result<(), CodecError>;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -10,7 +10,12 @@ publish.workspace = true
 [lib]
 crate-type = ["rlib", "staticlib"]
 
+[features]
+default = []
+continuous-sbc = ["dep:bt-audio", "bt-audio/target-libsbc"]
+
 [dependencies]
+bt-audio = { path = "../bt-audio", optional = true }
 bt-core = { path = "../bt-core" }
 bt-hci = { path = "../bt-hci" }
 ps5-platform = { path = "../ps5-platform" }
