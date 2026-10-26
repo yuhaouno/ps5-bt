@@ -7,6 +7,8 @@ pub mod generated;
 #[cfg(feature = "native-resources")]
 mod native;
 pub mod observe;
+#[cfg(feature = "native-resources")]
+pub mod rebuild;
 pub use config::*;
 pub use factory::*;
 #[cfg(feature = "native-resources")]

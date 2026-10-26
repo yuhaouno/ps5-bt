@@ -23,5 +23,10 @@ bt-codec = { path = "../bt-codec" }
 bt-audio = { path = "../bt-audio" }
 ps5-platform = { path = "../ps5-platform" }
 
+[dev-dependencies]
+bt-link = { path = "../bt-link" }
+bt-control = { path = "../bt-control" }
+bt-device = { path = "../bt-device" }
+
 [lints]
 workspace = true
