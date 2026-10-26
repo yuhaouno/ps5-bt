@@ -64,7 +64,7 @@ on any PS5 crate; they are not a prerequisite for PS5 development or acceptance.
 | Crate | Initial responsibility | Dependency direction |
 | --- | --- | --- |
 | `bt-a2dp` | `no_std` bounded complete-frame SBC-over-RTP packetization | `bt-core`; no session or transport dependency |
-| `bt-avdtp` | `no_std` bounded initiator signaling and conservative SBC capability/session state | `bt-core`; no transport owner, media binding or signaling reassembly |
+| `bt-avdtp` | `no_std` bounded initiator signaling and conservative SBC capability/session state | `bt-core`; bounded receive reassembly; no transport owner or media binding |
 | `bt-core` | `no_std` contracts, SBC parameters, PCM staging and nominal sample timeline | no dependencies |
 | `bt-codec` | `no_std` caller-storage encoder owner; real generic libsbc behind host-only feature | `bt-core`; C static archive only with `host-libsbc` |
 | `bt-control` | `no_std` bounded authenticated request parsing, serialized command tickets and redacted status | no dependencies; no listener or transport owner |
@@ -80,8 +80,9 @@ All packages are unpublished, temporary identifiers, not reserved public names.
 The first bounded L2CAP channel-signaling machine, AVDTP initiator session,
 SBC-over-RTP packetizer and RTP/L2CAP/ACL media send cursor are host-tested;
 SDP discovery is also host-tested.
-AVDTP signaling reassembly, live media binding and baseband connection remain
-authorized MVP implementation targets, not implemented capabilities. Split
+AVDTP receive signaling reassembly is host-tested. Live media binding and
+baseband connection remain authorized MVP implementation targets, not
+implemented capabilities. Split
 them when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
 `no_std` on the freestanding target. Portable crates remain `no_std` everywhere.

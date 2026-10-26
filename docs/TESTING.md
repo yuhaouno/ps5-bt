@@ -47,7 +47,10 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 - AVDTP initiator: exact command/header bytes, conservative SBC selection and a
   scripted configure/open/start/suspend/restart/close/abort lifecycle; malformed
   and reserved bits, peer reject details, stale epoch/label/signal, collision,
-  timeout/disconnect, short-output atomicity and explicit fragment rejection.
+  timeout/disconnect and short-output atomicity. The legacy single-message API
+  still rejects fragments; the packet API adds 19 bounded reassembly/integration
+  tests for packet counts, full-SDU lengths, fixed deadlines, cancellation
+  quarantine, stale CID/epoch/transaction generation and fragmented responses.
   No live L2CAP channel, headset interoperability or PS5 execution is implied.
 - Media send orchestration: complete SBC frame to RTP/L2CAP/ACL success across
   multiple fragments, byte-identical prepare retry, stale/foreign connection

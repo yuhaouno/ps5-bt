@@ -41,7 +41,7 @@ The earlier second-machine build reproduction remains in
 | Owned ACL credit accounting | Implemented on host | exact acceptance/completion accounting with explicit reservation, sticky loss/uncertain-send failure and no timer refill; no hardware reservation established |
 | L2CAP framing, bounded ACL fragmentation/reassembly and Classic channel signaling | Implemented on host | acceptance-confirmed outbound cursor plus scripted Connection/MTU Configuration/Disconnection and handle/epoch/bounds tests; no live transport/credits |
 | SDP framing, bounded data elements and A2DP Sink discovery | Implemented on host | correlated transactions/epochs, bounded continuation and strict service-record semantics; no live query |
-| AVDTP SBC initiator session | Implemented on host | bounded Discover/Get Capabilities/Set Configuration/Open/Start/Suspend/Close/Abort with conservative SBC selection; no signaling reassembly, live media channel, headset or PS5 execution |
+| AVDTP SBC initiator session | Implemented on host | conservative SBC negotiation/lifecycle plus bounded receive signaling reassembly with epoch/CID/transaction isolation; no live media channel, headset or PS5 execution |
 | C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |
 | Opt-in read-only USB enumeration | Executed on one Slim/13.40 | own four-interface descriptor log; other node opens failed; transport remains Unsupported |
@@ -143,7 +143,7 @@ The workspace contains `bt-a2dp`, `bt-avdtp`, `bt-control`, `bt-core`,
 Audio Sink discovery client, bounded AVDTP initiator session and SBC-over-RTP
 packetizer are host-tested. The media send cursor binds encoded frames through
 RTP/L2CAP/ACL with explicit acceptance and cancellation accounting. AVDTP
-signaling reassembly, clock/credit pacing and every live channel remain absent.
+receive signaling reassembly is host-tested; clock/credit pacing and every live channel remain absent.
 The bounded LAN request/state contract is host-tested, but has no socket listener
 or page; the remaining protocol and LAN integration work is not a current capability.
 See [next-session work and hardware run order](docs/MVP-NEXT-RUN.md).

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::{
-    CapabilityError, Header, Message, MessageType, PacketType, ParseError, SbcConfiguration,
-    ServiceCapabilities, SignalId, StreamEndpointId, StreamEndpoints,
+    CapabilityError, CompleteMessage, Header, Message, MessageType, PacketType, ParseError,
+    ReassemblyError, SbcConfiguration, ServiceCapabilities, SignalId, SignalingContext,
+    SignalingReassembler, StreamEndpointId, StreamEndpoints,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -39,6 +40,7 @@ pub enum Error {
     EpochNotAdvanced,
     NoPendingTransaction,
     StaleTransaction,
+    TransactionExhausted,
     Collision,
     UnexpectedCommand,
     FragmentationUnsupported,
@@ -55,6 +57,24 @@ impl From<ParseError> for Error {
 impl From<CapabilityError> for Error {
     fn from(value: CapabilityError) -> Self {
         Self::Capability(value)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReceiveError {
+    Session(Error),
+    Reassembly(ReassemblyError),
+}
+
+impl From<Error> for ReceiveError {
+    fn from(value: Error) -> Self {
+        Self::Session(value)
+    }
+}
+
+impl From<ReassemblyError> for ReceiveError {
+    fn from(value: ReassemblyError) -> Self {
+        Self::Reassembly(value)
     }
 }
 
@@ -91,6 +111,7 @@ enum Effect {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Pending {
     command: PendingCommand,
+    generation: u64,
     effect: Effect,
     previous_state: StreamState,
 }
@@ -115,6 +136,7 @@ pub struct Initiator {
     epoch: u64,
     state: StreamState,
     next_label: u8,
+    next_generation: u64,
     pending: Option<Pending>,
     remote: Option<StreamEndpointId>,
     local: Option<StreamEndpointId>,
@@ -127,6 +149,7 @@ impl Initiator {
             epoch,
             state: StreamState::Idle,
             next_label: 0,
+            next_generation: 0,
             pending: None,
             remote: None,
             local: None,
@@ -311,22 +334,77 @@ impl Initiator {
         if header.packet_type() != PacketType::Single {
             return Err(Error::FragmentationUnsupported);
         }
+        self.receive_message(CompleteMessage::single(message))
+    }
+
+    /// Consumes one ordered signaling L2CAP SDU. A partial response returns
+    /// `None`; completion uses exactly the same semantic validation as receive.
+    /// Start/Single correlation is checked before any reassembly storage write.
+    /// A timeout does not clear the pending command: explicitly invalidate the
+    /// Initiator and reset the reassembler to the same newer epoch.
+    pub fn receive_packet<'a>(
+        &mut self,
+        reassembler: &'a mut SignalingReassembler<'_>,
+        context: SignalingContext,
+        now_us: u64,
+        packet: &[u8],
+    ) -> Result<Option<Outcome<'a>>, ReceiveError> {
+        if context.epoch != self.epoch {
+            return Err(Error::InvalidEpoch.into());
+        }
+        let parsed = reassembler.preflight(context, now_us, packet)?;
+        let header = parsed.header();
+        let pending = if matches!(header.packet_type(), PacketType::Single | PacketType::Start) {
+            self.validate_response(
+                header.transaction_label(),
+                header.message_type(),
+                header.raw_signal_id(),
+            )?
+        } else if let Some(partial) = reassembler.partial() {
+            self.validate_response(
+                partial.transaction_label,
+                partial.message_type,
+                Some(partial.signal_id),
+            )?
+        } else {
+            return Err(ReassemblyError::NoStart.into());
+        };
+        match reassembler.push_parsed(now_us, packet.len(), parsed, Some(pending.generation))? {
+            Some(message) => Ok(Some(self.receive_message(message)?)),
+            None => Ok(None),
+        }
+    }
+
+    fn validate_response(
+        &self,
+        transaction_label: u8,
+        message_type: MessageType,
+        raw_signal_id: Option<u8>,
+    ) -> Result<Pending, Error> {
         let pending = self.pending.ok_or(Error::NoPendingTransaction)?;
-        if header.message_type() == MessageType::Command {
-            return if header.signal_id() == Some(pending.command.signal) {
+        if message_type == MessageType::Command {
+            return if raw_signal_id == Some(pending.command.signal.raw()) {
                 Err(Error::Collision)
             } else {
                 Err(Error::UnexpectedCommand)
             };
         }
-        if header.transaction_label() != pending.command.transaction_label
-            || (header.message_type() != MessageType::GeneralReject
-                && header.raw_signal_id() != Some(pending.command.signal.raw()))
+        if transaction_label != pending.command.transaction_label
+            || (message_type != MessageType::GeneralReject
+                && raw_signal_id != Some(pending.command.signal.raw()))
         {
             return Err(Error::StaleTransaction);
         }
+        Ok(pending)
+    }
 
-        match header.message_type() {
+    fn receive_message<'a>(&mut self, message: CompleteMessage<'a>) -> Result<Outcome<'a>, Error> {
+        let pending = self.validate_response(
+            message.transaction_label(),
+            message.message_type(),
+            message.raw_signal_id(),
+        )?;
+        match message.message_type() {
             MessageType::Accept => {
                 let accepted = Self::parse_accept(pending.command.signal, message.payload())?;
                 self.apply_accept(pending.effect);
@@ -369,6 +447,10 @@ impl Initiator {
         if output.len() < total {
             return Err(Error::BufferTooSmall);
         }
+        let next_generation = self
+            .next_generation
+            .checked_add(1)
+            .ok_or(Error::TransactionExhausted)?;
         let label = self.next_label;
         let header = Header::single(label, MessageType::Command, signal)?;
         header.encode(&mut output[..2])?;
@@ -387,6 +469,7 @@ impl Initiator {
             bytes: total,
         };
         self.pending = Some(Pending {
+            generation: self.next_generation,
             command: PendingCommand {
                 epoch: self.epoch,
                 transaction_label: label,
@@ -396,6 +479,7 @@ impl Initiator {
             previous_state,
         });
         self.next_label = (label + 1) & 0x0f;
+        self.next_generation = next_generation;
         Ok(command)
     }
 
@@ -484,6 +568,7 @@ impl Initiator {
         self.epoch = new_epoch;
         self.pending = None;
         self.next_label = 0;
+        self.next_generation = 0;
         self.clear_stream();
         Ok(())
     }

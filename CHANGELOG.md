@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add caller-storage AVDTP receive signaling reassembly and a packet-oriented
+  initiator entry that shares existing semantic validation. Bound packet counts,
+  SDU lengths and a fixed Start deadline; isolate channel/epoch/transaction
+  generations and quarantine cancelled/expired assemblies. Preserve the legacy
+  single-message API. This is development evidence, not PS5 interoperability.
+
 - Add a caller-driven fault-episode recovery controller with bounded attempts,
   monotonic deadlines, capped backoff and stable-success budget reset. Correlate
   cleanup/reconciliation and attempt tickets, retain uncertainty after timeout

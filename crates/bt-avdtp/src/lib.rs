@@ -8,6 +8,7 @@
 #![forbid(unsafe_code)]
 
 mod capability;
+mod reassembly;
 mod session;
 mod signaling;
 
@@ -15,9 +16,13 @@ pub use capability::{
     CapabilityError, SbcCapabilities, SbcConfiguration, ServiceCapabilities, ServiceCapability,
     ServiceCapabilityIter,
 };
+pub use reassembly::{
+    CompleteMessage, PartialMessage, ReassemblyError, ReassemblyLimits, SignalingContext,
+    SignalingReassembler,
+};
 pub use session::{
-    Accepted, Command, Error, Initiator, Outcome, PendingCommand, RejectDetail, RemoteReject,
-    StreamState,
+    Accepted, Command, Error, Initiator, Outcome, PendingCommand, ReceiveError, RejectDetail,
+    RemoteReject, StreamState,
 };
 pub use signaling::{
     EndpointType, Header, MediaType, Message, MessageType, PacketType, ParseError, SignalId,
