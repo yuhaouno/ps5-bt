@@ -53,6 +53,7 @@ The earlier second-machine build reproduction remains in
 | Bounded capture observation | Executed on one Slim/13.40 environment | immediate Empty then 8,192 bytes after one wait; checked clock call and clean cleanup; native PCM format/timestamp still unknown |
 | SBC-over-RTP/A2DP packetization | Implemented on host | fixed negotiated MTU/frame boundaries, atomic backpressure, sequence/sample timestamps and wrap tests; no AVDTP/live stream |
 | Media send orchestration | Implemented on host | SBC/RTP/L2CAP/ACL submission now uses an external credit owner; Busy/credit stops retain the PDU and terminal errors report cancellation counts; no clock or live transport |
+| A2DP source session binding | Implemented on host | Classic Ready/context gate, automatic bounded SBC negotiation, media-channel binding and partial-PDU-aware stop; no capture/encoder/pacing, LAN owner loop or PS5 activation |
 | LAN control/status contract | Implemented on host | bounded authenticated request parser, single-owner command queue and identity-free status JSON; no listener/page or PS5 integration |
 | PCM staging, nominal sample timeline and bounded recovery | Host-only implementation | caller-owned stereo i16 queue; synthetic gaps/stalls; no resampler or live audio |
 | Fault-episode recovery controller | Implemented on host | finite attempt/time budgets, capped backoff, cleanup/reconciliation tickets and stable-success reset; no resource reopening or hardware recovery claim |
@@ -139,14 +140,18 @@ behind a versioned ABI; preserve provenance and explicit state/resource ownershi
 This policy does not import an upstream stack or transfer its hardware claims. See
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
 The workspace contains `bt-a2dp`, `bt-avdtp`, `bt-control`, `bt-core`,
-`bt-codec`, `bt-hci`, `bt-l2cap`, `bt-link`, `bt-media-session`, `bt-sdp`, `ps5-sys`,
+`bt-codec`, `bt-hci`, `bt-l2cap`, `bt-link`, `bt-media-session`, `bt-sdp`,
+`bt-session`, `ps5-sys`,
 `ps5-platform`, and `ps5-runtime`. The first initiator-side L2CAP Basic-mode channel machine, SDP
 Audio Sink discovery client, bounded AVDTP initiator session and SBC-over-RTP
 packetizer are host-tested. The media send cursor binds encoded frames through
 RTP/L2CAP/ACL with explicit acceptance and cancellation accounting. AVDTP
 receive signaling reassembly is host-tested; clock/credit pacing and every live channel remain absent.
+The new source-session binding joins Classic Ready, SBC negotiation, separate
+media-channel binding and the existing credit-aware sender on the host; it has
+no PS5 activation. See [the application binding contract](docs/SOURCE-SESSION.md).
 The bounded LAN request/state contract is host-tested, but has no socket listener
-or page; the remaining protocol and LAN integration work is not a current capability.
+or page; a live owner loop, capture/encoder integration and pacing remain absent.
 See [next-session work and hardware run order](docs/MVP-NEXT-RUN.md).
 
 ## Roadmap and contribution

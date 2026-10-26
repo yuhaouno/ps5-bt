@@ -21,6 +21,32 @@ transport experiments have separate admission from production support; no
 competing-reader, timer-credit or system-driver exception is implied. Existing
 tests, implementations and hardware facts below are unchanged by this policy.
 
+## Implementation wave, 2026-10-26
+
+The lead integrated three disjoint workers and the source-session binding:
+
+- `50826cd`: per-fault recovery with cleanup/reconciliation tickets, finite
+  attempt/time budgets, backoff and stable-success reset.
+- `58789ea`: caller-storage AVDTP receive reassembly, shared semantic validation,
+  fixed deadlines and channel/epoch/transaction-generation isolation.
+- `2baf62f`: selected-peer Classic connection/security, explicit SSP approval,
+  stored-key lookup, authentication/encryption/key-size gating and bounded cancel.
+- `bt-session`: binds Classic Ready and discovered Sink/channel metadata to SBC
+  negotiation and existing media submission. Healthy partial-PDU Stop drains
+  before Suspend/Close; terminal prefixes and integrity reasons remain observable.
+
+All 214 workspace Rust tests, Clippy, formatting, workspace freestanding checks,
+C sanitizers, codec checks and Rust archive inspection passed on this machine.
+The full `make check` is not a pass: unchanged x86 syscall execution stops with
+macOS errno 86 on this ARM host. Other build/source/kit self-tests are recorded
+in the handoff. These are development results, not PS5 acceptance. The PS5
+runtime still links the diagnostic/stub, not these new application candidates.
+
+Remaining: actual transport/dispatcher ownership, channel/SDP scheduling,
+inquiry and protected persistent bonds, capture/encoder/sample-pacing integration
+and the LAN listener/page/owner loop. No new hardware window, live backend,
+headset pairing or continuity/latency improvement has been demonstrated.
+
 ## Current milestone and baseline
 
 Runtime minimal-syscall-v6 removes unsafe executable-byte inspection, normalizes
@@ -83,8 +109,8 @@ their historical software/transfer baselines and are not current runtime state.
 | H2 | PARTIAL | user + lead | USB descriptors and normal pad confirmed; HCI queries/ownership/credits remain unverified and gated by C2 |
 | C4 | NONEMPTY READ | capture worker + lead + user | settled read returned 8,192 bytes; all lifecycle/cleanup statuses 0 and user-confirmed normal wireless input; native PCM format/timing still unknown |
 | E1a | DONE | sdp_framing + independent/lead review | bounded SDP PDU/continuation/data-element foundation and A2DP Sink discovery client, with transaction/epoch/deadline/continuation and exact UInt16 service semantics; no live query |
-| E1b | PARTIAL (HOST) | lead | bounded initiator-side Classic L2CAP Connection/MTU Configuration/Disconnection plus acceptance-confirmed outbound ACL fragmentation pass scripted tests; responder allocation, Classic baseband connection/pairing/key lifecycle and live activation remain |
-| F1 | PARTIAL (HOST) | lead | bounded complete-frame SBC-over-RTP packetization and AVDTP Discover/Get Capabilities/Set Configuration/Open/Start/Suspend/Close/Abort pass host tests; signaling reassembly, media binding and live transport remain |
+| E1b | PARTIAL (HOST) | lead | bounded initiator-side Classic L2CAP Connection/MTU Configuration/Disconnection plus acceptance-confirmed outbound ACL fragmentation pass scripted tests; selected-peer connection/security now exists in bt-link; responder allocation, inquiry, protected persistent bonds and live activation remain |
+| F1 | PARTIAL (HOST) | lead | bounded complete-frame SBC-over-RTP packetization and AVDTP Discover/Get Capabilities/Set Configuration/Open/Start/Suspend/Close/Abort pass host tests; receive reassembly and host source/media binding are now implemented; live channels/transport remain |
 | G1a | DONE | sbc_audit + independent/lead review | validated shared SBC selections and LGPL/runtime audit; implementation follows in G1b |
 | G1b | TARGET SELFTEST PASS | codec worker + lead + user | generic libsbc caller-storage path encoded four generated frames in two lifecycles on PS5 with exact host digest and clean cleanup; source/object/replacement materials tested; encode timing and live integration remain |
 | G2a | DONE (HOST) | lead | caller-owned stereo i16 PCM queue, absolute nominal sample deadlines, bounded counted silence/rebuffer/expiry; ten media tests and four synthetic scenarios; codec example in T1, no live capture/transport |
@@ -139,7 +165,7 @@ The first offline PCM queue, nominal sample timeline and recovery simulation
 are implemented under AUDIO-RECOVERY.md. The real host PCM-to-SBC path is now
 implemented under SBC-IMPLEMENTATION.md. Complete-frame RTP packetization, SDP
 discovery and the bounded AVDTP initiator session are now done; next media work
-is signaling reassembly, media-channel binding, pacing and explicit capture
-conversion. Tone, pairing, captured
+is actual channel/SDP scheduling, pacing and explicit capture conversion;
+receive reassembly and host media binding are implemented. Tone, pairing, captured
 PCM and live audio remain later milestones; simulation does not authorize a
 shared-reader backend.

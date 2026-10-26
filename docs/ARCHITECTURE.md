@@ -73,6 +73,7 @@ on any PS5 crate; they are not a prerequisite for PS5 development or acceptance.
 | `bt-link` | `no_std` selected-peer Classic connection/security lifecycle, exact HCI command acceptance, stored-key/SSP decisions and authenticated encrypted Ready gate | `bt-core`, `bt-hci`; no transport ownership, inquiry or persistent key store |
 | `bt-media-session` | `no_std` SBC-frame to RTP/L2CAP/ACL send cursor plus one-attempt submission through an external credit owner | `bt-a2dp`, `bt-core`, `bt-hci`, `bt-l2cap`; no clock, encoder, reservation discovery or transport owner |
 | `bt-sdp` | `no_std` borrowed PDU/data elements and bounded A2DP Sink discovery with atomic final validation | no dependencies; no L2CAP or live session |
+| `bt-session` | `no_std` source negotiation, Classic Ready/context gate, media-channel binding and bounded partial-PDU-aware stop | `bt-link`, `bt-avdtp`, `bt-sdp`, `bt-media-session` and framing types; no transport owner, capture/encode or pacing loop |
 | `ps5-sys` | `no_std` declarations matching our own C header | no SDK struct bindings |
 | `ps5-platform` | `no_std` safe C adapter wrapper, exclusive session ownership | `bt-core`, `ps5-sys` |
 | `ps5-runtime` | diagnostic entry, C-callable Rust static library | platform wrapper and HCI |
@@ -82,8 +83,10 @@ The first bounded L2CAP channel-signaling machine, AVDTP initiator session,
 SBC-over-RTP packetizer and RTP/L2CAP/ACL media send cursor are host-tested;
 SDP discovery is also host-tested.
 AVDTP receive signaling reassembly and a bounded selected-peer Classic link
-security candidate are host-tested. Live media binding, inquiry and persistent
-bond storage remain implementation targets; no connection backend is active. Split
+security candidate are host-tested. `bt-session` now binds Classic Ready and
+explicit channels to negotiation/media submission on the host. Actual channel
+establishment, inquiry, persistent bond storage, capture/encode/pacing and a
+PS5 owner loop remain work; no connection backend is active. Split
 them when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
 `no_std` on the freestanding target. Portable crates remain `no_std` everywhere.

@@ -14,6 +14,13 @@
 
 ## Unreleased
 
+- Bind the selected-peer Classic Ready boundary, AVDTP SBC negotiation, explicit
+  signaling/media channels and existing credit-aware media sender in a bounded
+  source session. Require full signaling acceptance and Start acknowledgement;
+  drain healthy partial PDUs before Suspend/Close, retain total stop deadlines,
+  and preserve terminal uncertainty for the recovery controller. No live PS5
+  transport, capture, encoder loop or audio/pacing claim is introduced.
+
 - Add a bounded selected-peer Classic link/security candidate with exact HCI
   command acceptance, cancellation-race cleanup, stored-key lookup and explicit
   SSP approval. Require authentication, encryption and queried minimum key size

@@ -1,0 +1,21 @@
+[package]
+name = "bt-session"
+description = "Bounded A2DP source negotiation and media channel binding"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+bt-a2dp = { path = "../bt-a2dp" }
+bt-avdtp = { path = "../bt-avdtp" }
+bt-core = { path = "../bt-core" }
+bt-hci = { path = "../bt-hci" }
+bt-l2cap = { path = "../bt-l2cap" }
+bt-link = { path = "../bt-link" }
+bt-media-session = { path = "../bt-media-session" }
+bt-sdp = { path = "../bt-sdp" }
+
+[lints]
+workspace = true

@@ -10,6 +10,7 @@ members = [
     "crates/bt-link",
     "crates/bt-media-session",
     "crates/bt-sdp",
+    "crates/bt-session",
     "crates/ps5-sys",
     "crates/ps5-platform",
     "crates/ps5-runtime",

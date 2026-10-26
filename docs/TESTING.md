@@ -6,6 +6,13 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
 ## Current automated checks
 
+- Source-session binding: 17 checks join Classic Ready/context, SBC negotiation,
+  media binding and the existing media sender, including fragmented responses,
+  Start acceptance, Busy/credit stops, healthy partial-PDU drain, total stop
+  deadlines, cleanup confirmation, stale/expired offers, clock failure and sticky
+  integrity escalation into the recovery controller. No live channels, capture,
+  encoder scheduling, real credits or PS5 audio result are established.
+
 - Selected-peer Classic link/security: 31 wire/lifecycle checks cover exact
   HCI commands and acceptance, peer/handle/epoch correlation even on failed
   acknowledgements, Unknown Command acknowledgement alternatives, stored-key
@@ -158,6 +165,17 @@ The bootstrap's exhaustive framing test is not a substitute for future fuzzing.
 Captured traces must remove keys, addresses/serials, user information and unrelated
 traffic; preserve length/framing and record sanitization so regressions remain
 meaningful. Do not commit Sony firmware, library files, game data or PCM captures.
+
+## Current host limitation, 2026-10-26
+
+The ARM macOS development host passes the workspace's 214 Rust checks,
+formatting/Clippy/freestanding checks, C sanitizers, host codec checks and Rust
+archive inspection. `make check` stops at unchanged
+`tools/test_syscall_checked.py` because the host cannot execute its generated
+x86 binary (errno 86, Bad CPU type). This is an unavailable host execution check,
+not a passing syscall test or PS5 result. Keep the test intact; report the full
+Make target as blocked and run the remaining independent checks explicitly.
+Build/source-package/kit self-tests are separate from that execution test.
 
 ## Hardware and audio gates
 

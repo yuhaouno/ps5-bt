@@ -73,6 +73,20 @@ name = "bt-sdp"
 version = "0.0.1"
 
 [[package]]
+name = "bt-session"
+version = "0.0.1"
+dependencies = [
+ "bt-a2dp",
+ "bt-avdtp",
+ "bt-core",
+ "bt-hci",
+ "bt-l2cap",
+ "bt-link",
+ "bt-media-session",
+ "bt-sdp",
+]
+
+[[package]]
 name = "ps5-platform"
 version = "0.0.1"
 dependencies = [

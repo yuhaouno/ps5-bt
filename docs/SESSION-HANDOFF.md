@@ -16,6 +16,51 @@ experiments may measure unresolved facts under their documented admission
 plan, without implying production support or a competing-reader/timer-credit
 exception. This documentation change adds no live backend or hardware result.
 
+## Implemented continuation wave, 2026-10-26
+
+This section supersedes older missing-software statements below; hardware facts
+and artifact acceptance remain unchanged. Three collaboration workers completed
+AVDTP reassembly, selected-peer Classic link/security and per-fault recovery.
+The lead integrated `bt-session` source negotiation/media binding and reviewed
+all work; workers did not stage, commit, push or deploy. No worker/hardware
+window should be presumed active in a later session.
+
+Completed commits: `50826cd` recovery, `58789ea` receive reassembly, `2baf62f`
+Classic link/security. Source-session integration follows with this handoff.
+The current workspace has 214 ordinary Rust tests, plus the unchanged eight
+host-codec checks, 208 encoder and 12 decoder vectors. The new modules remain
+portable candidates; the PS5 diagnostic and Unsupported adapter are unchanged.
+
+- Connection manager supports only a selected peer, known stored bond or
+  explicit SSP confirmation, followed by authentication/encryption/key-size
+  checks. Inquiry, durable bond storage and incoming connection acceptance are
+  not implemented. Raw event routing/command-credit authority are prerequisites.
+- Source binding requires established authenticated link, SinkService and
+  channel metadata. It joins negotiation and credit-aware media submission,
+  retains total stop budgets and terminal prefix evidence, and maps uncertainty
+  into recovery reconciliation. Capture, encoding, sample pacing, channel/SDP
+  scheduling and the LAN owner loop remain absent.
+- Code review fixed prior stored-key authorization leaking into new SSP, early
+  Closed during cancellation races, failed HCI acknowledgement shape/ownership,
+  expired signaling offers and lost integrity classification. These fixes have
+  synthetic regressions, not measured PS5 outcomes.
+
+The pinned Rust 1.90 toolchain, rustfmt, Clippy and freestanding target are now
+installed at `/Users/shouheng/.cargo/bin`; add that directory to PATH explicitly.
+Workspace fmt/check/test/Clippy, whole-workspace freestanding checking,
+`make check-c-sanitize rust-archive`, codec checks and build/source/kit tool
+self-tests passed. `make check` stopped at unchanged
+`tools/test_syscall_checked.py`: this ARM Mac cannot execute the generated x86
+binary (errno 86). Do not claim a full pass, weaken that test or infer a syscall
+regression from the missing host execution facility. Each feature's staged
+snapshot was validated separately so untracked later work could not mask deps.
+
+Next implementation: protected bond persistence and discovery/selection,
+actual channel/SDP owner scheduling, experimental capture/target encoder/pacing
+and minimal LAN management. Transport ownership still needs a source-backed
+mechanism before a bounded candidate can be prepared; no broker is invented.
+Future functional/audio/coexistence/stability acceptance remains on PS5.
+
 ## Latest: resumed LAN window and four completed candidates
 
 This section supersedes the historical offline-only status below. The user

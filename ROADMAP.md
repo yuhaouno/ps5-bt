@@ -19,7 +19,15 @@ Source-backed isolated transport experiments use AGENTS.md's admission rules;
 production ownership/credit guarantees still gate support. No console window
 is currently available from this chat; the 2026-10-25 window below is historical.
 
-Current wave: runtime v6 completed HW-1 executable lifecycle on the recorded
+The 2026-10-26 implementation wave adds bounded selected-peer Classic security,
+AVDTP receive reassembly, source negotiation/media binding and per-fault recovery.
+These are host-checked candidates, not completed M2/M3 audio milestones. Inquiry,
+persistent bonds, actual channel scheduling, capture/encode/pacing and the LAN
+owner loop remain. All 214 workspace Rust tests and freestanding checks pass;
+full `make check` is blocked by this ARM host's unavailable x86 syscall-test
+execution (errno 86), separately from PS5 verification.
+
+Prior hardware baseline: runtime v6 completed HW-1 executable lifecycle on the recorded
 Slim/13.40 environment: existing-loader kernel initialization, Rust entry,
 durable log and final Unsupported 2. The native query ran but returned -1.
 The user confirmed visible notifications and wireless DualSense operation.
@@ -87,10 +95,12 @@ the runtime is reviewed. Do not open artificial issues for each empty crate.
 
 Initial host validation: four Rust parser tests, 15 C/Rust seam scenarios, C stub
 contract checks, fmt/check/Clippy and the freestanding archive build/inspection.
-Current local checks: 134 ordinary Rust tests plus eight host codec checks,
+Current local checks: 214 ordinary Rust tests plus eight host codec checks,
 208 encoder reference vectors, 12 decoder checks, replacement-archive linking,
 four host PCM recovery scenarios,
 descriptor/native-query C tests with ASan/UBSan, 15 ABI
-scenarios, fmt/check/Clippy and archive inspection pass. The minimal PS5 ELF
+scenarios, fmt/check/Clippy and archive inspection pass. The unchanged x86
+syscall execution check is unavailable on this ARM host; the full Make target
+is therefore not a pass. The minimal PS5 ELF
 links and passes structural/failure-path checks; the explicit HW-1 variant
 records Rust entry and final return 2 on one environment. This is not audio support.
