@@ -14,6 +14,10 @@
 
 ## Unreleased
 
+- Add bounded Classic Inquiry/Cancel device discovery with stable scan identities,
+  validated EIR names, finite result/event limits and explicit cancellation races.
+  Selection requires confirmed quiescence; no PS5 radio access is enabled.
+
 - Join selected-device security, SDP/channel scheduling and SBC source/audio
   handoff in a caller-driven single Rust application owner. Gate traffic on
   security/binding loss, require explicit Start, support clean Stop/Start, retain

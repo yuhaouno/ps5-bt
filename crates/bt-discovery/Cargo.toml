@@ -1,0 +1,15 @@
+[package]
+name = "bt-discovery"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+bt-core = { path = "../bt-core" }
+bt-hci = { path = "../bt-hci" }
+bt-link = { path = "../bt-link" }
+
+[lints]
+workspace = true
