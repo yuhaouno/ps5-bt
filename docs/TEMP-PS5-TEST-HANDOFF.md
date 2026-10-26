@@ -19,6 +19,19 @@ The original baseline remains intact. Use capture-first and the same 30-second
 media / 180-second cooperative overall bounds. Preserve old private state and
 confirm physical headset/content readiness before launch. No runtime result yet.
 
+Candidate commit `f7768c1` is uploaded through PayloadManager 0.6.3 at
+`192.168.1.111:8084`; FTP readback matches the hash above. The sole PS5-BT slot
+is now `local/ps5-bt-hearbridge-pressure` (same ELF filename as above). The previous
+PS5-BT reference slot was removed after verification; unrelated slots remain.
+The completed capture state was renamed in place to
+`/data/ps5-bt-hb-reference-capture-20261027`; its log hash matched the baseline,
+and private bonds were not downloaded. Tone state remains in its earlier archive.
+Preflight found no running reference/HearBridge process. Deployment evidence is
+under `build/reference/queue-pressure-candidate/remote/`. Launch has **not** occurred:
+the operator's current XM4 pairing-mode/content/controller readiness reply is
+pending. Use this candidate's private `access.json` for capture-first control;
+disable tone before scanning/selecting XM4, and collect immediately after launch.
+
 ## Objective and next decision
 
 Fastest useful result: reproduce headset pairing/connection and audible sound
