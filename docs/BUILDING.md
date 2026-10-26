@@ -307,3 +307,11 @@ Package the clean build with `tools/package_source.py --manifest
 build/ps5/ps5-bt-capture-stream.manifest.json`. The kit now has six independent
 candidates; build/package all six before assembly. This creates no new hardware
 window or deployment authority. See CAPTURE-STREAM.md for exact admission.
+
+## Native clock/wait adapter candidate
+
+`make scheduler-clock-test` runs the actual Rust/C fixture, native error/bounds
+checks, C ASan/UBSan and external freestanding compilation. Production selection
+is `ps5-platform/external-clock-wait`; its final platform link must explicitly
+include `platform/ps5/scheduler/scheduler_clock.c`. It supplies no native transport
+or readiness backend and adds no diagnostic artifact. See PLATFORM-CLOCK.md.

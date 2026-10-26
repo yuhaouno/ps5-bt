@@ -7,6 +7,11 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[features]
+default = []
+external-clock-wait = []
+host-clock-wait-tests = ["external-clock-wait"]
+
 [dependencies]
 bt-core = { path = "../bt-core" }
 ps5-sys = { path = "../ps5-sys" }

@@ -2,6 +2,9 @@
 //! Safe wrapper. The linked C backend must satisfy docs/ABI.md.
 #![no_std]
 
+#[cfg(feature = "external-clock-wait")]
+pub mod clock_wait;
+
 use bt_core::{BluetoothTransport, Error, PacketKind, Received};
 use core::{marker::PhantomData, num::NonZeroU32};
 use ps5_sys as sys;

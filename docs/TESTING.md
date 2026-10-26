@@ -286,3 +286,12 @@ byte-for-byte with an independent persistent encoder, across twelve synthetic
 accepted ACL fragments. Queue Busy, backend Busy, explicit NoCredits/completions
 and healthy partial-PDU Stop retain exact ownership. This exercises a real host
 codec under synthetic transport, not native capture or headset playback.
+
+## Native clock/wait fixture checks
+
+`make scheduler-clock-test` covers cached resolution, cancellation without native
+calls, exact short/max wait requests, raw status preservation, invalid time,
+conversion overflow, nanosecond regression, reentry, sticky failure and close.
+The feature-off workspace still has no clock symbol dependency. The adapter C
+object was compiled/inspected with pinned LLVM18 as little-endian ELF64 x86-64,
+with no undefined imports or SIMD register use. This is no PS5 timing result.

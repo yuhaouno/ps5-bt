@@ -292,3 +292,12 @@ GPL-3.0-only terms, unknown format/timestamp fields, single-owner lifetime and
 consume-once cleanup. No new upstream file, permission setter, offset, module
 binary or restart policy is imported. Rust owns budgets, normalization, timeline
 and staging; the C module retains only native adaptation. See CAPTURE-STREAM.md.
+
+## Clock/wait signatures, 2026-10-26
+
+PLATFORM-CLOCK.md records the exact pinned SDK v0.45 time.h, _types.h,
+_timespec.h, x86/_types.h and unistd.h signature/layout review and individual BSD
+notices. The new C adapter is original code; no SDK header/function body is
+copied or added as a build input. It uses only the already-reviewed native
+monotonic clock and usleep signatures, with no new readiness structure,
+permission mechanism or runtime import library.

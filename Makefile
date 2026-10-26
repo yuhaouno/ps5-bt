@@ -31,6 +31,7 @@ check:
 	$(MAKE) capture-observe-test
 	$(MAKE) capture-stream-test
 	$(MAKE) audio-pipeline-test
+	$(MAKE) scheduler-clock-test
 	$(MAKE) sbc-codec-test
 	$(MAKE) sbc-main-test
 	$(MAKE) continuous-main-test
@@ -219,3 +220,12 @@ audio-pipeline-test:
 	cargo test -p bt-runner --features host-libsbc --locked
 	cargo clippy -p bt-runner --all-targets --features host-libsbc --locked -- -D warnings
 	cargo check -p bt-runner --target x86_64-unknown-none --locked
+
+.PHONY: scheduler-clock-test
+scheduler-clock-test:
+	mkdir -p build/host/scheduler-clock
+	cargo test -p ps5-platform --features host-clock-wait-tests --locked
+	cargo clippy -p ps5-platform --all-targets --features host-clock-wait-tests --locked -- -D warnings
+	cargo check -p ps5-platform --target x86_64-unknown-none --features external-clock-wait --locked
+	$(HOST_CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -Iplatform/ps5/scheduler -Itests/platform platform/ps5/scheduler/scheduler_clock.c tests/platform/scheduler_clock_fixture.c tests/platform/scheduler_clock_test.c -o build/host/scheduler-clock/test-sanitized
+	build/host/scheduler-clock/test-sanitized

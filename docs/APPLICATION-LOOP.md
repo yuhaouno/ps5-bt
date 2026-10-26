@@ -180,9 +180,11 @@ exercise successful/partial failed factory opens, actual CaptureOwner/codec pair
 cleanup, exact epochs, stale evidence, preserved attempt/time budgets and
 exhaustion. Synthetic traffic and reference-encoder equality are offline checks.
 
+The separate fallible clock/finite-wait candidate in PLATFORM-CLOCK.md can now
+consume the loop's bounded wake suggestion; it is not installed by this module.
 An installed native PS5 LoopResources factory, listener acceptance/readiness,
-source-backed waits, valid native PCM format and actual transport ownership are
-still separate integration requirements. The baseline Unsupported payload and
+native timing validation, valid PCM format and actual transport ownership remain
+separate integration requirements. The baseline Unsupported payload and
 existing capture/SBC diagnostics remain selectable. No PS5 hardware run,
 Bluetooth playback, audio quality, latency or DualSense coexistence acceptance
 is established here.

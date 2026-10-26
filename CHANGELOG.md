@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Add a separately selected, fallible native monotonic clock/finite-wait adapter
+  with cached exports, raw diagnostics, cancellation, checked deadlines and sticky
+  clock/native errors. Each caller step requests at most one 1 ms wait; actual
+  timing and native loop/readiness still require hardware evidence.
+
 - Assemble actual Rust HTTP, management, owned input, audio and ACL lanes with
   per-turn budgets, global cancellation and observable reverse-order cleanup.
   Connect declared capture through real persistent SBC under Busy/credit/partial

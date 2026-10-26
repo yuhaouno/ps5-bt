@@ -19,6 +19,11 @@ Source-backed isolated transport experiments use AGENTS.md's admission rules;
 production ownership/credit guarantees still gate support. No console window
 is currently available from this chat; the 2026-10-25 window below is historical.
 
+A separate fallible native clock/wait candidate now provides cached reviewed
+exports and a single <=1ms requested wait slice per step. Host fixtures and
+freestanding/object inspection pass; native timing/readiness integration remains
+pending. See [PLATFORM-CLOCK.md](docs/PLATFORM-CLOCK.md).
+
 The portable application loop now binds concrete HTTP/control/input/audio/send
 owners under finite quotas and global Stop. Factory-based resource reconstruction
 consumes capture/encoder cleanup, retains failure budgets and uses fresh epochs;

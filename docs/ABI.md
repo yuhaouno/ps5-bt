@@ -111,3 +111,14 @@ explicitly experimental versioned adapters and host conformance tests may be
 implemented beforehand, with unknown format/timing fields remaining unknown.
 Do not infer format from audio content or enable a production path on guessed
 units. The established one-read diagnostic remains independently selectable.
+
+## Independent clock/wait ABI v1
+
+`platform/ps5/scheduler/scheduler_clock.h` defines a separate `0x00010000`
+clock/wait contract with caller-owned checked storage and a 48-byte diagnostic.
+`ps5-platform/external-clock-wait` preserves errors through `Result`, including
+raw i64 resolver and i32 native results. Cached `clock_gettime` reads and one
+bounded `usleep` request per caller step retain no output pointer. Cancellation
+skips native calls; close consumes cached state once. See PLATFORM-CLOCK.md for
+exact signatures, lifetime, conversion, regression, request bounds and source
+review. An at-most-1ms request is not a measured bound on native elapsed time.
