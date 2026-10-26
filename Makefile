@@ -237,3 +237,9 @@ resource-factory-test:
 	cargo test -p ps5-app --features host-candidate --locked
 	cargo clippy -p ps5-app --all-targets --features host-candidate --locked -- -D warnings
 	cargo check -p ps5-app --target x86_64-unknown-none --features native-resources --locked
+
+.PHONY: posix-imports-test
+posix-imports-test:
+	mkdir -p build/host/app-target
+	$(HOST_CC) -std=gnu11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer tests/application/posix_imports_test.c -o build/host/app-target/posix-imports-test
+	build/host/app-target/posix-imports-test

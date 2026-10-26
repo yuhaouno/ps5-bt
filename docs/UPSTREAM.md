@@ -301,3 +301,16 @@ notices. The new C adapter is original code; no SDK header/function body is
 copied or added as a build input. It uses only the already-reviewed native
 monotonic clock and usleep signatures, with no new readiness structure,
 permission mechanism or runtime import library.
+
+## Native application POSIX selection, 2026-10-26
+
+PS5-POSIX-IMPORTS.md records the exact SDK v0.45 43-header closure selected in
+`tools/application_sdk_headers.json`, original per-file notices and expanded
+errno/fcntl/stdint header links. No SDK header is patched. The native C adapters
+compile against those target headers; original project forwarding code resolves
+fixed declared exports through the existing resolver. No target libc, import
+library, new syscall/offset/credential operation or upstream application enters
+the link. The same document records reference-only two-clause FreeBSD randomdev
+source at `d106002967eff712894ab8b5337bbbff106ce5e0`; no RNG code is copied and PS5
+entropy remains Unknown. Source packages must retain all selected header notices,
+including advertising-clause variants, alongside existing obligations.

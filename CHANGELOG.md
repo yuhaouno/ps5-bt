@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add a selected-export POSIX bridge and exact SDK-header inventory for the
+  native application candidate. Resolve the full table before descriptor use,
+  preserve native/cleanup failures and generate ephemeral HTTP authorization
+  from one bounded nonblocking entropy-device lifecycle with no token logging.
+  Native compatibility/entropy remain unverified; no syscall/permission fallback.
+
 - Add a concrete fixed-storage Rust PS5 resource factory around existing reviewed
   clock, private store, listener, capture and persistent SBC owners. Preserve
   primary and reverse-cleanup failures, explicit store handoff and per-mode
