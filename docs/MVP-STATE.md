@@ -13,12 +13,15 @@ its expected digest. Capture-stream completed one immediate Empty read and
 stop/close; neither result clears PCM, actual pacing or transport gates. Each
 later run was collected immediately and the operator reported normal controller
 input before/during/after. Control/observe remain Unknown from overwritten logs
-and were not rerun. Final remote PS5-BT slots: zero; unrelated slots unchanged.
+and were not rerun. At that cleanup checkpoint remote PS5-BT slots were zero;
+unrelated slots unchanged.
 The next independently selected [read-only root/data probe](NAMESPACE-PROBE.md)
 is now implemented with a dedicated log; hardware outcome remains pending.
 The operator authorized preparation/upload without waiting while away, and will
-manually launch on return. Preserve prior kits/evidence; do not reload blocked
-application tests or infer controller observations remotely.
+manually launch on return. Clean `e219c8d` now has a ready single-item kit and
+one uploaded `ps5-bt-application-namespace` slot with matching metadata/size/full
+hash; no agent launch or hardware result. Preserve prior kits/evidence; do not
+reload blocked application tests or infer controller observations remotely.
 
 ## New-machine test preparation, 2026-10-26
 

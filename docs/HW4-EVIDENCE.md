@@ -239,3 +239,10 @@ permissions or test rename/unlink against system paths. `fstatfs` is outside the
 current reviewed import/header closure and would need separate admission.
 Native PCM format/time, Bluetooth ownership/channel availability and allowance
 remain gated. No pairing, headset playback or audio acceptance was established.
+
+The subsequent `e219c8d` namespace candidate has since been built, packaged and
+uploaded with full readback verification under the operator's new preparation
+instruction. Its [manual-run checkpoint](NAMESPACE-PROBE.md#uploaded-manual-run-checkpoint-2026-10-26)
+records one pending PS5-BT slot, a separate log, and no agent launch or new
+hardware outcome. This supersedes the zero-slot inventory checkpoint above
+without changing any retained result.

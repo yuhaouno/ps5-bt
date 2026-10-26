@@ -166,3 +166,34 @@ inspection. Collector, window, preparer, handoff and source/kit self-tests cover
 new observations and the fixed path while retaining legacy plans. These are
 local checks; no namespace hardware result has been collected. Full `make check`
 was not run: the previously recorded ARM-host x86 fixture limitation remains.
+
+## Uploaded manual-run checkpoint, 2026-10-26
+
+The current-session operator authorized preparation/upload while away. Clean
+source `e219c8d61d7db9fbd0656f692efa23c2f7f2527b` completed doctor and all three
+build/package/assembly steps. The immutable local kit is
+`build/ps5/namespace-window-kit-e219c8d`; its adjacent preparation identity is
+`ready`. No extra toolchain installation was required.
+
+- ELF SHA-256: `9aa8e64d6232c9b84f44cae0c4a8d8d64ba9268505a657fd7ab8b4946b29341f`.
+- ELF size: 75144 bytes.
+- Embedded build ID: `3973ab5572e69ca970512ef67e5c1e66ec78731314a06151c07564f28ce7e1fe`.
+- Build manifest SHA-256: `a6409d59c18e0c022bcee0c766c678b29237c0a0b0e45bdb51b4f6908507d196`.
+- Matching source bundle SHA-256: `f3096241fce942f4bf5f3373af53412012c338a220f1da2f00ccd1c31c126465`.
+
+PayloadManager `/version` and inventory confirmed 0.6.3 at the current .111:8084
+endpoint. The exact absent slot was imported using the reviewed `mode=new` route.
+Inventory then contained one PS5-BT entry, `local/ps5-bt-application-namespace`,
+with all unrelated slot records unchanged. FTP preflight independently verified
+schema/filename metadata, exact size and the complete ELF hash. The ignored
+record is `build/ps5/namespace-preflight-e219c8d.json`.
+
+**Not launched by the agent; manual execution and current controller observations
+remain pending.** Only this candidate is loaded; blocked application tests and
+previously completed codec/capture tests were not reloaded. The operator should
+refresh and launch `ps5-bt-application-namespace` once, observe controller input
+before/during/after, and stop if it does not return within 15 seconds or input
+changes. When the operator reports the result, use the command above with
+`--kit build/ps5/namespace-window-kit-e219c8d`. Do not delete or replace this slot
+before retaining the matching dedicated log. A new session still needs a current
+console window; this upload checkpoint is not a future execution authorization.

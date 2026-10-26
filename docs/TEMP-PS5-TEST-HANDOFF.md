@@ -4,6 +4,15 @@ Prepared 2026-10-26. Keep this temporary handoff until the next window has a
 reviewed outcome. English is canonical. Read `AGENTS.md` before changing code.
 
 Window update, 2026-10-26: read [HW4-EVIDENCE.md](HW4-EVIDENCE.md) first.
+
+Latest pending entry: **`ps5-bt-application-namespace`**, uploaded and fully
+hash-verified from clean `e219c8d`; one PS5-BT slot, unrelated slots unchanged.
+The kit is `build/ps5/namespace-window-kit-e219c8d`, and its separate log is
+`/data/ps5-bt-namespace.log`. It has not been agent-launched. The operator will
+launch it once on returning and report controller behavior; do not wait for an
+intermediate reply or upload blocked profiles. See the exact identities and
+[uploaded checkpoint](NAMESPACE-PROBE.md#uploaded-manual-run-checkpoint-2026-10-26).
+
 The clean `20a5d66` six-item kit was built, uploaded and fully read back. The
 retained generated-application run failed Store directory acquisition (errno 1).
 Subsequent one-at-a-time setup runs rejected root protection; the clean `a3c2fc1`
