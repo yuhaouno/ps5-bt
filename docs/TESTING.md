@@ -200,15 +200,15 @@ meaningful. Do not commit Sony firmware, library files, game data or PCM capture
 
 ## Current host limitation, 2026-10-26
 
-The ARM macOS development host passes the workspace's 289 ordinary Rust checks,
+The ARM macOS development host passes the workspace's 396 ordinary Rust checks,
 one compile-fail check, formatting/Clippy/freestanding checks, C sanitizers,
-host codec checks and Rust
-archive inspection. `make check` stops at unchanged
-`tools/test_syscall_checked.py` because the host cannot execute its generated
-x86 binary (errno 86, Bad CPU type). This is an unavailable host execution check,
-not a passing syscall test or PS5 result. Keep the test intact; report the full
-Make target as blocked and run the remaining independent checks explicitly.
-Build/source-package/kit self-tests are separate from that execution test.
+explicit capture/clock/codec/loop checks, host candidate suites and Rust archive
+inspection. `make check` stops at unchanged `tools/test_syscall_checked.py`
+because the host cannot execute its generated x86 binary (errno 86, Bad CPU
+type). This is unavailable host execution, not a passing syscall test or PS5
+result. Keep the test intact; report the full Make target as blocked and run
+remaining independent checks explicitly. Build/source-package/kit and local
+result self-tests pass separately.
 
 ## Hardware and audio gates
 

@@ -21,6 +21,69 @@ transport experiments have separate admission from production support; no
 competing-reader, timer-credit or system-driver exception is implied. Existing
 tests, implementations and hardware facts below are unchanged by this policy.
 
+## Capture/audio integration continuation, 2026-10-26
+
+This supersedes software omissions in older snapshots below. The three disjoint
+workers implemented capture, target codec and application-loop code; root owned
+integration, source/target builds and all commits. Follow-up workers completed
+clock/wait and local results. Workers are finished; do not assume they remain
+active or that historical hardware access is current. No PS5 deployment, push,
+execution, headset playback or new coexistence evidence was authorized/performed.
+
+- `0aa6ed2`: separate target-libsbc feature, persistent Rust BlockEncoder and
+  bounded 750-block generated-only continuous target SBC diagnostic. The codec
+  archive stays outside the Rust archive for replacement/relinking.
+- `3dd74aa`: experimental capture ABI and exactly-once Rust resource owner,
+  explicit format evidence/normalization, independent time domains and retained
+  block bridge. A separate one-read Rust/C target ELF preserves Unknown native
+  PCM/time, while the established capture diagnostics remain selectable.
+- `575f9f8`: finite MainLoop and actual HTTP/control/input/capture/encode/send
+  ApplicationLoop assembly, Stop across phases and observable cleanup/metrics.
+  Resource factory rebuild keeps fault tickets, attempt/time budgets and fresh
+  epochs; rebuilt applications join the already-spent attempt without spending
+  twice. A real capture-fixture-to-persistent-SBC-to-ACL test checks exact frames,
+  chunk remainders, queue/transport Busy, explicit credits and partial-PDU Stop.
+- `1c0bdd7`: separately selected fallible cached clock/wait ABI, checked native
+  time and one <=1ms requested wait slice; host fixture and target-object checks.
+- `67bb1c1`: embedded build identity and unique run markers for the two new Rust
+  diagnostics, bounded local JSON result collection, actual cleanup/termination
+  checks, explicit controller observations and host fsync/no-clobber persistence.
+
+Read CAPTURE-STREAM.md, SBC-CONTINUOUS.md, APPLICATION-LOOP.md,
+PLATFORM-CLOCK.md and DIAGNOSTIC-RESULTS.md. README/ABI/build/testing/upstream,
+changelog and roadmap now distinguish implementation, target candidate and PS5
+acceptance. The six-item kit adds continuous SBC and capture-stream without
+replacing the original four; every distributed codec ELF still needs its exact
+source/notices and working replacement-link materials.
+
+Verification on this ARM macOS host: 396 ordinary workspace Rust checks plus
+one compile-fail check pass, with formatting, strict Clippy and whole-workspace
+freestanding checking. The explicit host codec suites, actual capture and clock
+Rust/C fixtures, both new native C sanitizer harnesses, 53 default runner tests,
+one real-codec runner pipeline test, 17 local-result parser/write-fault tests,
+baseline C sanitizers, store/listener/page candidates and Rust archive inspection
+pass. Every implementation batch was checked from its independent staged
+snapshot. Both new target ELFs were linked and inspected; the continuous SBC
+baseline replacement link passed. These are development checks, not console
+acceptance, real-time performance or measured continuity improvements.
+
+Full `make check` remains unavailable: after passing its earlier suites it stops
+at the unchanged x86 syscall execution test with macOS errno 86 (Bad CPU type).
+The test was not weakened or skipped. Build/source-package/kit tests and the
+remaining independent suites pass separately. Final clean-HEAD artifact/source
+packages and kit are generated after this documentation commit; use their exact
+manifests and hashes, never a dirty development artifact or historical hash.
+
+Remaining: install a concrete native PS5 resource factory, listener acceptance/
+readiness and owned input routing; establish transport command allowance/ACL
+reservation or a proven system-owned channel ABI; confirm actual capture format,
+metadata units, clock/wait behavior and backend cleanup/reopen on PS5. Unknown
+format still cannot enter the encoder. The clock/wait module adds no seventh
+payload. Actual tone, headset playback, latency/quality/long-duration stability,
+PS5 persistence and wireless-controller coexistence require a fresh authorized
+hardware window. Do not replace these prerequisites with competing reads,
+guessed native fields/credits, timer refill or system-driver mutation.
+
 ## Discovery and management continuation, 2026-10-26
 
 This supersedes software omissions in older snapshots below. No new PS5 window,
