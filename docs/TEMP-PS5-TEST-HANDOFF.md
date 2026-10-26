@@ -14,17 +14,19 @@ Do not require our current FileStore, management page or general recovery loop
 for a reference experiment. Keep any necessary bond state private; do not weaken
 the production store to bypass its current failure.
 
-1. The pinned reference is built: see the
+1. The pinned reference has produced a real XM4 tone: see the
+   [hardware result](REFERENCE-FIRST-AUDIO.md) and
    [recipe and concrete run scope](../experiments/hearbridge-reference/README.md).
    It retains competing system USB reads, timed credit fallback, event-mask/SSP
    and conditional scan-setting writes, plus SDK stock own-process permissions.
-   These details require an explicit execution-scope decision. Do not silently
-   deploy/run either the stock baseline or candidate, or claim safe coexistence.
-2. If admitted in a current hardware window, select/pair XM4 and hear the
-   default generated tone, which now works independently of capture. Within the
-   same short media window, turning tone off attempts game/system capture once.
-   Record the first failed stage or audible result, disconnect/stop and controller
-   behavior; collect immediately. Do not restart the directory probes.
+   The user explicitly admitted one run; it completed. A further run needs its
+   own decision. Do not claim established ownership or safe coexistence.
+2. Next: capture-first with the SAME ELF. Preserve completed state privately,
+   launch into a fresh directory, disable tone before discovery/connection, and
+   observe known audible PS5 game/menu content for at most 30 seconds. This
+   avoids the chat-response race that prevented capture in the first run.
+   Retain missing disconnect acknowledgment as an explicit limitation. Record
+   the first failed stage or audible result and collect immediately.
 3. After reference success, integrate the minimum required C chain into PS5-BT,
    retaining working interfaces until an actual playback comparison justifies
    Rust substitution or an optimization. Assess latency/stability afterward.
@@ -33,7 +35,7 @@ The strict ownership path remains a research/development blocker if the referenc
 mechanisms are not admitted; no fast-completion promise is justified in that case.
 Initial reference sound and production safety/stability are separate outcomes.
 
-## Prepared reference — 2026-10-27, not uploaded or executed
+## Reference artifact and first run — 2026-10-27
 
 - HearBridge pin `cd5b7fce1b8226d8850cdd306437550098c6a62b`; SDK v0.43 pin
   `d9c9519116944a7f1c22d262012c53b80b3520b7`; LLVM 18.1.8, built from source.
@@ -50,24 +52,28 @@ Initial reference sound and production safety/stability are separate outcomes.
 - Cooperative ceiling 180 s after stop initialization; immutable media ceiling
   30 s. Stop on failure; no outer reconnect. Blocking native calls/joins can
   overrun. Cleanup uncertainty is reported, not called a clean exit.
-- Primary log: `/data/ps5-bt-hb-reference/hearbridge.log`; also retain diag.txt
-  and status.txt if present. No headset result, capture-format acceptance or
-  comparative performance improvement is established.
+- Primary log: `/data/ps5-bt-hb-reference/hearbridge.log`; diag.txt/status.txt
+  and all immediate collections are in the kit's `remote/` directory. Audible
+  tone and normal controller before/during/after are operator-confirmed;
+  capture-format acceptance and comparative performance remain unverified.
 
 ## Current console and retained evidence
 
 - Last confirmed console: `192.168.1.111`, FTP 2121, PayloadManager 0.6.3 on HTTP
   8084. That historical configuration is not a future session's authorization.
-- `ps5-bt-application-raw-openat` is uploaded, hash-verified and **on hold, not
-  queued for manual execution**. Do not ask the user to run it by default.
+- `ps5-bt-application-raw-openat` was removed after the reference upload verified.
+  Its diagnostic remains **on hold**. Do not ask the user to run it by default.
   Its immutable kit is `build/ps5/raw-openat-window-kit-e328d85`; no run is known.
-- Last verified inventory has only that PS5-BT slot; unrelated entries unchanged.
-  No remote mutation or launch was performed by this workflow-priority update.
+- Latest verified inventory has only `local/ps5-bt-hearbridge-reference` among
+  PS5-BT slots; unrelated entries are unchanged. This reference was launched once
+  and exited; its private state is preserved. Do not blindly relaunch: fresh
+  mkdir would fail, and the first run's single-experiment permission is consumed.
 - Standalone SBC passed 750 blocks. Capture-stream returned Empty. Application
   startup failed store prerequisites. Directory comparisons found relative-open
   EPERM and absolute-open success; none established Bluetooth transport.
-- Native L2CAP returned errno 47. There is no admitted usable connection backend
-  or demonstrated XM4 playback; native PCM format and real credits remain unknown.
+- Native L2CAP returned errno 47. There is no admitted production connection
+  backend; the isolated reference tone does not establish native PCM format or
+  real credit ownership, which remain unknown.
 - Exact runs/hashes: [HW4](HW4-EVIDENCE.md), [HW3](HW3-EVIDENCE.md),
   [raw-openat upload](RAW-OPENAT.md), [transport review](NATIVE-HCI-RESEARCH.md),
   [upstream pins/licenses](UPSTREAM.md). Read these only for the relevant question.

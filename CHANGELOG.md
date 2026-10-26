@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Record the first audible reference result on Slim/13.40 and WH-1000XM4:
+  successful pairing/streaming, operator-confirmed tone and normal controller
+  operation, 30-second bounded media and process exit. Retain 37 timed credit
+  fallbacks and missing disconnect completion; capture and production playback
+  remain unverified. Queue capture-first using the same exact artifact.
+
 - Prepare an isolated pinned HearBridge first-audio reference with SDK v0.43,
   a reproducible source build and private per-build LAN access. Retain the
   upstream connection/audio chain separately from PS5-BT, document stock runtime

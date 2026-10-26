@@ -5,7 +5,9 @@ followed by optimization. Start with the concise
 [current handoff](docs/TEMP-PS5-TEST-HANDOFF.md). Directory diagnostics are on hold.
 Evaluate a pinned HearBridge reference before porting its C connection/audio
 chain; its competing-read/credit behavior requires a separate execution-scope
-decision. No usable PS5-BT connection backend or headphone playback is claimed.
+decision. PS5-BT production playback remains unverified. The isolated reference
+has now produced a [30-second audible XM4 test tone](docs/REFERENCE-FIRST-AUDIO.md)
+with operator-reported normal controller operation; game capture is untested.
 The isolated [reference build recipe](experiments/hearbridge-reference/README.md)
 keeps the upstream connection/audio chain separate from the product and records
 the retained transport mechanisms and execution decision.
