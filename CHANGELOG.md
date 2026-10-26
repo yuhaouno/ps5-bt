@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Schedule bounded SDP discovery/cleanup and separate AVDTP signaling/media
+  channels under one Rust owner, retaining whole-PDU offers until acceptance.
+  Preserve cleanup responsibility on late callbacks, bound peer-close replies
+  and permit media reopen only with fresh local CIDs/transaction ranges.
+
 - Add selected-device pairing/bond management over the owned Classic lifecycle:
   versioned protected records, Ready-gated saves, explicit SSP tokens, failed-save
   retry and forget revocation. Clock failure immediately revokes authority while

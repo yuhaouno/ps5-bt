@@ -40,6 +40,7 @@ The earlier second-machine build reproduction remains in
 | Portable contracts, HCI command/ACL framing and capability event decoders | Implemented | host packet/malformed-input tests |
 | Owned ACL credit accounting | Implemented on host | exact acceptance/completion accounting with explicit reservation, sticky loss/uncertain-send failure and no timer refill; no hardware reservation established |
 | L2CAP framing, bounded ACL fragmentation/reassembly and Classic channel signaling | Implemented on host | acceptance-confirmed outbound cursor plus scripted Connection/MTU Configuration/Disconnection and handle/epoch/bounds tests; no live transport/credits |
+| Channel/SDP scheduling | Implemented on host | acceptance-gated SDP discovery/cleanup, signaling/media channels, bounded cancellation and fresh-CID media reopen; external routing, ACL fragmentation and credits required |
 | SDP framing, bounded data elements and A2DP Sink discovery | Implemented on host | correlated transactions/epochs, bounded continuation and strict service-record semantics; no live query |
 | Selected-device pairing/bond manager | Implemented on host | protected-store contract, versioned bond records, SSP approval, Ready-gated persistence, forget revocation and clock-failure cleanup; no PS5 store, inquiry or live pairing |
 | Selected-peer Classic connection/security | Implemented on host | acceptance-correlated connection/cancel, stored-key or approved SSP, authentication/encryption/key-size gate; no inquiry, bond persistence, live transport or PS5 pairing result |
