@@ -1,6 +1,11 @@
 # Rust continuous target SBC candidate
 
-Status: implemented and checked offline; PS5 execution **Requires hardware**.
+Status: one bounded run passed on Slim/13.40 on 2026-10-26. It encoded 750
+blocks / 96,000 generated stereo frames into 57,750 bytes, with prefix `9cfd20cb`,
+digest `7784d1fb` and clean finish. Observed execution was 126,564 us; synthetic
+nominal sample time does not establish physical pacing or audio latency. The
+operator reported normal controller input before/during/after. See exact
+artifact/log identities and limitations in [HW4-EVIDENCE.md](HW4-EVIDENCE.md).
 The separate `ps5-bt-sbc-continuous` artifact exercises generated PCM through
 Rust's existing `AudioScheduler`, persistent `SbcEncoder`, reviewed C wrapper
 and the same generic BlueZ libsbc 2.2 target archive as the short C self-test.

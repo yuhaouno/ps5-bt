@@ -1,8 +1,10 @@
 # Experimental Rust capture stream boundary
 
-Status: offline implementation and build candidate. Native capture format, native
-metadata units, continuous-read behavior, permissions and scheduling remain
-**Requires hardware**. No PS5 execution of this new boundary is recorded. The
+Status: one immediate read through this Rust/native boundary completed on
+Slim/13.40 on 2026-10-26: Empty (`0x81950002`), zero bytes, clean stop/close and
+matching lifecycle. Controller input was reported normal before/during/after.
+See [HW4-EVIDENCE.md](HW4-EVIDENCE.md). Native capture format, metadata units,
+continuous-read behavior and scheduling remain **Requires hardware**. The
 established C-only one-read/observation diagnostics remain independently selected
 and unchanged. Nonempty data in those earlier diagnostics does not validate this
 adapter or its normalized PCM contract.

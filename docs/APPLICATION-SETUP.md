@@ -1,9 +1,12 @@
 # Fixed native application-directory setup candidate
 
 Status: implemented as an independently selected candidate with synthetic host
-fault checks. Native export availability, permissions, filesystem behavior and
-cleanup remain **Requires hardware**. Preparing or building this candidate does
-not authorize a console launch. It is not Bluetooth transport or PCM support.
+fault checks. On Slim/13.40, the schema-2 run rejected root with only
+`PARENT_WRITE` (mask 4), after successful open/fstat and with clean close.
+Traversal beyond root, protected namespace acceptance, actual metadata layout
+and durability remain **Requires hardware**. See [HW4-EVIDENCE.md](HW4-EVIDENCE.md).
+Preparing or building this candidate does not authorize a console launch. It is
+not Bluetooth transport or PCM support.
 
 ## Purpose and fixed scope
 
@@ -163,7 +166,10 @@ return 0, then rejected its metadata at stage 2 with clean close. Its schema-1
 report cannot identify which predicate rejected it. The schema-2 hypothesis is
 that the mask can distinguish those source-level conditions without exposing
 raw metadata or changing permissions. Real `stat` layout and underlying cause
-remain unresolved even if a particular bit is reported.
+remain unresolved even if a particular bit is reported. The subsequent clean
+`a3c2fc1` run observed only mask 4; no `/data` traversal or creation occurred.
+This isolated the source predicate without validating native layout or clearing
+protection. The proposed read-only consistency probe in HW4 is not yet implemented.
 
 Use the single-item `tools/setup_test_plan.json` with `prepare_ps5_window.py`
 to build/package a fresh committed source revision. Keep the prior kit and log.
@@ -227,8 +233,10 @@ mask on cancellation/reentry/native errors. The 48 collector tests preserve
 legacy schema-1 results and reject malformed/incoherent new masks; 16 window
 tests and 13 preparer tests pass. Builder/package/kit self-tests and a target
 link/structural inspection also pass. Rebuild/package from the final clean
-commit before deployment; these checks do not execute the new report on PS5.
+commit before deployment; these offline checks are distinct from the subsequent
+schema-2 hardware rejection recorded above.
 These tests establish bounded logic and error preservation, not PS5 export,
 permission, durability, coexistence or native cleanup acceptance. Target
 compilation/link and kit identity are integration checks reported with the
-actual artifact; only a current authorized PS5 run can provide native evidence.
+actual artifact; the bounded native outcome now recorded in HW4 does not validate
+unexecuted traversal, creation or durability paths.

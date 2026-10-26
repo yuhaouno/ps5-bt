@@ -10,13 +10,17 @@ then three application candidates. Two standalone candidates isolate failures
 only after a clean, reviewed outcome. Each item is a separate manual launch;
 save its log before another launch truncates `/data/ps5-bt-hw1.log`.
 
-The [2026-10-26 retained setup result](HW4-EVIDENCE.md) is root policy rejection
-after successful open/fstat, with clean close. The follow-up uses the one-item
-`tools/setup_test_plan.json`; schema 2 adds a predicate mask described in
-[APPLICATION-SETUP.md](APPLICATION-SETUP.md). Keep only one PS5-BT slot visible
-during this follow-up. A reported rejection bit does not verify the native
-metadata layout or authorize a permission change; legacy schema-1 logs have no
-such detail. The six-item plan remains available for later reviewed progression.
+The [2026-10-26 retained results](HW4-EVIDENCE.md) include setup rejection at
+root with clean close; schema 2 isolated `PARENT_WRITE` (mask 4). Conditional
+standalone SBC then passed 750 blocks with its expected digest, and capture-stream
+completed one Empty read with clean cleanup. Controller input was reported normal
+before/during/after each later run; logs were saved immediately. No PS5-BT slot
+remains. Control/observe were not repeated after the setup prerequisite failed.
+Keep both exact kits; the six-item plan is available for later reviewed progression.
+A separate read-only root/data consistency probe is proposed but not implemented.
+A rejection bit does not verify native layout or authorize permission changes;
+legacy schema-1 logs have no predicate detail. Do not repeat the blocked application
+sequence or an Empty read without a new reviewed hypothesis.
 
 There is **no admitted usable Bluetooth connection backend**, no ready safe
 active-HCI test artifact, and no artifact that verifies the native PCM format.

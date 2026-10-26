@@ -1,4 +1,4 @@
-# 2026-10-26 application window: retained failure and slot cleanup
+# 2026-10-26 window: application blocker, SBC and capture outcomes
 
 The user confirmed the current Slim / firmware 13.40, PayloadManager 0.6.3,
 WH-1000XM4 environment and authorized uploads/tests. The manager's actual
@@ -123,13 +123,117 @@ the earlier Store I/O/errno-1 result; it does not establish a common root cause.
 The rejected root predicate and actual stat layout remain Unknown. Matching
 identity plus the operator report still leaves collector freshness Unknown.
 
-The next bounded candidate adds a six-bit rejection mask under setup ABI 2/log
-schema 2, with the same native operations, protection and cleanup bounds. See
-the [admission and bit meanings](APPLICATION-SETUP.md#admitted-schema-2-follow-up).
-Prepare only the single-item setup plan, keep the old kit, verify the new hash
-and collect before any next launch. The new mask requires hardware evidence;
-it must not be inferred retrospectively from this schema-1 run. No other profile
-has acquired a new result and no application workload is cleared by this test.
+## Schema-2 setup result
 
+The follow-up was built and packaged from clean source
+`a3c2fc150346db1cd6963351d49040ab380630f2` using the single-item setup plan.
+Doctor and all three preparation steps passed. The separate immutable kit is
+`build/ps5/setup-predicates-kit-a3c2fc1`; the original six-item kit remains intact.
+Only setup was visible, and its replacement ELF passed full remote hash readback:
+
+- ELF SHA-256: `4541dae6ab67ec8c8a2215b6da92acf47fd66d63162afef3641c6d4a52600e90`.
+- Build ID: `9a468c7da9b080faa7a7866bd4e3fca6e0dcf7de40b73155b3a97426c015b9fd`.
+- Manifest SHA-256: `3f61ac9a28076410df6109023642086f43771868c1f8ea704805de9c23025ec5`.
+- Private log/result: `application-setup-twvp6ofq.log` / `.json`.
+- Log SHA-256: `03da1dfca3577aaffee1cfd70d35098c39eb7ac2f471c57aaf1ab8e8d8a45b0b`.
+
+After the operator reported return and normal controller input before/during/after,
+immediate collection classified **complete_failure**. Stage 2, status -4,
+errno 0, operations 4 and opened/closed/verified/created masks 1/1/0/0 repeat
+the prior run's bounded outcome. All current/prior cleanup fields are zero;
+imports resolved and shut down cleanly, with matching outer lifecycle and return 1.
+The new `validation_failed_mask` is **4**, solely `PARENT_WRITE`.
+
+Under the compiled SDK interpretation, the root metadata has group/other write
+permission without sticky protection. Type and parent-owner predicates did not
+fail. This does not disclose an exact mode/UID, independently verify native stat
+layout, establish mount/ACL authority or prove a common cause with the earlier
+Store I/O error. No `/data` traversal or directory creation occurred. Protection
+was not relaxed, and no existing mode, owner or credential was changed.
+
+## Conditional standalone SBC result
+
+The clean setup failure allowed the matrix's independent isolation tests.
+Setup was removed and only `ps5-bt-sbc-continuous` imported, then hash-verified.
+This candidate deliberately used the original clean **20a5d66** kit and matching
+source/manifest, not the newer setup build:
+
+- ELF SHA-256: `62942dcdd35d4e2f49fb45bb4e882b63bd195a1e4e807f60b0d43f8c1e21ecd0`.
+- Build ID: `b1a4f177f87d2596d4338e259cbe3d2bf3aa49c249c7972eb222880ade53b84f`.
+- Manifest SHA-256: `663f4006d6cd1be7ef2b5b6234e7d69ec99f02e7ca79ed3549947020fa220ee7`.
+- Private log/result: `sbc-continuous-dociljsj.log` / `.json`.
+- Log SHA-256: `d774ca0e81495329daea92e8cae8eb1d58fedd3c885ad09fcfab7cb28fd6376c`.
+
+The operator reported return and normal controller input before/during/after.
+Immediate collection classified **complete_success** with matching outer lifecycle
+and expected diagnostic return 2:
+
+| Field | Observed value |
+| --- | --- |
+| outcome / cleanup attempted | 0 / 1; cleanup reported complete |
+| blocks / stereo PCM frames | 750 / 96,000 |
+| encoded bytes | 57,750 |
+| SBC prefix / whole-stream FNV-1a | `9cfd20cb` / `7784d1fb` |
+| observed elapsed microseconds | 126,564, below the 2,000,000-us bound |
+
+This establishes the bounded generated-PCM Rust/target SBC path and its discard
+output for this run. The nominal sample clock is synthetic; elapsed execution
+is neither real-time pacing evidence nor acoustic/end-to-end latency. No capture,
+Bluetooth submission or headset playback occurred. Integrated generated mode
+remains blocked before encoding by application startup.
+
+## Conditional capture-stream result
+
+After saving SBC evidence, only `ps5-bt-capture-stream` was installed and
+hash-verified, again from the original clean **20a5d66** kit:
+
+- ELF SHA-256: `72ad2b60496ae41fb1cdd034409f3819d40779a7553e0596f91a8e9dcef9f986`.
+- Build ID: `fc26cef520bcef76f600f66410d2331758283e3d9ffb61a262d47880265fa83b`.
+- Manifest SHA-256: `ba907fcc7cdfcc222111c9b930e6de5fae3f35ae127815f8997af553530d4f5b`.
+- Private log/result: `capture-stream-c6wuovit.log` / `.json`.
+- Log SHA-256: `48f8e0dadcfc8c4370b0ff38e8a4181e0a19b530fabc6d1c496970aad9f0318e`.
+
+The operator reported return and normal controller input before/during/after.
+Immediate collection classified **complete_success for the procedure**, with
+matching outer lifecycle and expected return 2. Exactly one immediate NOWAIT
+read reported kind 3 (Empty), native status `0x81950002`, zero bytes and no
+reported discontinuity. Stop/close statuses were zero; explicit cleanup and
+capture completion markers were present. No second read or Empty retry occurred.
+This establishes one-read Rust/native lifecycle and cleanup, not nonempty PCM,
+format, native timestamp units or continuous-read behavior.
+
+All three separately collected runs record operator observation as `observed`
+and controller acceptance as `reported_normal`. Collector `ps5_log_freshness`
+and audio acceptance remain **Unknown**; matching identity is not independent
+execution attestation. No general coexistence or stability acceptance follows
+from these brief observations.
+
+## Final state and next bounded investigation
+
+After retaining the capture result, its exact slot was removed using the same
+reviewed manager route. Final inventory confirmed **zero PS5-BT slots** and
+unchanged unrelated slots. Local kits, matching sources and private logs remain.
+The original control/observe outcomes were overwritten and remain Unknown;
+they were not relaunched after setup rejection. The generated startup failure
+is retained; no integrated application workload passed.
+
+The next proposed candidate is an independently selected **read-only root/data
+metadata consistency probe**, not yet implemented or ready to execute. Use only
+already reviewed `geteuid/open/openat/fstat/fstatat/close`: compare root descriptor
+metadata with `fstatat(root, ".")`, and root-relative `data` metadata with its
+opened descriptor. A proposed bound is seven normal calls plus at most two
+reverse, consume-once closes, no retries and the same 15-second external ceiling.
+Any native-call failure stops acquisition and triggers owned cleanup. Continuing
+read-only observation after a policy rejection must be explicit in its separate
+admission; it must never create directories or accept the store. Report only
+predicate/agreement bits, device-equality booleans, errors and cleanup, not raw
+UID/stat data. Review implementation, layout/lifetimes, finite bounds, artifact
+identity and current window before execution.
+
+Agreement could reveal consistency but cannot independently attest the native ABI
+or clear the protected-parent rule. Firmware-matched ABI evidence and protection
+of the root-to-data edge remain prerequisites. Do not add a root exception, change
+permissions or test rename/unlink against system paths. `fstatfs` is outside the
+current reviewed import/header closure and would need separate admission.
 Native PCM format/time, Bluetooth ownership/channel availability and allowance
 remain gated. No pairing, headset playback or audio acceptance was established.

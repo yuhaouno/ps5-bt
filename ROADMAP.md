@@ -5,13 +5,14 @@ linked ELF, execution on a PS5, and stable audio are different achievements.
 The current dependency graph, worker ownership and blockers are tracked in
 [MVP-STATE.md](docs/MVP-STATE.md).
 
-The [2026-10-26 application result](docs/HW4-EVIDENCE.md) narrows the immediate
-startup blocker to Store directory I/O (raw errno 1), before encoding. Cleanup
-was reported complete; overwritten profiles remain Unknown. Remote PS5-BT slots
-were removed at the user's request. A setup-only rerun then opened/statted root
-but rejected its metadata with clean close. The next bounded step is its
-versioned predicate report, collected before another launch; native layout
-remains unresolved and no playback milestone is cleared.
+The [2026-10-26 window](docs/HW4-EVIDENCE.md) established a standalone target
+SBC run of 750 blocks with exact output/digest and a clean one-read Rust capture
+lifecycle returning Empty. Application startup remains blocked: generated mode
+failed Store I/O (errno 1); setup subsequently reported root `PARENT_WRITE`
+rejection (mask 4), with clean cleanup. Native metadata layout and namespace
+authority remain unresolved. The next proposed bounded step is a separate
+read-only root/data consistency probe; no executable candidate exists yet.
+No PCM-format, real-time pacing, Bluetooth or playback milestone is cleared.
 
 Development policy, 2026-10-26: unavailable PS5 access does not block coherent
 candidate implementations. Prioritize application lifecycle integration,

@@ -23,14 +23,14 @@ explicitly returns `Unsupported`. It is an independent project, not a translatio
 existing payload. The final public name is undecided; repository and package
 collision checks must precede naming. All Cargo packages are `publish = false`.
 
-The [2026-10-26 application window](docs/HW4-EVIDENCE.md) retained a generated-mode
-startup failure at protected-store directory acquisition (raw errno 1), with
-reported complete cleanup. Encoding was not reached; other per-item outcomes
-were overwritten. The operator reported normal controller behavior and requested
-removal of all PS5-BT slots. A subsequent setup-only run rejected root metadata
-after successful open/fstat, with clean close. A versioned predicate mask and
-single-item setup plan now prepare the next bounded diagnosis; native layout
-and the cause of the rejection remain unverified.
+The [2026-10-26 window](docs/HW4-EVIDENCE.md) verified a standalone Rust/target
+SBC run: 750 generated blocks, exact bytes/digest and clean finish. The Rust
+capture boundary completed one Empty read with clean stop/close. Application
+startup remains blocked: generated mode failed Store directory acquisition
+(errno 1), and setup's schema-2 report rejected the root write-protection
+predicate (mask 4). Native metadata layout and namespace authority remain
+unverified. Controller operation was reported normal before/during/after each
+later run; no PCM-format, physical pacing or playback acceptance follows.
 
 **HW-1 now executes on the recorded Slim / firmware 13.40 environment.**
 The explicit `make ps5-hw1` build uses the existing loader's kernel-R/W
@@ -69,7 +69,7 @@ The earlier second-machine build reproduction remains in
 | Opt-in read-only USB enumeration | Executed on one Slim/13.40 | own four-interface descriptor log; other node opens failed; transport remains Unsupported |
 | Opt-in Avcap2 capture diagnostic | Nonempty data observed on one Slim/13.40 | 100 ms settled read returned 8,192 bytes; all lifecycle/cleanup statuses 0; native PCM format/timing unknown |
 | SBC parameter selection and frame sizing | Implemented | portable validation tests and host encoder boundary |
-| Real PCM-to-SBC encoding | Host implementation and experimental Rust target link | safe persistent Rust/C owner; independent short C self-test and bounded 750-block Rust target candidate; continuous target execution requires hardware |
+| Real PCM-to-SBC encoding | Bounded target run passed on one Slim/13.40 | persistent Rust/C owner encoded 750 generated blocks with exact bytes/digest and clean finish; synthetic nominal clock, discard sink; no physical pacing or playback proof |
 | Generated-signal SBC self-test | Executed on one Slim/13.40 environment | two fresh init/finish cycles, four 77-byte frames and pinned digest match host; clean cleanup; no measured encode duration or Bluetooth output |
 | Bounded capture observation | Executed on one Slim/13.40 environment | immediate Empty then 8,192 bytes after one wait; checked clock call and clean cleanup; native PCM format/timestamp still unknown |
 | SBC-over-RTP/A2DP packetization | Implemented on host | fixed negotiated MTU/frame boundaries, atomic backpressure, sequence/sample timestamps and wrap tests; no AVDTP/live stream |
@@ -83,7 +83,7 @@ The earlier second-machine build reproduction remains in
 | Native clock/finite wait | Experimental adapter | separately versioned, fallible cached clock and one at-most-1ms wait request per step; host/native fixture and target-object checks only, native latency remains unverified |
 | Native control listener/service | Target-linked candidate | bounded sequential clients and fixed HTTP buffers; selected-export PS5 link plus native startup assembly, with runtime imports/permissions still Requires hardware |
 | LAN management service/page | Portable service and control-only startup candidate | bounded v1/v2 authenticated service and actual-state page; separate ephemeral loopback candidate keeps all radio/capture/codec operations unavailable |
-| Experimental Rust capture entry | Candidate | separate versioned Avcap2 ABI and consume-once owner, explicit unknown format/time, tested normalization/timeline/block bridge; one-read target ELF linked, PS5 execution pending |
+| Experimental Rust capture entry | One-read lifecycle executed on one Slim/13.40 | separate versioned Avcap2 ABI and consume-once owner; immediate Empty, zero bytes, clean stop/close; native PCM/time and continuous behavior remain Unknown |
 | Continuous PCM-to-SBC scheduling | Implemented on host | sample-clock block pacing, retained encoded offers, bounded concealment/rebuffer/expiry and persistent real host codec adapter; declared normalized input and independent target encoder/capture candidates, no playable PS5 integration |
 | PCM staging, nominal sample timeline and bounded recovery | Host-only implementation | caller-owned stereo i16 queue; synthetic gaps/stalls; no resampler or live audio |
 | Fault-episode recovery controller | Implemented on host | finite attempt/time budgets, capped backoff, cleanup/reconciliation tickets and stable-success reset; factory-based reopening candidate; no native hardware recovery claim |

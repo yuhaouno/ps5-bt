@@ -14,11 +14,23 @@
 
 ## Unreleased
 
+- Record one Slim/13.40 standalone Rust/target SBC pass: 750 generated blocks,
+  57,750 bytes, exact digest and clean finish. Record the Rust capture boundary's
+  one Empty read and clean stop/close. Retain immediate per-run logs and normal
+  operator-reported controller observations; physical pacing, PCM and playback
+  remain unverified. Remove each completed test slot; final PS5-BT slot count is
+  zero and unrelated slots are unchanged.
+- Record setup schema 2's root `PARENT_WRITE` rejection (mask 4), with clean
+  cleanup. Keep protected-store activation gated and identify a separate read-only
+  root/data consistency probe as the next proposal; no permission exception or
+  namespace mutation follows from the result.
+
 - Preserve the observed root-policy rejection in the setup-only PS5 rerun.
   Extend its report to ABI 2/log schema 2 with six numeric predicate-failure
   bits, zero-initialized stat buffers and legacy-log collection support.
   Add a single-item setup plan for immediate per-run collection. Native calls,
-  protection and cleanup bounds are unchanged; rejection details need hardware.
+  protection and cleanup bounds are unchanged; the subsequent result is recorded
+  above.
 
 - Record the 2026-10-26 application window: six built/imported/hash-verified
   candidates, retained Store directory I/O failure before generated encoding,

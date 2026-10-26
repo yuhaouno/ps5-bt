@@ -4,18 +4,20 @@ Prepared 2026-10-26. Keep this temporary handoff until the next window has a
 reviewed outcome. English is canonical. Read `AGENTS.md` before changing code.
 
 Window update, 2026-10-26: read [HW4-EVIDENCE.md](HW4-EVIDENCE.md) first.
-The six-item kit was built at clean `20a5d66`, uploaded and fully read back.
-The retained generated-application log fails Store directory acquisition with
-raw errno 1; other per-item outcomes were overwritten/Unknown. The user then
-requested frontend cleanup: all eight PS5-BT slots were removed. On resumption,
-only setup was restored, hash-verified and manually run. Its retained schema-1
-report rejects root metadata after successful open/fstat, with clean close and
-reported normal controller input. The rejected predicate remains Unknown.
-The next schema-2 setup report adds predicate bits without changing protection
-or native call bounds; select `tools/setup_test_plan.json` for a single-item kit.
-Keep the old kit, verify the new artifact and collect before another launch.
-Do not treat the report of all ELFs
-executing with normal controller input as six passing profiles.
+The clean `20a5d66` six-item kit was built, uploaded and fully read back. The
+retained generated-application run failed Store directory acquisition (errno 1).
+Subsequent one-at-a-time setup runs rejected root protection; the clean `a3c2fc1`
+schema-2 build reported only `PARENT_WRITE` (mask 4), with clean close. Native
+metadata layout and the underlying authority remain unresolved.
+The original-kit standalone SBC fallback passed 750 blocks with matching bytes
+and digest. The Rust capture fallback completed one Empty read and clean cleanup;
+no PCM format or playback follows. Each of these later runs was immediately
+collected, with normal controller behavior reported before/during/after.
+Control/observe's original outcomes remain overwritten/Unknown and were not
+relaunched after setup rejection. Final remote inventory has zero PS5-BT slots;
+unrelated slots and local kits/evidence were preserved. The next proposed step
+is a separate read-only root/data consistency probe, not yet implemented. Do not
+repeat setup or the application sequence without resolving its prerequisite.
 
 The selected environment is PS5 Slim / firmware 13.40, PayloadManager 0.6.3,
 Sony WH-1000XM4. Reconfirm the console and the user's current test window before
