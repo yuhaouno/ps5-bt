@@ -16,6 +16,13 @@ CAPTURE_OBSERVE_TEST_SOURCES := platform/ps5/diagnostics/capture_observe.c tests
 
 all: ps5-link
 
+.PHONY: check-fast
+# Cheap portable smoke check only; run the changed module's tests separately.
+# The existing full check target is intentionally unchanged.
+check-fast:
+	git diff --check
+	cargo check --workspace --locked
+
 check:
 	cargo fmt --all -- --check
 	cargo check --workspace --all-targets --locked

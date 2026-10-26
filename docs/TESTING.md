@@ -2,7 +2,12 @@
 
 Host correctness, hardware behavior, audio quality, performance and headset
 interoperability are separate evidence tracks. Never turn a host mock pass into
-a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
+a hardware claim. For ordinary iteration, run the changed module's existing
+checks once; `make check-fast` provides only a whitespace/Rust compilation smoke
+check and is not native-ABI or hardware validation. Use full `make check` for
+broad integration/milestones, not every edit. Documentation-only changes need
+diff/link checks. Add tests for concrete new behavior/failure bounds, not test
+counts; retain existing suites on demand. See [BUILDING.md](BUILDING.md) for setup.
 
 ## Imported versus checked-syscall openat comparison
 

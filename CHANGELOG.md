@@ -14,6 +14,13 @@
 
 ## Unreleased
 
+- Prioritize first real headset connection/audio over architecture expansion.
+  Shorten working rules and the current handoff, hold the uploaded raw-openat
+  probe, and make checks proportional to changed code. Add `make check-fast`
+  while retaining full regressions on demand. A pinned upstream reference is
+  the next evaluation path; no excluded transport behavior is newly authorized
+  and no new hardware result is claimed.
+
 - Add an independently selected imported-versus-checked-syscall openat diagnostic
   using a pinned source mapping, identical fixed read-only target/flags, separate
   full-width error contracts and bounded owned cleanup. Reject unrepresentable

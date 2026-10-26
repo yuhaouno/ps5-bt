@@ -1,11 +1,11 @@
 # PS5-BT — working title
 
-For the next PS5 window on a new testing machine, start with the temporary
-[operator handoff](docs/TEMP-PS5-TEST-HANDOFF.md) and
-[decision matrix](docs/PS5-WINDOW-DECISION-MATRIX.md). The six-item plan has a
-one-command local preparer and verified portable transfer; native tests still
-require the actual console window. No usable Bluetooth connection backend or
-headphone playback is claimed.
+The current priority is a first real headset connection and audible audio,
+followed by optimization. Start with the concise
+[current handoff](docs/TEMP-PS5-TEST-HANDOFF.md). Directory diagnostics are on hold.
+Evaluate a pinned HearBridge reference before porting its C connection/audio
+chain; its competing-read/credit behavior requires a separate execution-scope
+decision. No usable PS5-BT connection backend or headphone playback is claimed.
 
 A Rust-first Bluetooth Audio stack for PlayStation 5 homebrew — built for low
 latency, high quality, and portability.
@@ -129,7 +129,8 @@ Python 3.11+, Make and LLVM 18.1.8. Set `LLVM_CONFIG` to that installation's
 ```sh
 make                # build/ps5/ps5-bt.elf: diagnostic only, hardware untested
 make ps5-hw1        # explicit existing-loader kernel resolver; verified diagnostic path
-make check          # formatting, Rust check/tests/lints, C/Rust seam tests, cross archive
+make check-fast     # cheap Rust compilation smoke check; module tests separately
+make check          # explicit full regression: Rust/C/codec/tooling/cross archive
 make host-smoke     # C main -> Rust -> unsupported C adapter, on the desktop
 make sbc-codec-test # real offline PCM -> SBC -> RTP/L2CAP/ACL; no PS5/audio output
 make rust-archive   # no_std x86-64 ELF archive; no SDK or console needed

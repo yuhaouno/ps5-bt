@@ -1,5 +1,10 @@
 # Checked raw-openat route comparison
 
+**On hold, 2026-10-27:** the uploaded artifact has no known manual run. The user
+prioritized a direct connection/audio route; the current
+[handoff](TEMP-PS5-TEST-HANDOFF.md) supersedes the pending-run instruction below.
+Preserve the kit and evidence; do not request another directory probe by default.
+
 Status: separately selected, source-backed experiment prepared on 2026-10-27.
 Native execution and syscall-number compatibility on firmware 13.40 remain
 **Requires hardware**. The operator authorized preparation/upload with manual

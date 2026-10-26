@@ -1,5 +1,11 @@
 # MVP orchestration state
 
+**Current priority, 2026-10-27:** first reproduce connection/audio using a reviewed
+pinned reference, then integrate/optimize. The authoritative short queue is
+[TEMP-PS5-TEST-HANDOFF.md](TEMP-PS5-TEST-HANDOFF.md). Raw-openat is uploaded but on
+hold; no directory run is currently requested. The dated records below preserve
+history and do not override that queue. Routine work need not reread this history.
+
 ## Retained application-window result, 2026-10-26
 
 See [HW4-EVIDENCE.md](HW4-EVIDENCE.md) for exact artifact/log identities.

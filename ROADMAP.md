@@ -1,5 +1,12 @@
 # Milestone roadmap
 
+Current ordering, 2026-10-27: first reproduce a reviewed reference's connection
+and audible audio on the user's hardware; then integrate the minimum working
+chain and optimize with measurements. Defer directory probes and broader app
+infrastructure. Use the [current handoff](docs/TEMP-PS5-TEST-HANDOFF.md) for the
+execution queue; dated plans below are historical. A reference using excluded
+transport mechanisms still needs a separate scope decision before execution.
+
 Milestones are evidence gates, not dates or promises. A compiling archive, a
 linked ELF, execution on a PS5, and stable audio are different achievements.
 The current dependency graph, worker ownership and blockers are tracked in

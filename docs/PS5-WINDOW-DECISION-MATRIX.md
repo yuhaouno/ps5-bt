@@ -1,5 +1,10 @@
 # PS5 window: rapid test and decision matrix
 
+**Superseded execution order, 2026-10-27:** the user prioritized first audible
+audio over further peripheral diagnostics. Follow the
+[current handoff](TEMP-PS5-TEST-HANDOFF.md); keep this matrix as contracts/evidence
+for existing artifacts, not the next test queue. Raw-openat is on hold.
+
 Prepared 2026-10-26 for the reported PS5 Slim / 13.40, PayloadManager 0.6.3
 and WH-1000XM4 environment. Reconfirm the actual machine and current execution
 window before uploading or launching. This document grants no execution authority.
