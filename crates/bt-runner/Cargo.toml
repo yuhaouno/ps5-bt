@@ -1,0 +1,29 @@
+[package]
+name = "bt-runner"
+description = "Bounded management bridge and single-owner platform pump"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+bt-app = { path = "../bt-app" }
+bt-audio = { path = "../bt-audio" }
+bt-control = { path = "../bt-control" }
+bt-core = { path = "../bt-core" }
+bt-device = { path = "../bt-device" }
+bt-discovery = { path = "../bt-discovery" }
+bt-hci = { path = "../bt-hci" }
+bt-l2cap = { path = "../bt-l2cap" }
+bt-media-session = { path = "../bt-media-session" }
+bt-link = { path = "../bt-link" }
+
+[dev-dependencies]
+bt-avdtp = { path = "../bt-avdtp" }
+bt-channel = { path = "../bt-channel" }
+bt-sdp = { path = "../bt-sdp" }
+bt-session = { path = "../bt-session" }
+
+[lints]
+workspace = true

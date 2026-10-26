@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Join discovery, protected bond metadata, device/SSP management and application
+  progression in a bounded Rust runner. Serialize control/media PDUs against one
+  real external credit ledger, retain rejected input, enforce aggregate deadlines
+  and revoke stale management state immediately on clock failure. No PS5 owner
+  or credit authority is manufactured.
+
 - Add the minimal LAN device/pairing page, authenticated v2 service and bounded
   nonblocking connection pump. Preserve v1, serialize urgent/primary tickets,
   reject stale generations and expose only actual capabilities and outcomes.

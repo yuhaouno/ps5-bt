@@ -174,6 +174,30 @@ impl<S: BondStore> DeviceManager<S> {
     pub fn selected_peer(&self) -> Option<Peer> {
         self.selected
     }
+
+    /// Protected management metadata lookup only. Confirmed absence is distinct
+    /// from an unavailable/corrupt store. No key material escapes this call.
+    pub fn has_bond(&mut self, peer: Peer) -> Result<bool, Error> {
+        let mut bytes = [0; BOND_RECORD_BYTES];
+        let loaded = self.store.load(peer, &mut bytes);
+        let result = match loaded {
+            Ok(None) => Ok(false),
+            Ok(Some(len)) => bytes
+                .get(..len)
+                .ok_or(Error::Record(RecordError::Length))
+                .and_then(|data| {
+                    BondRecord::decode(data, peer, self.policy)
+                        .map(|_| true)
+                        .map_err(Error::Record)
+                }),
+            Err(source) => Err(Error::Storage(StorageFailure {
+                operation: StoreOperation::Load,
+                source,
+            })),
+        };
+        bytes.fill(0);
+        result
+    }
     /// Protected local UI only; public status must not expose pairing prompts.
     pub fn pending_confirmation(&self) -> Option<(ApprovalToken, u32)> {
         self.approval.map(|token| (token, self.approval_value))

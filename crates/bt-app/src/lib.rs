@@ -210,6 +210,60 @@ impl<'a, S: BondStore> Application<'a, S> {
             .map(|c| c.parameters())
     }
 
+    /// Known routed connection identity, not an independent permission/credit
+    /// proof. May remain available for diagnostics after terminal failure.
+    pub const fn connection(&self) -> Option<Connection> {
+        self.connection
+    }
+
+    pub const fn acl_data_max(&self) -> usize {
+        self.config.acl_data_max
+    }
+
+    pub fn has_bond(&mut self, peer: Peer) -> Result<bool, Error> {
+        self.device.has_bond(peer).map_err(Error::Device)
+    }
+
+    /// Retry only an already revoked deletion; never reauthorize the old link.
+    pub fn retry_forget(&mut self) -> Result<(), Error> {
+        self.device.retry_forget().map_err(Error::Device)
+    }
+
+    /// Delete a protected selected peer's bond even before connecting. A local
+    /// idle deletion has no radio cleanup to manufacture. Active deletion still
+    /// revokes the current attempt and requires external transport cleanup.
+    pub fn forget_device(
+        &mut self,
+        peer: Peer,
+        now_us: u64,
+    ) -> Result<bt_device::ForgetOutcome, Error> {
+        if matches!(self.phase, Phase::Idle | Phase::Closed) {
+            self.time(now_us)?;
+            self.device.select(peer).map_err(Error::Device)?;
+            return self.device.forget(now_us).map_err(Error::Device);
+        }
+        if self.device.selected_peer() != Some(peer) {
+            return Err(Error::ForeignContext);
+        }
+        self.forget(now_us)
+    }
+
+    /// The selected discovery result supplies the real page-scan repetition
+    /// mode. The caller must require a quiescent, non-stale scan result first.
+    pub fn connect_discovered(
+        &mut self,
+        peer: Peer,
+        page_scan_repetition: u8,
+        epoch: u64,
+        now_us: u64,
+    ) -> Result<(), Error> {
+        if self.phase != Phase::Idle || page_scan_repetition > 2 {
+            return Err(Error::InvalidState);
+        }
+        self.config.link.page_scan_repetition = page_scan_repetition;
+        self.connect(peer, epoch, now_us)
+    }
+
     /// Protected management/UI accessor; numeric approval values and tokens
     /// belong to an authorized local session, not public status broadcasts.
     pub fn pending_confirmation(&self) -> Option<(ApprovalToken, u32)> {

@@ -57,6 +57,7 @@ The earlier second-machine build reproduction remains in
 | Bounded capture observation | Executed on one Slim/13.40 environment | immediate Empty then 8,192 bytes after one wait; checked clock call and clean cleanup; native PCM format/timestamp still unknown |
 | SBC-over-RTP/A2DP packetization | Implemented on host | fixed negotiated MTU/frame boundaries, atomic backpressure, sequence/sample timestamps and wrap tests; no AVDTP/live stream |
 | Media send orchestration | Implemented on host | SBC/RTP/L2CAP/ACL submission now uses an external credit owner; Busy/credit stops retain the PDU and terminal errors report cancellation counts; no clock or live transport |
+| Management/ACL runner | Portable candidate | discovery-to-device/SSP bridge, actual capability gates, retained input and shared-credit control/media ordering; no native PS5 wait loop or ownership authority |
 | Single-owner application driver | Implemented on host | device security, SDP/channel scheduling, explicit start/stop/restart, continuous audio handoff and finite media/recovery budgets; no live PS5 loop, listener or backend |
 | A2DP source session binding | Implemented on host | Classic Ready/context gate, automatic bounded SBC negotiation, explicit sample-gap timestamps, media-channel binding, partial-PDU-aware stop and clean restart; no capture/encoder/pacing, LAN owner loop or PS5 activation |
 | LAN management service/page | Portable candidate | bounded v1/v2 HTTP service, actual-state actions, opaque device/SSP IDs, safe static page and nonblocking connection pump; no PS5 listener or activation |
@@ -146,7 +147,7 @@ behind a versioned ABI; preserve provenance and explicit state/resource ownershi
 This policy does not import an upstream stack or transfer its hardware claims. See
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
 The workspace contains `bt-a2dp`, `bt-app`, `bt-audio`, `bt-avdtp`, `bt-channel`,
-`bt-control`, `bt-core`, `bt-device`, `bt-discovery`, `bt-store`,
+`bt-control`, `bt-core`, `bt-device`, `bt-discovery`, `bt-store`, `bt-runner`,
 `bt-codec`, `bt-hci`, `bt-l2cap`, `bt-link`, `bt-media-session`, `bt-sdp`,
 `bt-session`, `ps5-sys`,
 `ps5-platform`, and `ps5-runtime`. The first initiator-side L2CAP Basic-mode channel machine, SDP
@@ -162,7 +163,9 @@ The bounded LAN management service and static page are implemented; see
 [the control contract](docs/LAN-MANAGEMENT.md). A PS5 socket listener is not active. The [portable application driver](docs/APPLICATION-OWNER.md) now owns
 selected-device security, channel/SDP progression, source negotiation, normalized
 PCM encoding/pacing handoff and bounded stop/recovery. Native capture/target
-encoder integration, a live PS5 owner loop and LAN listener remain absent.
+encoder integration, a live PS5 owner loop and PS5 LAN listener remain absent.
+The [portable management/ACL runner](docs/APPLICATION-RUNNER.md) supplies bounded
+loop steps and explicit retained-packet/ticket ownership for a platform scheduler.
 See [next-session work and hardware run order](docs/MVP-NEXT-RUN.md).
 
 ## Roadmap and contribution

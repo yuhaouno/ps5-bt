@@ -128,6 +128,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "bt-runner"
+version = "0.0.1"
+dependencies = [
+ "bt-app",
+ "bt-audio",
+ "bt-avdtp",
+ "bt-channel",
+ "bt-control",
+ "bt-core",
+ "bt-device",
+ "bt-discovery",
+ "bt-hci",
+ "bt-l2cap",
+ "bt-link",
+ "bt-media-session",
+ "bt-sdp",
+ "bt-session",
+]
+
+[[package]]
 name = "bt-sdp"
 version = "0.0.1"
 
