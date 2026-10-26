@@ -3,6 +3,7 @@
 #![no_std]
 mod config;
 mod factory;
+pub mod generated;
 #[cfg(feature = "native-resources")]
 mod native;
 pub use config::*;
