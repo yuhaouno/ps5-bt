@@ -58,6 +58,14 @@ pub trait LoopResources {
     fn poll_stop(&mut self, now_us: u64) -> Result<bool, i32>;
     fn abort_stop(&mut self);
     fn cleanup(&mut self, resource: Resource) -> Result<(), i32>;
+    /// Latest already validated observation in this loop's shared monotonic
+    /// host-microsecond domain. This accessor performs NO native clock call.
+    /// Stale cached observations may lag; genuine native regression/failure must
+    /// still be returned by the native owner. Never supply PCM/native metadata,
+    /// sample positions, synthesized time, credit estimates or another domain.
+    fn latest_observed_us(&self) -> Option<u64> {
+        None
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -192,6 +200,11 @@ impl<R: LoopResources> MainLoop<R> {
     pub const fn report(&self) -> LoopReport {
         self.report
     }
+    /// Latest accepted host-clock instant, including validated observations
+    /// made inside a work quantum. Cleanup drivers reuse this without a clock.
+    pub const fn accepted_us(&self) -> u64 {
+        self.last_us
+    }
     pub const fn resources(&self) -> &R {
         &self.resources
     }
@@ -243,6 +256,16 @@ impl<R: LoopResources> MainLoop<R> {
         // Always poll the platform latch even if the external latch is set.
         self.resources.take_stop() || self.stop_requested
     }
+    fn refresh_observation(&mut self) {
+        if let Some(observed) = self.resources.latest_observed_us() {
+            self.last_us = self.last_us.max(observed);
+        }
+    }
+    fn global_deadline_reached(&self) -> bool {
+        self.config
+            .deadline_us
+            .is_some_and(|end| self.last_us >= end)
+    }
     fn add(&mut self, value: u64, delta: u64) -> u64 {
         match value.checked_add(delta) {
             Some(value) => value,
@@ -292,7 +315,7 @@ impl<R: LoopResources> MainLoop<R> {
         if matches!(self.report.phase, LoopPhase::Starting | LoopPhase::Running) {
             if self.stop_pending() {
                 self.begin_stop(self.last_us, StopReason::Requested);
-            } else if self.config.deadline_us.is_some_and(|end| now_us >= end) {
+            } else if self.global_deadline_reached() {
                 self.begin_stop(self.last_us, StopReason::Deadline);
             }
         }
@@ -314,7 +337,7 @@ impl<R: LoopResources> MainLoop<R> {
                 }
             }
             LoopPhase::Running => {
-                let Some(mut wake) = now_us.checked_add(self.config.max_wait_us) else {
+                let Some(mut wake) = self.last_us.checked_add(self.config.max_wait_us) else {
                     self.force(StopReason::ClockOverflow);
                     turn.phase = self.report.phase;
                     return turn;
@@ -325,18 +348,28 @@ impl<R: LoopResources> MainLoop<R> {
                 'work: for lane in LANES {
                     for _ in 0..self.config.quotas[lane as usize] {
                         if self.stop_pending() {
-                            self.begin_stop(now_us, StopReason::Requested);
+                            self.begin_stop(self.last_us, StopReason::Requested);
                             break 'work;
                         }
-                        match self.resources.quantum(lane, now_us) {
+                        if self.global_deadline_reached() {
+                            self.begin_stop(self.last_us, StopReason::Deadline);
+                            break 'work;
+                        }
+                        let result = self.resources.quantum(lane, self.last_us);
+                        self.refresh_observation();
+                        match result {
                             Ok(quantum) => {
                                 turn.quanta[lane as usize] += 1;
                                 self.record(lane, quantum);
                                 if let Some(due) = quantum.wake_at_us {
-                                    wake = wake.min(due.max(now_us));
+                                    wake = wake.min(due.max(self.last_us));
                                 }
                                 if self.stop_pending() {
-                                    self.begin_stop(now_us, StopReason::Requested);
+                                    self.begin_stop(self.last_us, StopReason::Requested);
+                                    break 'work;
+                                }
+                                if self.global_deadline_reached() {
+                                    self.begin_stop(self.last_us, StopReason::Deadline);
                                     break 'work;
                                 }
                                 if !quantum.progressed {
@@ -344,17 +377,17 @@ impl<R: LoopResources> MainLoop<R> {
                                 }
                                 // A quota hit means work may remain; yield to the
                                 // next lane and do not sleep before another turn.
-                                wake = now_us;
+                                wake = self.last_us;
                             }
                             Err(error) => {
-                                self.begin_stop(now_us, StopReason::Work { lane, error });
+                                self.begin_stop(self.last_us, StopReason::Work { lane, error });
                                 break 'work;
                             }
                         }
                     }
                 }
                 if self.report.phase == LoopPhase::Running {
-                    turn.wake_at_us = Some(wake);
+                    turn.wake_at_us = Some(wake.max(self.last_us));
                 }
             }
             LoopPhase::Stopping => {

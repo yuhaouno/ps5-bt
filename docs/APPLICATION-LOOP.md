@@ -32,6 +32,20 @@ no internal sleeps or timer-based credit refills. Each backend call still needs
 a reviewed finite/native return contract; a quota cannot interrupt a blocking
 native call.
 
+A resource may expose `latest_observed_us`, a cached validated observation in
+that same host-clock domain. After every successful or failed quantum, MainLoop
+accepts the maximum of its existing instant and that observation, without making
+another native call. Subsequent quanta, global deadline checks, wake suggestions
+and a newly requested stop use the latest accepted instant. A long capture/encode
+call therefore does not spend its subsequent stop budget before Stop is requested,
+and a crossed global deadline prevents another normal quantum. An older cached
+observation is harmless; an actual regressing native read must still fail through
+the native owner or step clock. PCM/native metadata, sample positions and credit
+estimates cannot supply this clock evidence. The finite driver retains
+`accepted_us()` after each step and before clock-free cleanup, so a later clock
+failure cannot make cleanup reuse an older turn timestamp. No elapsed time grants
+credits or changes healthy partial-PDU ownership.
+
 `ApplicationLoop` binds these lanes to the existing implementations:
 
 | Lane | Concrete work per quantum |

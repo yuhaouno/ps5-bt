@@ -21,6 +21,12 @@ struct Resources {
     stop: bool,
     drained: bool,
     saturation: bool,
+    latest: Option<u64>,
+    jump_on: Option<(Lane, u64)>,
+    idle: bool,
+    work_times: Vec<(Lane, u64)>,
+    stop_times: Vec<u64>,
+    poll_times: Vec<u64>,
 }
 impl Resources {
     fn new() -> Self {
@@ -33,6 +39,12 @@ impl Resources {
             stop: false,
             drained: false,
             saturation: false,
+            latest: None,
+            jump_on: None,
+            idle: false,
+            work_times: Vec::new(),
+            stop_times: Vec::new(),
+            poll_times: Vec::new(),
         }
     }
 }
@@ -48,8 +60,12 @@ impl LoopResources for Resources {
     fn take_stop(&mut self) -> bool {
         std::mem::take(&mut self.stop)
     }
-    fn quantum(&mut self, lane: Lane, _: u64) -> Result<Quantum, i32> {
+    fn quantum(&mut self, lane: Lane, now: u64) -> Result<Quantum, i32> {
         self.calls.borrow_mut().push(Call::Work(lane));
+        self.work_times.push((lane, now));
+        if self.jump_on.is_some_and(|(at, _)| at == lane) {
+            self.latest = self.jump_on.take().map(|(_, now)| now);
+        }
         if self.stop_at == Some(lane) {
             self.stop = true;
         }
@@ -57,7 +73,7 @@ impl LoopResources for Resources {
             return Err(-11);
         }
         Ok(Quantum {
-            progressed: true,
+            progressed: !self.idle,
             wake_at_us: Some(9999),
             continuity: Continuity {
                 capture_empty: if self.saturation { u64::MAX } else { 1 },
@@ -66,16 +82,21 @@ impl LoopResources for Resources {
             },
         })
     }
-    fn request_stop(&mut self, _: u64) -> Result<(), i32> {
+    fn request_stop(&mut self, now: u64) -> Result<(), i32> {
         self.calls.borrow_mut().push(Call::Stop);
+        self.stop_times.push(now);
         Ok(())
     }
-    fn poll_stop(&mut self, _: u64) -> Result<bool, i32> {
+    fn poll_stop(&mut self, now: u64) -> Result<bool, i32> {
         self.calls.borrow_mut().push(Call::Poll);
+        self.poll_times.push(now);
         Ok(self.drained)
     }
     fn abort_stop(&mut self) {
         self.calls.borrow_mut().push(Call::Abort);
+    }
+    fn latest_observed_us(&self) -> Option<u64> {
+        self.latest
     }
     fn cleanup(&mut self, r: Resource) -> Result<(), i32> {
         self.calls.borrow_mut().push(Call::Cleanup(r));
@@ -316,4 +337,90 @@ fn stop_during_startup_does_not_acquire_more_resources() {
             .count(),
         1
     );
+}
+
+fn started_with_time(r: Resources, deadline: Option<u64>) -> MainLoop<Resources> {
+    let mut cfg = config();
+    cfg.deadline_us = deadline;
+    cfg.stop_timeout_us = 100_000;
+    let mut owner = MainLoop::new(r, cfg, 0).unwrap();
+    for _ in 0..5 {
+        owner.step(0);
+    }
+    owner
+}
+#[test]
+fn stop_after_fresh_intraquantum_observation_receives_full_drain_budget() {
+    for failed in [false, true] {
+        let mut r = Resources::new();
+        r.jump_on = Some((Lane::Encode, 2_000_000));
+        if failed {
+            r.fail_work = Some(Lane::Encode);
+        } else {
+            r.stop_at = Some(Lane::Encode);
+        }
+        let mut owner = started_with_time(r, Some(5_000_000));
+        let turn = owner.step(1);
+        assert_eq!(turn.phase, LoopPhase::Stopping);
+        assert_eq!(owner.accepted_us(), 2_000_000);
+        assert_eq!(owner.resources().stop_times, vec![2_000_000]);
+        assert_eq!(turn.quanta[Lane::Send as usize], 0);
+        if failed {
+            assert!(matches!(
+                owner.report().reason,
+                Some(StopReason::Work {
+                    lane: Lane::Encode,
+                    error: -11
+                })
+            ));
+        } else {
+            assert_eq!(owner.report().reason, Some(StopReason::Requested));
+        }
+        owner.step(2_099_999);
+        assert!(!owner.report().forced);
+        assert_eq!(owner.resources().poll_times, vec![2_099_999]);
+        owner.resources_mut().drained = true;
+        owner.step(2_099_999);
+        finish(&mut owner, 2_099_999);
+        assert!(!owner.report().forced);
+        assert_eq!(owner.report().stop_error, None);
+    }
+}
+#[test]
+fn global_deadline_is_rechecked_after_work_even_when_lane_returns_idle() {
+    for idle in [false, true] {
+        let mut r = Resources::new();
+        r.jump_on = Some((Lane::Capture, 2_000_000));
+        r.idle = idle;
+        let mut owner = started_with_time(r, Some(1_000_000));
+        let turn = owner.step(1);
+        assert_eq!(turn.phase, LoopPhase::Stopping);
+        assert_eq!(owner.report().reason, Some(StopReason::Deadline));
+        assert_eq!(owner.resources().stop_times, vec![2_000_000]);
+        assert_eq!(turn.quanta[Lane::Capture as usize], 1);
+        assert_eq!(turn.quanta[Lane::Encode as usize], 0);
+        assert_eq!(turn.quanta[Lane::Send as usize], 0);
+    }
+}
+#[test]
+fn subsequent_quanta_and_wake_use_accepted_time_stale_cache_is_not_regression() {
+    let mut r = Resources::new();
+    r.jump_on = Some((Lane::Network, 2_000_000));
+    let mut owner = started_with_time(r, Some(5_000_000));
+    let turn = owner.step(1);
+    assert_eq!(turn.quanta, config().quotas);
+    assert_eq!(turn.wake_at_us, Some(2_000_000));
+    assert_eq!(owner.resources().work_times[0], (Lane::Network, 1));
+    assert!(
+        owner.resources().work_times[1..]
+            .iter()
+            .all(|(_, time)| *time == 2_000_000)
+    );
+    owner.resources_mut().latest = Some(100);
+    owner.step(2_000_000);
+    assert_eq!(owner.accepted_us(), 2_000_000);
+    assert!(!owner.report().forced);
+    owner.step(1_999_999);
+    assert_eq!(owner.report().reason, Some(StopReason::ClockRegressed));
+    assert!(owner.report().forced);
 }

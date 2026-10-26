@@ -21,6 +21,8 @@ struct Trace {
     fail_at: Option<Resource>,
     delayed_stop: bool,
     normal_quanta: u32,
+    latest: Option<u64>,
+    jump_and_fail_clock: bool,
 }
 struct Resources(Rc<RefCell<Trace>>);
 impl LoopResources for Resources {
@@ -35,8 +37,18 @@ impl LoopResources for Resources {
     fn take_stop(&mut self) -> bool {
         self.0.borrow().stop
     }
+    fn latest_observed_us(&self) -> Option<u64> {
+        self.0.borrow().latest
+    }
     fn quantum(&mut self, _: bt_runner::Lane, _: u64) -> Result<Quantum, i32> {
-        self.0.borrow_mut().normal_quanta += 1;
+        let mut trace = self.0.borrow_mut();
+        trace.normal_quanta += 1;
+        if trace.jump_and_fail_clock {
+            trace.jump_and_fail_clock = false;
+            trace.latest = Some(2_000_000);
+            trace.now = 2_000_000;
+            trace.clock_error = true;
+        }
         Ok(Quantum::default())
     }
     fn request_stop(&mut self, _: u64) -> Result<(), i32> {
@@ -267,4 +279,34 @@ fn sticky_stop_teardown_clock_or_wait_failure_aborts_and_cleans_once() {
         assert_eq!(trace.borrow().aborts, 1);
         assert_eq!(trace.borrow().closed.len(), 5);
     }
+}
+
+#[test]
+fn driver_retains_intraquantum_time_for_clock_failure_and_clock_free_cleanup() {
+    let trace = Rc::new(RefCell::new(Trace {
+        jump_and_fail_clock: true,
+        ..Trace::default()
+    }));
+    let mut cfg = config();
+    cfg.deadline_us = Some(5_000_000);
+    let mut owner = MainLoop::new(Resources(trace.clone()), cfg, 0).unwrap();
+    let report = drive_bounded(
+        &mut owner,
+        DriveBudget {
+            max_turns: 100,
+            max_waits: 100,
+        },
+        0,
+    );
+    assert_eq!(report.failure, Some(DriveFailure::Clock(-91)));
+    assert_eq!(report.last_observed_us, 2_000_000);
+    assert_eq!(report.waits, 0); // the returned wake was already due at accepted time
+    assert_eq!(owner.accepted_us(), 2_000_000);
+    assert_eq!(report.outcome.phase, LoopPhase::Finished);
+    assert_eq!(trace.borrow().closed.len(), 5);
+    assert_eq!(trace.borrow().aborts, 1);
+    assert_eq!(
+        report.outcome.reason,
+        Some(bt_runner::StopReason::StopFailed(-91))
+    );
 }

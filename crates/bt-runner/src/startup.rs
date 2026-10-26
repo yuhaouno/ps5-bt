@@ -142,7 +142,7 @@ pub fn drive_bounded<R: DriveResources>(
         waits: 0,
         turns: 0,
         cleanup_turns: 0,
-        last_observed_us: initial_us,
+        last_observed_us: initial_us.max(owner.accepted_us()),
     };
     if budget.max_turns == 0 || budget.max_waits == 0 {
         report.failure = Some(DriveFailure::InvalidBudget);
@@ -178,6 +178,7 @@ pub fn drive_bounded<R: DriveResources>(
                 owner.request_stop();
             }
             let turn = owner.step(now);
+            report.last_observed_us = report.last_observed_us.max(owner.accepted_us());
             report.turns += 1;
             if turn.phase == LoopPhase::Finished {
                 break;
@@ -187,7 +188,7 @@ pub fn drive_bounded<R: DriveResources>(
                 break;
             }
             if let Some(wake) = turn.wake_at_us
-                && wake > now
+                && wake > report.last_observed_us
             {
                 if report.waits == budget.max_waits {
                     report.failure = Some(DriveFailure::WaitBudget);
@@ -217,11 +218,13 @@ pub fn drive_bounded<R: DriveResources>(
     }
     // Exactly five resource slots. One extra iteration observes Finished when
     // no resource had ever been acquired. No policy/native retries occur here.
+    report.last_observed_us = report.last_observed_us.max(owner.accepted_us());
     for _ in 0..6 {
         if owner.report().phase == LoopPhase::Finished {
             break;
         }
         owner.step(report.last_observed_us);
+        report.last_observed_us = report.last_observed_us.max(owner.accepted_us());
         report.cleanup_turns += 1;
     }
     report.outcome = owner.report();
