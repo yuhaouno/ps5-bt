@@ -41,6 +41,7 @@ The earlier second-machine build reproduction remains in
 | Owned ACL credit accounting | Implemented on host | exact acceptance/completion accounting with explicit reservation, sticky loss/uncertain-send failure and no timer refill; no hardware reservation established |
 | L2CAP framing, bounded ACL fragmentation/reassembly and Classic channel signaling | Implemented on host | acceptance-confirmed outbound cursor plus scripted Connection/MTU Configuration/Disconnection and handle/epoch/bounds tests; no live transport/credits |
 | SDP framing, bounded data elements and A2DP Sink discovery | Implemented on host | correlated transactions/epochs, bounded continuation and strict service-record semantics; no live query |
+| Selected-peer Classic connection/security | Implemented on host | acceptance-correlated connection/cancel, stored-key or approved SSP, authentication/encryption/key-size gate; no inquiry, bond persistence, live transport or PS5 pairing result |
 | AVDTP SBC initiator session | Implemented on host | conservative SBC negotiation/lifecycle plus bounded receive signaling reassembly with epoch/CID/transaction isolation; no live media channel, headset or PS5 execution |
 | C ABI, safe wrappers and Rust runtime seam | Implemented | synthetic desktop boundary tests |
 | USB descriptor parsing and metadata reports | Implemented | hostile host tests and sanitizers; no USB access |
@@ -138,7 +139,7 @@ behind a versioned ABI; preserve provenance and explicit state/resource ownershi
 This policy does not import an upstream stack or transfer its hardware claims. See
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
 The workspace contains `bt-a2dp`, `bt-avdtp`, `bt-control`, `bt-core`,
-`bt-codec`, `bt-hci`, `bt-l2cap`, `bt-media-session`, `bt-sdp`, `ps5-sys`,
+`bt-codec`, `bt-hci`, `bt-l2cap`, `bt-link`, `bt-media-session`, `bt-sdp`, `ps5-sys`,
 `ps5-platform`, and `ps5-runtime`. The first initiator-side L2CAP Basic-mode channel machine, SDP
 Audio Sink discovery client, bounded AVDTP initiator session and SBC-over-RTP
 packetizer are host-tested. The media send cursor binds encoded frames through

@@ -14,6 +14,13 @@
 
 ## Unreleased
 
+- Add a bounded selected-peer Classic link/security candidate with exact HCI
+  command acceptance, cancellation-race cleanup, stored-key lookup and explicit
+  SSP approval. Require authentication, encryption and queried minimum key size
+  before Ready; preserve failed acknowledgement routing fields and reject stale
+  events. PIN/passkey/OOB pairing, inquiry and bond persistence remain outside
+  this subset. No active PS5 backend or headset pairing is claimed.
+
 - Add caller-storage AVDTP receive signaling reassembly and a packet-oriented
   initiator entry that shares existing semantic validation. Bound packet counts,
   SDU lengths and a fixed Start deadline; isolate channel/epoch/transaction

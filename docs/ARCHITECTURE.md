@@ -70,6 +70,7 @@ on any PS5 crate; they are not a prerequisite for PS5 development or acceptance.
 | `bt-control` | `no_std` bounded authenticated request parsing, serialized command tickets and redacted status | no dependencies; no listener or transport owner |
 | `bt-hci` | `no_std` typed command/event/ACL framing, capability decoding and externally owned ACL reservation accounting | `bt-core`; no platform dependency or ownership discovery |
 | `bt-l2cap` | `no_std` basic framing, bounded handle/epoch ACL fragmentation/reassembly and initiator-side Classic Basic-mode signaling | `bt-core`, `bt-hci`; no live transport, credit ledger or responder allocator |
+| `bt-link` | `no_std` selected-peer Classic connection/security lifecycle, exact HCI command acceptance, stored-key/SSP decisions and authenticated encrypted Ready gate | `bt-core`, `bt-hci`; no transport ownership, inquiry or persistent key store |
 | `bt-media-session` | `no_std` SBC-frame to RTP/L2CAP/ACL send cursor plus one-attempt submission through an external credit owner | `bt-a2dp`, `bt-core`, `bt-hci`, `bt-l2cap`; no clock, encoder, reservation discovery or transport owner |
 | `bt-sdp` | `no_std` borrowed PDU/data elements and bounded A2DP Sink discovery with atomic final validation | no dependencies; no L2CAP or live session |
 | `ps5-sys` | `no_std` declarations matching our own C header | no SDK struct bindings |
@@ -80,9 +81,9 @@ All packages are unpublished, temporary identifiers, not reserved public names.
 The first bounded L2CAP channel-signaling machine, AVDTP initiator session,
 SBC-over-RTP packetizer and RTP/L2CAP/ACL media send cursor are host-tested;
 SDP discovery is also host-tested.
-AVDTP receive signaling reassembly is host-tested. Live media binding and
-baseband connection remain authorized MVP implementation targets, not
-implemented capabilities. Split
+AVDTP receive signaling reassembly and a bounded selected-peer Classic link
+security candidate are host-tested. Live media binding, inquiry and persistent
+bond storage remain implementation targets; no connection backend is active. Split
 them when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
 `no_std` on the freestanding target. Portable crates remain `no_std` everywhere.

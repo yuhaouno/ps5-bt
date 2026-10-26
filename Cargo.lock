@@ -51,6 +51,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bt-link"
+version = "0.0.1"
+dependencies = [
+ "bt-core",
+ "bt-hci",
+]
+
+[[package]]
 name = "bt-media-session"
 version = "0.0.1"
 dependencies = [

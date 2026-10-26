@@ -6,6 +6,14 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
 ## Current automated checks
 
+- Selected-peer Classic link/security: 31 wire/lifecycle checks cover exact
+  HCI commands and acceptance, peer/handle/epoch correlation even on failed
+  acknowledgements, Unknown Command acknowledgement alternatives, stored-key
+  versus fresh SSP authorization, negative unsupported pairing replies,
+  authentication/encryption/key-size gating, cancel/connection/disconnect races,
+  bounded cleanup and stale responses. Addresses/keys in fixtures are synthetic.
+  These checks do not establish PS5 pairing, ownership or protected persistence.
+
 - Owned ACL ledger: exact accepted/completed invariants, zero and full u16
   reservations, atomic malformed/foreign/duplicate/over-completion failure,
   stale epoch quarantine, cumulative counter exhaustion, Busy retry, all other
