@@ -10,6 +10,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "bt-audio"
+version = "0.0.1"
+dependencies = [
+ "bt-avdtp",
+ "bt-codec",
+ "bt-core",
+ "bt-hci",
+ "bt-l2cap",
+ "bt-media-session",
+ "bt-sdp",
+ "bt-session",
+]
+
+[[package]]
 name = "bt-avdtp"
 version = "0.0.1"
 dependencies = [

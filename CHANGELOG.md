@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Add bounded continuous normalized stereo PCM-to-SBC scheduling, complete-block
+  ticketed handoff, sample-clock pacing, retained backpressure and observable
+  expiry/concealment/rebuffer. Exercise the real host codec across 750 blocks and
+  2,250 completion-accounted synthetic ACL fragments; PS5 audio remains unverified.
+
 - Schedule bounded SDP discovery/cleanup and separate AVDTP signaling/media
   channels under one Rust owner, retaining whole-PDU offers until acceptance.
   Preserve cleanup responsibility on late callbacks, bound peer-close replies

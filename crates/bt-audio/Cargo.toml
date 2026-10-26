@@ -1,0 +1,27 @@
+[package]
+name = "bt-audio"
+description = "Bounded continuous normalized PCM to SBC scheduling candidate"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+host-libsbc = ["dep:bt-codec", "bt-codec/host-libsbc"]
+
+[dependencies]
+bt-core = { path = "../bt-core" }
+bt-codec = { path = "../bt-codec", optional = true }
+
+[dev-dependencies]
+bt-avdtp = { path = "../bt-avdtp" }
+bt-hci = { path = "../bt-hci" }
+bt-l2cap = { path = "../bt-l2cap" }
+bt-media-session = { path = "../bt-media-session" }
+bt-sdp = { path = "../bt-sdp" }
+bt-session = { path = "../bt-session" }
+
+[lints]
+workspace = true

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/bt-audio",
     "crates/bt-channel",
     "crates/bt-device",
     "crates/bt-a2dp",
