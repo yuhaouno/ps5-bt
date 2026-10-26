@@ -6,6 +6,13 @@ real diagnostic ELF linking C -> Rust -> an Unsupported adapter; the explicit HW
 working Bluetooth or HCI controller capability information. The separate USB
 diagnostic below has read device descriptors on one console.
 
+These build/import constraints describe the selected diagnostic artifacts.
+They do not prohibit independently developed source-reviewed experimental,
+optimized or transitional C modules under [AGENTS.md](../AGENTS.md). Such modules
+need explicit build variants and reviewed ABI/dependency/state contracts;
+preserve the current baseline and its inspection checks. Candidates may be
+committed with PS5 validation pending; building never authorizes deployment.
+
 ## Minimal PS5 ELF
 
 Install Rust/rustup, a C11 host compiler (`cc`, or `HOST_CC`), Make, Python 3.11+

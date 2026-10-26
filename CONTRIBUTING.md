@@ -4,7 +4,11 @@ Read the [mission/architecture](docs/ARCHITECTURE.md), [roadmap](ROADMAP.md),
 [scope](SECURITY.md), and [upstream rules](docs/UPSTREAM.md) first. This is an
 independent project. Prioritize correctness, PS5 stability, maintainability,
 upstream compatibility and measurement before latency, quality, speed, Rust
-purity or feature count. Keep valuable platform C behind the ABI.
+purity or feature count. Keep valuable platform C behind the ABI. Scoped,
+reviewed C protocol/connection modules are also allowed as transitional
+implementations under AGENTS.md; document the ABI, state/resource ownership,
+provenance and retention/replacement rationale rather than rewriting for language
+purity or importing a whole application.
 
 Use English for source/comments/API docs, project docs, commit messages and
 templates. Translations are welcome and must link to the authoritative English
@@ -21,13 +25,26 @@ hardware assumptions before implementation. Keep fixes small and reviewable.
 For upstream adaptation, record commit, original license, selected files, credit,
 relationship, local patches and sync procedure. Preserve original notices and
 history. A C/Rust split does not change distribution obligations. Never commit
-Sony binaries, secrets, raw pairing keys, copyrighted game/audio content or
-exploit/privilege-changing code. Do not hide missing permissions with a workaround.
+Sony binaries, secrets, raw pairing keys, copyrighted game/audio content or a
+new exploit/vulnerability chain. Normal local Bluetooth bond-key persistence is
+allowed at runtime, with protected storage and explicit forget-device handling;
+keys must never enter Git, logs or the LAN page. A reviewed minimal own-process
+permission adapter may use only the installed environment's existing kernel-R/W
+channel under AGENTS.md. Preserve permission errors and scope changes; system
+process/driver mutation or dispatcher installation requires a separate scope
+decision, not an implicit workaround.
 
 Approachable contributions include documentation source checks, meaningful
 malformed-packet fixtures, translation review and sanitized hardware reports
 following the gated procedure. Hardware is not required to improve the portable
-core. No CLA, sign-off requirement or contact address has been invented for this
+core or implement source-reviewed experimental adapters. PS5 remains the target
+for functional, audio-quality, latency, coexistence and stability acceptance;
+development checks do not require a Linux Bluetooth backend. Coherent candidate
+implementations may be committed with PS5 validation explicitly pending.
+Source-backed transport diagnostics follow the separate experimental admission
+rules in AGENTS.md; the intended observation is not a prerequisite, but unknown
+APIs, credits or excluded mechanisms cannot be smuggled in as experiments.
+No CLA, sign-off requirement or contact address has been invented for this
 bootstrap; governance can be established openly with maintainers later.
 
 ## Git and commit discipline

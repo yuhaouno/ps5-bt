@@ -11,6 +11,15 @@ stack presence query worth testing, but no usable PS5 command/event/ACL broker.
 Keep `BluetoothTransport` Unsupported. The query below can narrow the next
 investigation without consuming USB input or submitting HCI commands.
 
+Policy clarification, 2026-10-26: the research results and existing candidate
+bounds below remain evidence, not a permanent ban on implementing or proposing
+other mechanisms. Source-backed isolated diagnostics follow AGENTS.md's
+experimental admission rules and may measure an unresolved routing/ownership
+fact without pre-proving that observation. Existing required API/layout,
+traffic bounds, owned ACL allowances, cleanup and scope limits still apply.
+This report supplies no new active candidate and does not approve competing
+USB readers, timer-based credit refill or system-driver mutation.
+
 ## Post-HW2 ownership decision and next bounded experiment
 
 The runtime facts do not reveal a usable broker. The native query's resolved

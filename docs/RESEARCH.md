@@ -1,5 +1,14 @@
 # Phase 0 technical research
 
+Historical scope notice, 2026-10-26: the decisions below record the initial
+research snapshot. Current development authority is [AGENTS.md](../AGENTS.md),
+with aligned ARCHITECTURE.md and PS5_PLATFORM.md. Earlier absolute Rust-ownership,
+capture sequencing and permission-workaround language does not prohibit scoped
+reviewed transitional C modules, independent experimental capture or reviewed
+minimal own-process permissions through the installed kernel-R/W environment.
+It does not authorize a new exploit chain, system-driver/process mutation or
+unreviewed stock SDK startup. Preserve the historical findings below.
+
 Date: 2026-10-23 (Asia/Shanghai). Primary repository snapshots were read locally
 from shallow clones outside this project. Full pins, license evidence and source
 permalinks are in [UPSTREAM.md](UPSTREAM.md). This is the initial research snapshot. Current build integration is documented

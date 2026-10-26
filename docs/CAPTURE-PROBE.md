@@ -3,11 +3,11 @@
 Status: host-tested diagnostic component. Parent integration has produced a
 successful preflight, one Empty immediate read and one 8,192-byte settled read
 on hardware, each with clean lifecycle cleanup. The separately bounded
-observation candidate in [CAPTURE-OBSERVE.md](CAPTURE-OBSERVE.md) **Requires
-hardware**. None establishes playable audio or freezes the future Rust/C audio
-ABI.
+observation candidate in [CAPTURE-OBSERVE.md](CAPTURE-OBSERVE.md) also executed;
+see HW3-EVIDENCE.md for exact artifact identities. None establishes playable
+audio or freezes the future Rust/C audio ABI.
 
-## Integration requirement for the current hardware window
+## Existing diagnostic integration contract
 
 The probe deliberately accepts only two project-owned resolver callbacks. The
 parent integration must call it synchronously while runtime
@@ -293,11 +293,14 @@ The following work remains with the parent/integration owner:
    measure those properties without storing PCM; this probe alone must not be
    connected to `PcmSource` or advertised as live audio.
 
-Hardware verification outstanding: the 100 ms wait variant, positive byte
-returns, requested format/channel/rate, metadata/timestamp meaning, menu/game
-mix, repeated-process behavior and longer-run cleanup effects. The recorded
-one-shot lifecycle and user-confirmed normal behavior do not establish those
-facts; host fakes and target object inspection establish no hardware behavior.
+HW3-EVIDENCE.md supersedes the earlier outstanding wait/positive-read questions:
+the settled and bounded-observation candidates returned 8,192 bytes with clean
+cleanup. Requested format/channel/rate, metadata/timestamp meaning, menu/game
+mix, repeated-process behavior and longer-run cleanup remain Requires hardware.
+Existing one-shot diagnostic constraints below/above apply to that artifact;
+they do not prohibit a separate source-reviewed experimental capture adapter
+under AGENTS.md, including scoped own-process permission handling. Host fakes
+and target object inspection do not establish hardware behavior.
 
 Module lifetime and `LoadStartModule` secondary-result note: at both pinned
 revisions, applications call LoadStartModule in Ipmi-then-Avcap2 order and do not

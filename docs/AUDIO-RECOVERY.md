@@ -10,7 +10,7 @@ It does not establish a Bluetooth broker or relax native traffic preservation.
 | Condition | Response | Must not happen |
 | --- | --- | --- |
 | PCM temporarily absent | bounded, counted silence/concealment; rebuffer beyond its configured limit | unlimited silence reported as successful capture |
-| PCM too old to meet its playout time | discard with exact frame counts before encoding/fragmentation | unbounded backlog or dropping an already-partially-sent PDU |
+| PCM too old to meet its playout time | discard with exact frame counts before encoding/fragmentation | unbounded backlog or dropping an already-partially-sent PDU on a healthy connection |
 | Persistent clock drift | measure occupancy/clock mismatch; independently validate resampling later | inventing credits or assuming a larger queue fixes clock-rate mismatch |
 | Owned capture session fails | bounded, cancellable recovery after confirmed resource cleanup | hidden restart loops or using uncertain handles |
 | Raw HCI events/ACL lost, handle ownership unknown, credits unreconciled | explicit transport failure; reconcile by a verified mechanism or end the session | timed credit refill, pretending traffic was preserved, blind controller reset |
@@ -18,14 +18,32 @@ It does not establish a Bluetooth broker or relax native traffic preservation.
 
 Receive integrity remains strict. Media continuity policy is distinct and may
 be tolerant; neither changes what USB completion or HCI completion means.
+An explicit terminal transport failure or strictly newer connection epoch may
+cancel the unsent remainder of a partially accepted PDU, invalidate the old
+session and report the exact accepted prefix. This never implies completion or
+refunds uncertain outstanding credits; ordinary stop is not reconciliation.
+
+Recovery budgets apply per fault episode and must define attempt/time limits,
+backoff, stop/cancel, waiting/exhausted states and a stable-success condition
+before a new budget is available. A failed attempt cannot reset its own budget.
+Exhaustion need not terminate the payload: it may remain visibly unavailable
+until an explicit user retry or documented new external trigger. Do not turn
+this into an invisible retry loop or require a restart after every recoverable
+gap. These are implementation rules, not a claim of improved audible continuity.
 
 ## Development lanes and acceptance
 
 Offline PCM buffering, sample-clock timing, codec boundary tests, packetization
 and scripted recovery may proceed while native ownership is investigated.
-No active competing-reader backend is thereby approved. An eventual native
-dispatcher/driver-path adaptation needs a separate scope/ABI review; changing
-this process's credentials alone does not create such a dispatcher.
+Source-backed isolated transport diagnostics follow the experimental admission
+rules in [AGENTS.md](../AGENTS.md), without needing to pre-prove the facts they
+are intended to measure. No active competing-reader backend is thereby approved.
+An eventual native dispatcher/driver-path adaptation needs a separate scope/ABI
+review; changing this process's credentials alone does not create such a dispatcher.
+
+Functional, audio-quality, latency, coexistence and stability acceptance remains
+on PS5. Development checks remain useful, but a Linux Bluetooth backend is not
+a prerequisite and synthetic outcomes cannot substitute for console results.
 
 Use bounded caller storage and explicit deadlines. Initialization allocation
 can be fallible and bounded; the real-time per-frame path must not allocate.

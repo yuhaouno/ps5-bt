@@ -5,8 +5,13 @@ streaming or qualification. This document selects a candidate and proposes an
 interface. At that audit snapshot no encoder source was imported. The subsequent
 2026-10-24 host-only implementation is documented in SBC-IMPLEMENTATION.md and
 third_party/sbc/VENDORED.md; its source, caller-storage changes and tests now
-exist. No codec is linked into a PS5 ELF. The original audit below is historical
-design evidence, not the current implementation status.
+exist. SBC-TARGET.md and HW3-EVIDENCE.md now record the independently selected
+target archive/self-test and its PS5 execution; live audio remains unverified.
+The original audit below is historical design evidence, not the current
+implementation status or a permanent generic-only/Rust-only restriction.
+Current experimental/optimized/transitional module scope follows AGENTS.md;
+preserve the existing codec ABI, generic build and source/relink checks until
+an explicitly reviewed implementation updates them.
 
 ## Authoritative source and license
 
@@ -181,12 +186,15 @@ capacity, explicit output counts and fixed i32 status. Keep `sbc_t` private.
 Encoder is single-owner, mutable, not Send/Sync; finish is consumed exactly once.
 C FFI contracts and pointer validation need dedicated hostile-boundary tests.
 
-`PcmSource` remains interleaved f32 with whole-frame semantics. Rust owns finite
-sample validation, clamped/rounded i16 conversion, generated tone, PCM buffering,
+`PcmSource` remains interleaved f32 with whole-frame semantics. Rust is the
+preferred owner of finite sample validation, clamped/rounded i16 conversion,
+generated tone, PCM buffering,
 queue capacity and discontinuity handling. These are later authorized audio
 work; no codec buffering, capture restart, unbounded queue or silence insertion
-is hidden in C. A NaN policy and precise saturation/rounding vectors must be
-agreed before implementing capture conversion.
+is hidden in the codec wrapper. Scoped transitional C protocol/connection
+modules and platform conversion adapters follow AGENTS.md without weakening
+this wrapper's contract. A NaN policy and precise saturation/rounding vectors
+must be agreed before implementing capture conversion.
 
 ## Experiment evidence and remaining gates
 

@@ -1,5 +1,12 @@
 # First hardware test payload
 
+H0/H1/H2 below retain their per-candidate bounds. Separately selected,
+source-backed transport diagnostics may investigate unresolved facts under the
+experimental admission rules in [AGENTS.md](../AGENTS.md); this does not widen
+an existing candidate or require its intended observation in advance. Production
+support still needs demonstrated routing/ownership. No new transport candidate
+or hardware window is established by this policy clarification.
+
 The first hardware load attempt occurred on 2026-10-24. Payload Manager v0.6.3
 on PS5 Slim / firmware 13.40 transferred the complete diagnostic ELF repeatedly,
 but no payload notification or `/data/ps5-bt-hw1.log` appeared. This is an early

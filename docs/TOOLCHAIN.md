@@ -1,9 +1,16 @@
 # Minimal PS5 ELF toolchain
 
-The artifact is a diagnostic C -> Rust -> Unsupported-adapter ELF. It has never
-run on PS5. A compatible already-installed loader and its existing permissions
-are external prerequisites, including on the reported Slim / firmware 13.40.
-See [runtime review](RUNTIME-REVIEW.md) before considering execution.
+The baseline artifact is a diagnostic C -> Rust -> Unsupported-adapter ELF.
+The explicit existing-loader HW-1 variant has executed on one Slim/13.40
+environment; see HW1-REPAIR.md and HW3-EVIDENCE.md for the tested artifacts and
+limits. A compatible already-installed loader and its existing kernel-R/W
+channel are prerequisites for that variant. See [runtime review](RUNTIME-REVIEW.md).
+
+Compiler flags, no-SIMD/no-allocator properties and import checks below describe
+the current diagnostic build, not permanent restrictions on every audio module.
+Source-reviewed experimental/optimized adapters need separately selected build
+inputs, ABI/state review and PS5 acceptance under [AGENTS.md](../AGENTS.md).
+Do not weaken existing diagnostic inspection to admit an unrelated backend.
 
 ## One build command after setup
 

@@ -14,8 +14,10 @@ Vol 4 Part E, sections 5.4.4 (events), 7.4.1 (local version) and 7.7.14
 Version numbers returned by hardware are numeric observations, not audio quality
 ratings. No conformance or qualification claim is made.
 
-Next implement command-credit-aware dispatch and capability queries only after
-the platform can preserve native traffic. Then bounded ACL reassembly by owned
+Command-credit-aware dispatch and capability queries may be implemented before
+PS5 validation. Production activation requires preserved native traffic; isolated
+source-backed experiments follow AGENTS.md's admission rules without requiring
+their intended measurements in advance. The protocol scope includes bounded ACL reassembly by owned
 handle/epoch; Classic L2CAP signaling/configuration and MTUs; SDP data elements,
 continuations and A2DP sink discovery; AVDTP transaction labels, endpoint/media
 codec capabilities and typed negotiation/open/start/suspend/close states; and
@@ -28,9 +30,14 @@ All external lengths/identifiers are checked before indexing, allocating or
 changing state. Bound recursion, reassembly size, channels, transactions and
 timeouts. Unknown packet kinds are not guessed. Treat disconnect/reconnect as
 new epochs; stale completions must not replenish new-session credits. Shared
-capacity is not ours to reserve unilaterally. Do not copy an upstream protocol
-implementation wholesale.
+capacity is not ours to reserve unilaterally. Scoped C protocol/connection reuse
+is allowed as a reviewed transitional implementation under AGENTS.md, with a
+documented versioned ABI, exact provenance and explicit state/resource ownership.
+Do not import an upstream application wholesale or treat reuse as hardware proof.
 
 Pairing, authentication, encryption, explicit user confirmation, key protection
 and reconnect identity are required before real headset support. Never log keys
-or auto-accept arbitrary pairing requests. No codec is implemented at bootstrap.
+or auto-accept arbitrary pairing requests. Local bond keys may be securely
+persisted for reconnect and explicitly removed by forget-device; they never
+belong in source control or diagnostics. Current codec/protocol implementation
+status is tracked in MVP-STATE.md; the opening paragraph describes the bootstrap.

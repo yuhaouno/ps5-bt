@@ -2,6 +2,20 @@
 
 Updated: 2026-10-25. Read AGENTS.md and docs/MVP-STATE.md first.
 
+## Current authority, 2026-10-26
+
+The user currently has no PS5 environment; all hardware windows below are
+historical and do not authorize a new connection, deployment or run. Continue
+MVP implementation with PS5 validation pending. Functional, quality, latency,
+coexistence and stability acceptance remains on PS5; do not require a Linux
+Bluetooth backend. The current AGENTS.md governs project-wide scope over older
+research-stage sequencing: scoped reviewed C protocol reuse, independent
+experimental capture, local bond storage, minimal pairing/device controls and
+fault-episode recovery are permitted. Isolated source-backed transport
+experiments may measure unresolved facts under their documented admission
+plan, without implying production support or a competing-reader/timer-credit
+exception. This documentation change adds no live backend or hardware result.
+
 ## Latest: resumed LAN window and four completed candidates
 
 This section supersedes the historical offline-only status below. The user

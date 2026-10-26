@@ -1,6 +1,7 @@
 # Architecture
 
-Status: accepted bootstrap decisions; hardware design remains experimental.
+Status: accepted bootstrap decisions; development policy aligned 2026-10-26;
+hardware design remains experimental.
 Research snapshot: 2026-10-23. See [RESEARCH.md](RESEARCH.md) for evidence and
 [UPSTREAM.md](UPSTREAM.md) for immutable source revisions.
 
@@ -47,11 +48,16 @@ platform/ps5: minimal startup; planned Avcap2 capture, USB/HCI,
              PS5 platform / hardware
 ```
 
-Rust owns protocol state, framing, capability representation, connection and
-reconnect policy, bounded audio queues, codec negotiation, RTP, measurements,
-and eventually latency control. C owns platform adaptation. No upstream C
-protocol structs or platform pointers enter portable code. Linux/FreeBSD backends
-can implement the same traits without depending on any PS5 crate.
+Rust is the preferred owner of protocol state, framing, capability representation,
+connection and reconnect policy, bounded audio queues, codec negotiation, RTP,
+measurements and eventually latency control. Reviewed, scoped C protocol/connection modules
+may be used as transitional implementations under AGENTS.md, with explicit
+state ownership, versioned ABI, provenance and retention/replacement rationale.
+This permits selective reuse, not an unreviewed whole-application import or a
+claim that upstream hardware acceptance transfers here. C owns platform
+adaptation. No upstream C protocol structs or platform pointers enter portable
+code. Linux/FreeBSD backends can implement the same traits without depending
+on any PS5 crate; they are not a prerequisite for PS5 development or acceptance.
 
 ## Initial workspace
 
@@ -147,12 +153,18 @@ not constitute a multiplexer. Receiving a foreign command completion or ACL
 packet is evidence of shared traffic, not permission to drop it. A file lock
 only excludes cooperating payloads; it does not coordinate the system driver.
 
-The backend must eventually prove ordered event delivery, preservation of native
+Production activation requires ordered event delivery, preservation of native
 traffic, command serialization, connection-handle ownership, and an enforceable
-ACL budget. Unknown ownership prevents active HCI operations. The bootstrap
-adapter consequently cannot open a live transport. Read-only descriptor
-enumeration is the first platform experiment; even HCI read commands need
-command/response routing and may consume native events.
+ACL budget. The bootstrap adapter remains Unsupported. A separately selected,
+source-backed diagnostic may investigate an unresolved ownership/routing fact
+under the experimental admission rules in [AGENTS.md](../AGENTS.md); its intended
+measurement need not already be proven. It must document the actual mechanism,
+API/layout, permitted traffic, known prerequisites, unresolved risks, finite
+budgets, stop/cleanup and wireless-controller checks before execution. Even HCI
+read commands consume command credit and can consume native events. This
+exception does not authorize competing readers, guessed credits, resets or
+system-driver changes; an otherwise excluded mechanism needs its own scope
+decision. No new active transport candidate is established by this policy.
 
 Separate USB submission/completion from controller Number Of Completed Packets.
 Do not invent HCI credits from elapsed time, count foreign handles as ours, or
@@ -162,8 +174,12 @@ handles, raw receive-queue loss or unreconciled credits cause a visible transpor
 failure and require explicit reconciliation or session teardown. This does not
 make ordinary PCM starvation or expired unsent audio a terminal HCI error.
 Bounded, observable concealment/rebuffer is a media-layer policy; controlled
-reconnect is cancellable and preserves ownership/epoch rules. Never drop a
-partially transmitted PDU or restore credit from time. See AUDIO-RECOVERY.md.
+reconnect is cancellable and preserves ownership/epoch rules. Preserve a
+partially transmitted PDU while the connection is healthy. A typed terminal
+transport failure or newer epoch may cancel its remainder with exact
+accepted-prefix accounting and invalidation of the old session; this does not
+refund uncertain outstanding credits. Never restore credit from time.
+See AUDIO-RECOVERY.md.
 
 ## ADR 003: small, versioned C contract
 
@@ -190,13 +206,18 @@ Tests supply a separate, visibly synthetic adapter.
 ## ADR 004: portable contracts
 
 `BluetoothTransport` sends complete command/ACL frames and receives into a
-caller-owned buffer with a bounded wait. Command credits, protocol timers,
-HCI ACL credits, and handle routing belong to Rust, subject to the platform's
-proven ownership policy. `Clock` returns monotonic microseconds with no wall-clock
+caller-owned buffer with a bounded wait. In a raw-HCI backend, its reviewed owner
+(preferably Rust) manages command credits, protocol timers, HCI ACL credits and handle routing against
+the platform's proven ownership policy. A native channel backend may retain
+HCI ownership and accounting in the system under a separate channel ABI.
+`Clock` returns monotonic microseconds with no wall-clock
 dependency. `PcmSource` declares its format and reads complete interleaved stereo
 frames into a caller-owned float buffer; frame counts differ from sample counts.
-Its timestamp and discontinuity semantics must be validated before capture is
-implemented. Errors distinguish unavailable, busy, invalid, capacity, loss,
+Its timestamp and discontinuity semantics must be validated before production
+capture activation or ABI freeze. A source-reviewed experimental capture
+adapter may be implemented first, preserving unknown format/timing fields and
+keeping native byte counts separate from verified PCM frames. Errors
+distinguish unavailable, busy, invalid, capacity, loss,
 disconnected, I/O, timeout, and unknown backend codes.
 
 Transport remains single-owner, but capture, encode and transport may be separate
@@ -225,7 +246,8 @@ Offline buffering, sample-clock scheduling and recovery simulations may proceed
 before a live transport is available; that does not authorize active HCI or
 claim audible playback. One host-only `bt-codec` example feeds a real generic SBC
 encoder from this queue; a second wraps the frame in RTP/A2DP, L2CAP and one
-synthetic HCI ACL packet. No codec is linked into the PS5 ELF.
+synthetic HCI ACL packet. The independent target SBC self-test now links and
+has executed the generic codec on PS5; this is not live audio integration.
 `bt_core::media` now provides caller-owned stereo i16 staging, absolute nominal
 sample deadlines and bounded, observable gap/expiry handling. It is not capture,
 f32 conversion, resampling, an encoder, an HCI queue or a live scheduling loop.
@@ -244,8 +266,14 @@ deduced from HCI completion time. Game/Balanced/Hi-Fi and adaptation follow
 reliable telemetry; bitrate changes must respect negotiated capabilities and
 protocol reconfiguration rules. Do not adjust bitpool, buffers, or pacing to mask
 lost events. Default reconnect is bounded, cancellable, epoch-aware, and logs
-every attempt. Later pairing requires an explicit user decision and protected
-key storage; keys/addresses never appear in public traces.
+every attempt. Budgets apply to a fault episode, with explicit waiting/exhausted
+states, stop/cancel and a documented stable-success reset condition; failed
+attempts do not reset the budget. Recovery does not inherently require a payload
+restart. Pairing requires an explicit user decision and protected local bond-key
+storage; keys/addresses never appear in public traces. Device selection,
+pairing approval, disconnect and forget-device are minimal LAN controls, not a
+rich GUI. A versioned authenticated management surface may expose only the
+device identity needed for these operations; bond keys remain private.
 
 ## First hardware experiment
 

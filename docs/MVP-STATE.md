@@ -7,6 +7,20 @@ The user selected Sony **WH-1000XM4** (over-ear) as the first planned headset.
 It has not been discovered, paired or tested by this project; no compatibility
 claim or Bluetooth address is recorded.
 
+## Current development authority, 2026-10-26
+
+The user currently has no PS5 test environment. Do not infer access from the
+historical LAN window below. Implement coherent candidates with PS5 validation
+pending; functional, audio-quality, latency, coexistence and stability acceptance
+remains on PS5, and a Linux Bluetooth backend is not a prerequisite.
+AGENTS.md permits scoped reviewed transitional C protocol modules, independent
+experimental capture adapters and minimal LAN discovery/pairing/forget-device
+controls. Fault recovery is bounded per episode; local bond keys may be securely
+persisted but never logged, exposed or committed. Source-backed isolated
+transport experiments have separate admission from production support; no
+competing-reader, timer-credit or system-driver exception is implied. Existing
+tests, implementations and hardware facts below are unchanged by this policy.
+
 ## Current milestone and baseline
 
 Runtime minimal-syscall-v6 removes unsafe executable-byte inspection, normalizes

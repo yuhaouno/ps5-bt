@@ -14,6 +14,15 @@
 
 ## Unreleased
 
+- Align project-wide development policy with PS5-only functional acceptance:
+  allow coherent unverified candidates and scoped transitional C protocol reuse,
+  separate source-backed transport experiment admission from production proof,
+  and retain credit, native-traffic, lifetime and existing-loader scope bounds.
+  Clarify fault-episode recovery, terminal partial-PDU cancellation, protected
+  local bond-key persistence and minimal LAN pairing/device-management scope.
+  Reconcile architecture, platform, security, contribution, build, testing and
+  handoff guidance without changing runtime code or claiming new hardware results.
+
 - Add an allocation-free ACL packet-reservation ledger with exact accepted and
   completed counts, strict epoch/handle/event validation and sticky terminal
   uncertainty. Integrate it with the retained media PDU sender and real host

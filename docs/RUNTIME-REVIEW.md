@@ -46,6 +46,10 @@ to `kernel_dynlib_dlsym(-1, handle, name)` for the current process only.
 This uses the already-supplied pipe/socket kernel-R/W transport. It does not
 establish initial kernel access or mutate process credentials/syscall bounds.
 Kernel setters and __patch_init are rejected by the ELF inspector in both modes.
+This describes the current diagnostic variants, not a permanent ban on reviewed
+minimal own-process permission adapters under AGENTS.md. A future adapter needs
+a separately selected build, explicit import/ABI/layout review and PS5
+validation; do not weaken baseline inspection or import stock patch.c silently.
 
 ### Unsafe invariants and hardware scope
 
@@ -115,7 +119,8 @@ exactly one 100000-us call; lookup/wait failures remain visible and trigger
 cleanup without a read. OS calls themselves are trusted synchronous boundaries,
 not hard real-time guarantees. Modules are not blindly unloaded.
 
-Own USB descriptors and capture no-delay lifecycle now have recorded evidence
-in HW2-EVIDENCE.md. Native traffic ownership, HCI/ACL credits, pairing, tone,
-nonempty captured PCM and audio playback remain unverified. A descriptor's
+Own USB descriptors and capture lifecycle have recorded evidence in
+HW2-EVIDENCE.md; HW3-EVIDENCE.md adds nonempty settled/bounded reads and a target
+generated-signal SBC self-test. Native PCM format/timing, traffic ownership,
+HCI/ACL credits, pairing, tone and audio playback remain unverified. A descriptor's
 second HCI-class interface is not a proven independent transport.

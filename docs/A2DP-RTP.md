@@ -70,4 +70,7 @@ channel binding, pacing/deadlines, outbound L2CAP-to-ACL fragmentation, transpor
 backpressure scheduling, HCI credit accounting and live transport ownership.
 Those layers must preserve this packet's all-or-nothing boundary; they may drop
 expired PCM or a complete unsent packet before fragmentation, never a partially
-sent PDU or a completion event.
+sent PDU on a healthy connection or a completion event. Explicit terminal
+failure or a strictly newer epoch may cancel a PDU remainder with exact
+accepted-prefix accounting and old-session invalidation; uncertain credits
+are not refunded. See AUDIO-RECOVERY.md.

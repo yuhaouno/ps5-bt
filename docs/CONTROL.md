@@ -11,7 +11,7 @@ storage.
 
 ## Surface
 
-Exactly four authenticated HTTP/1.1 routes are recognized:
+The current parser recognizes exactly four authenticated HTTP/1.1 routes:
 
 | Method and path | Result |
 | --- | --- |
@@ -65,7 +65,23 @@ or `Unavailable`; host tests cannot set them to a truthful hardware-ready state.
 link. Capture is reported independently because a generated tone may eventually
 be a valid configured source before captured PCM is proven.
 
-The next increment is a bounded socket adapter and static page that only reflect
-this model. It must serialize all commands through the established owner and
-retain the request/authentication limits above. This document does not claim a
+The next increment is a bounded socket adapter and static page reflecting
+actual capabilities, together with versioned device-management extensions.
+Discovery/device selection, pairing approval, connect/disconnect, start/stop
+and forget-device are authorized minimal MVP operations. The current four
+routes, no-body parser and closed command/status enums are implementation
+facts, not a permanent scope ceiling; new operations need explicit bounded
+request/response schemas, authentication, owner serialization and relevant
+checks before being exposed. They are not implemented by this policy update.
+
+Keep public status and diagnostic traces identity-free. An authenticated local
+management response may disclose the minimum device identity needed to choose
+or forget a device; it must never expose bond keys or bearer tokens. Pairing
+must follow an explicit user choice, not arbitrary incoming requests. A future
+owner-observed cancellation/stop-priority path must handle pending connect or
+pairing operations without violating exactly-once command completion; the
+current model still returns Busy for another command while one is pending.
+
+The listener and page must serialize all commands through the established owner
+and retain the request/authentication limits above. This document does not claim a
 reachable page, connection, pairing, audio stream or hardware verification.

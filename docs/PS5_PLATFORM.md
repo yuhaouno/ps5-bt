@@ -1,13 +1,16 @@
 # PS5 platform integration decisions
 
-Source audit: 2026-10-23. User-reported target: **PS5 Slim, firmware 13.40**,
-with an existing ELF loader and the ability to return diagnostic logs. No
-PS5-BT ELF, controller query or audio path has been run on that console yet.
-The installed loader's exact identity, revision and entry convention remain
-Unknown. Source inspection is not hardware verification.
+Source audit: 2026-10-23; policy/status aligned 2026-10-26. Recorded target:
+**PS5 Slim, firmware 13.40**. The HW-1 diagnostic, native query, USB metadata,
+nonempty capture observation and target SBC self-test have executed; no playable
+Bluetooth audio has been demonstrated. See HW1-REPAIR.md and HW3-EVIDENCE.md for
+the exact artifact identities and limits. The installed loader's exact identity
+and revision remain Unknown; the tested entry path is documented in
+RUNTIME-REVIEW.md. Source inspection is not hardware verification.
 
-Use an original, bounded descriptor probe as the next platform capability.
-Keep active built-in HCI transport Unsupported until native ownership is proven.
+Keep the production built-in HCI transport Unsupported until native ownership
+is proven. Source-backed isolated transport experiments follow AGENTS.md's
+admission rules; the completed descriptor tests are not a default next step.
 The default SDK CRT cannot be used within this project's scope. A minimal entry
 using an existing loader's demonstrated contract is a separate, viable research
 path; omitting the CRT is supported by the compiler wrapper, but does not itself
@@ -175,9 +178,16 @@ event already consumed by the wrong owner. [HearBridge transport][hb-usb],
 | Existing permissioned exclusive controller ownership | existing environment already grants it and separately preserves wireless DualSense on its own controller; no detach/reset/driver changes introduced here | Unknown; cannot assume from USB open success |
 | More reads, opcode/handle filtering, file lock, timed refill, event/ACL split readers | none supplies missing native delivery or command serialization | rejected for active built-in backend |
 
-Until one valid option is demonstrated, even Read Local Version Information is
-blocked: it consumes command credit and needs its completion routed correctly.
-Keep the ABI v1 `BluetoothTransport` Unsupported. A future router must provide
+Production use, including Read Local Version Information through the production
+adapter, stays gated on one demonstrated option: it consumes command credit and
+needs its completion routed correctly. A separately selected, source-backed
+diagnostic may investigate an unresolved routing/ownership fact under
+[AGENTS.md](../AGENTS.md), with the mechanism, inspected API/layout, permitted
+traffic, prerequisites, uncertainty, finite budgets, stop/cleanup and pad checks
+specified before execution. It need not pre-prove its intended observation.
+This does not admit competing-reader or guessed-credit strategies, and supplies
+no new candidate by itself. Keep ABI v1 `BluetoothTransport` Unsupported until
+a usable backend is established. A production router must provide
 one ordered tagged stream, complete frames, bounded queues, exact cancellation
 and reaping, preserved native events, and owned completion accounting. No
 controller reset, silent overflow or retry can repair unknown traffic loss.
@@ -197,7 +207,7 @@ function typedefs, not a stable SDK capture API. [PlayPods capture][pp-capture],
 | PlayPods `capture_read(float *, size_t)` treats capacity and positive result as **bytes**, validates whole stereo f32 frames; HearBridge requests `0x2000` bytes and converts to s16 frames | for confirmed stereo f32, frames = bytes / 8, samples = frames * 2; existing `PcmSource` remains caller-owned interleaved f32 with whole frame counts |
 | Both use a 16-byte metadata buffer; HearBridge presets its size, PlayPods does not decode it | no proven capture timestamp/time origin; report optional timestamp absent until demonstrated |
 | Upstream codes include Empty `81950002`, Overrun `81950004`, Ended `81950008`, Invalid `81950001` | preserve raw status; Empty may mean no data, Overrun must signal discontinuity, Ended is terminal, other failure stays visible |
-| HearBridge guesses f32/s16 and channel count from content/rate and retries capture with credential elevation after default mode fails | do not adopt heuristics, credential fallback or hidden restarts; missing permissions stop capture |
+| HearBridge guesses f32/s16 and channel count from content/rate and retries capture with credential elevation after default mode fails | do not adopt format guesses, unreviewed credential fallback or hidden restarts; preserve permission failures. A separately reviewed minimal own-process permission adapter may be implemented within AGENTS.md's existing-loader scope |
 | PlayPods clears owned resources once before cleanup and logs native cleanup failures | preserve errors and consume-once ownership; never retry an uncertain close blindly |
 
 HearBridge's default-first comment is not proof that it never changes
@@ -206,11 +216,14 @@ mutates authid/capabilities. PlayPods capture has no equivalent elevation call,
 but the default SDK startup still runs before it. [Capture open loop][hb-capture],
 [credential helper][hb-creds], [SDK CRT][sdk-crt].
 
-Keep audio ABI functions proposed until format, valid byte counts, permissions,
-nonblocking behavior/deadlines, finite sample handling, discontinuity reporting,
-metadata and cleanup are measured. Capture integration follows audible tone
-through an ownership-proven transport; no source import is needed for this
-research milestone. Per-file licensing decisions are in [UPSTREAM.md](UPSTREAM.md).
+Source-reviewed experimental capture adapters may be implemented independently
+of the transport, preserving unknown fields, raw statuses and the established
+diagnostics. Keep the production audio ABI proposed until format, valid byte
+counts, permissions, nonblocking behavior/deadlines, finite sample handling, discontinuity reporting,
+metadata and cleanup are measured. End-to-end captured-audio activation and
+acceptance follows audible tone through an ownership-proven transport; this is
+not an implementation dependency. Per-file licensing decisions are in
+[UPSTREAM.md](UPSTREAM.md).
 
 ## Validation and next evidence
 

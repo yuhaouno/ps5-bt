@@ -131,7 +131,10 @@ Application / payload
     -> C SDK / capture / USB HCI / controller quirks -> PS5
 ```
 
-Rust owns the architecture. Proven platform adaptation may remain C. See
+Rust owns the architecture. Proven platform adaptation may remain C. Reviewed,
+scoped C protocol or connection modules may serve as transitional implementations
+behind a versioned ABI; preserve provenance and explicit state/resource ownership.
+This policy does not import an upstream stack or transfer its hardware claims. See
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
 The workspace contains `bt-a2dp`, `bt-avdtp`, `bt-control`, `bt-core`,
 `bt-codec`, `bt-hci`, `bt-l2cap`, `bt-media-session`, `bt-sdp`, `ps5-sys`,
@@ -151,6 +154,17 @@ transport and capture -> conservative SBC tone -> captured audio -> stability
 and coexistence -> latency/quality -> additional codecs -> adaptive control.
 No adaptation before reliable telemetry. No codec support promises before
 hardware demonstration. Bluetooth version numbers do not predict audio quality.
+
+Development need not wait for console access: connection/pairing and protected
+bond storage, channel/session binding, continuous SBC scheduling, recovery,
+experimental capture adapters, diagnostics and minimal LAN device management
+may be implemented with PS5 validation explicitly pending. Functional, quality,
+latency, coexistence and stability acceptance remains on PS5; a Linux Bluetooth
+backend is not a prerequisite. Separate source-backed transport experiments
+follow [the admission rules](AGENTS.md#active-mvp-execution); they need not
+pre-prove their intended measurements, but do not implicitly authorize competing
+USB readers, timed credit refill or system-driver changes. No new live backend
+or user-facing capability is added by these policy clarifications.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md),
 [SECURITY.md](SECURITY.md), and [CHANGELOG.md](CHANGELOG.md). English is canonical
@@ -185,8 +199,12 @@ A homebrew-capable console and existing ELF loader are prerequisites.
 Initial kernel access must come from that environment. Project rules permit
 reviewed, necessary changes to this payload's own permissions through the
 existing channel; the current diagnostic does not need those changes.
-No new exploit chain, DRM/license bypass, Sony binary, firmware, key or game
-content is implemented or distributed. See [repository rules](AGENTS.md).
+No new exploit chain, DRM/license bypass, Sony binary, firmware, protected
+Sony/DRM key or game content is implemented or distributed. Normal local
+Bluetooth bond-key storage is allowed for pairing/reconnect/forget-device,
+but keys must never enter Git, logs or the LAN page. System-driver/process
+mutation is outside the current own-process permission scope. See
+[repository rules](AGENTS.md).
 There is no affiliation with or endorsement by Sony.
 
 ## Translations

@@ -52,7 +52,10 @@ is a sticky transport integrity error, not a dropped-packet counter followed by
 success. This refers to the raw HCI receive queue, not a PCM playout buffer:
 bounded concealment/rebuffer and expired unsent media policy live above this ABI.
 Those policies never acknowledge missing HCI completions or discard partially
-sent L2CAP PDUs. See AUDIO-RECOVERY.md; no C ABI change is introduced.
+sent L2CAP PDUs on a healthy connection. A higher-level typed terminal failure
+or newer epoch may cancel the remainder and invalidate the old media session
+with accepted-prefix accounting; uncertain controller credits are not refunded.
+See AUDIO-RECOVERY.md; no C ABI change is introduced.
 Busy is the only send error with a general no-acceptance guarantee here. The
 portable credit owner treats other backend errors as terminal with an uncertain
 current-send outcome; it neither refunds nor blindly retries that frame. Pure

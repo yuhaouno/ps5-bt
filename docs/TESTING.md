@@ -151,10 +151,22 @@ meaningful. Do not commit Sony firmware, library files, game data or PCM capture
 ## Hardware and audio gates
 
 Follow H0/H1/H2 in [HARDWARE-TEST.md](HARDWARE-TEST.md). Establish descriptor
-access and native traffic ownership before command/event traffic. Fault tests
+access and native traffic ownership before production command/event traffic.
+Separately selected, source-backed diagnostics may investigate unresolved
+routing/ownership facts under [AGENTS.md](../AGENTS.md); the facts they intend
+to measure need not already be established. Known API/layout and traffic bounds,
+finite budgets, stop/cleanup, controller checks and a current authorized hardware
+window are required. This supplies no blanket competing-reader, timer-credit or
+system-modification exception. Fault tests
 must verify cancellation, pending transfer storage, lost events, receive queue
 overflow, clean close, invalidated sessions and return-to-loader. No silent
 reset/reopen after integrity loss.
+
+Functional, audio-quality, latency, coexistence and stability acceptance stays
+on PS5. Continue compilation/static and relevant automated development checks;
+they do not establish console support, and a Linux Bluetooth backend is not a
+development prerequisite. Candidate implementations may be committed with
+explicit PS5 validation pending. Preserve existing diagnostic baselines.
 
 After minimal audio works, test headset power cycles, unexpected disconnects,
 bounded reconnect, controller reconnect during audio, wireless DualSense input

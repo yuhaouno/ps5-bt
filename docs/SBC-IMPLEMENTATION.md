@@ -239,19 +239,25 @@ The lead/integration owner should resume in this order:
    source-package inventory before linking or distributing a combined ELF. The
    host archive is separately rebuildable and replacement-linked; do not add an
    allocator merely for this wrapper.
-5. For a real target backend, keep generic C and `SBC_STATIC_ONLY`; retain
+5. For the existing generic target baseline, keep C and `SBC_STATIC_ONLY`; retain
    `-mgeneral-regs-only`, no-SIMD, freestanding/PIC, no-red-zone and import
    inspection. Supply reviewed target headers/build inputs instead of reusing
    the host feature or macOS SDK header probe.
-6. Integrate the existing safe Rust owner only into offline media flow first.
+   Optimized modules may be implemented separately under AGENTS.md after
+   ABI/dependency/state review; retain this baseline and its import checks.
+6. Integrate the existing safe Rust owner into a separately selected target
+   media candidate with PS5 validation pending; the host-only feature guard
+   remains intact and target build inputs must be reviewed independently.
    Keep its caller storage alive and immobile for the full `Encoder` borrow.
    Keep codec failures visible; do not add hidden buffering, silence insertion,
-   retry, bitpool fallback, RTP, or transport behavior in C.
+   retry, bitpool fallback, RTP, or transport behavior to the codec wrapper.
 7. After AVDTP negotiation exists, require the peer's negotiated range to
    contain the selected bitpool. The new Rust `bt-a2dp` packetizer advances RTP
    timestamps by the shared parameter model's 128 PCM frames for this selection
    and rejects MTU/short-output errors atomically. AVDTP session binding, pacing
-   and expired-unsent-media policy remain Rust concerns.
+   and expired-unsent-media policy remain the preferred Rust responsibilities;
+   scoped reviewed transitional C implementations follow AGENTS.md. This does
+   not move buffering/recovery into the current codec wrapper or change its ABI.
 8. The generated-signal init/encode/finish path has now passed on actual PS5;
    separately measure initialization/encode duration before any deadline claim.
    Live A2DP remains blocked

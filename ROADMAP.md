@@ -5,6 +5,20 @@ linked ELF, execution on a PS5, and stable audio are different achievements.
 The current dependency graph, worker ownership and blockers are tracked in
 [MVP-STATE.md](docs/MVP-STATE.md).
 
+Development policy, 2026-10-26: unavailable PS5 access does not block coherent
+candidate implementations. Prioritize application lifecycle integration,
+connection/pairing/bond storage, channel and AVDTP media binding, continuous SBC
+scheduling, bounded fault-episode recovery, experimental capture adaptation,
+diagnostics and minimal LAN pairing/device controls. Reviewed scoped C protocol
+modules may be transitional implementations behind a versioned ABI. These are
+authorized work packages, not newly completed features.
+
+Functional, quality, latency, coexistence and stability acceptance remains on
+PS5. Retain development checks without requiring a Linux Bluetooth backend.
+Source-backed isolated transport experiments use AGENTS.md's admission rules;
+production ownership/credit guarantees still gate support. No console window
+is currently available from this chat; the 2026-10-25 window below is historical.
+
 Current wave: runtime v6 completed HW-1 executable lifecycle on the recorded
 Slim/13.40 environment: existing-loader kernel initialization, Rust entry,
 durable log and final Unsupported 2. The native query ran but returned -1.
@@ -12,8 +26,9 @@ The user confirmed visible notifications and wireless DualSense operation.
 Host-only PCM staging, nominal sample timing and bounded recovery are implemented
 with deterministic gap/stall scenarios. Own USB metadata and Avcap2 lifecycle
 have executed; a 100 ms settled capture read now returned 8,192 bytes with clean
-cleanup. Native PCM format/timing remain unknown. Native HCI ownership/credits still gate active
-traffic. See [hardware evidence](docs/HW1-REPAIR.md) and
+cleanup. Native PCM format/timing remain unknown. Native HCI ownership/credits
+still gate production traffic; isolated diagnostics have separate admission.
+See [hardware evidence](docs/HW1-REPAIR.md) and
 [layered recovery](docs/AUDIO-RECOVERY.md). Subsequent target: 192.168.1.111.
 See [current USB/capture results](docs/HW3-EVIDENCE.md). The user renewed the
 hardware window from the PS5 LAN on 2026-10-25.

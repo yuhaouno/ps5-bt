@@ -6,12 +6,21 @@ capture diagnostic uses the inspected PlayPods/HearBridge capture ABI and
 conservatively retains GPL-3.0-only for its adaptation; see CAPTURE-PROBE.md.
 The optional host-only codec imports the independently audited BlueZ libsbc
 selection and recorded generic/caller-storage patches; see SBC-IMPLEMENTATION.md
-and third_party/sbc/VENDORED.md. No codec enters the PS5 diagnostic link.
+and third_party/sbc/VENDORED.md. Only the independently selected target SBC
+self-test links that codec into a PS5 diagnostic; see SBC-TARGET.md and
+HW3-EVIDENCE.md. Production media remains unverified.
 The Rust dependencies are workspace paths. The minimal diagnostic ELF uses
 three unmodified syscall inputs by default, plus the explicit kernel-resolver
 subset documented below for HW-1; stock CRT and patch.c remain excluded. No proprietary binary is required.
 
 ## Inventory
+
+Current reuse policy follows [AGENTS.md](../AGENTS.md): a scoped, reviewed C
+protocol/connection module may be a transitional implementation behind a
+versioned ABI, with the same exact-pin, per-file license, modification and
+attribution requirements as any other import. No such protocol module is
+imported by this policy update; do not copy a whole upstream application or
+inherit its compatibility claims.
 
 The 2026-10-26 bounded MBus follow-up inspected the Ghostcontrol Manba fork at
 `0c7abe001387ad140f0481f57896f42c6af2361c`, specifically its README and
@@ -40,7 +49,7 @@ files, license review and runtime limitations are in NATIVE-L2CAP-PROBE.md.
 | [ps5-payload-dev/sdk](https://github.com/ps5-payload-dev/sdk) | `a7685ce8e97ce1f8a4f38253a41d54241c9124f1`, release `v0.45` | root LICENSE plus README: GPL-3.0-or-later default; FreeBSD headers BSD and other file notices apply | three selected external source files in reviewed minimal-runtime link; stock CRT excluded |
 | [FGGstore/FGG-PlayPods](https://github.com/FGGstore/FGG-PlayPods) | `d726e1c32568048aae66f3218c0540adc357e408`, main; latest release observed `1.0` is a separate artifact | root LICENSE is GPL v3; README says GPL-3.0, no project-wide later-version grant established | behavioral reference only |
 | [X-F1REBALL-X/HearBridge-PS5](https://github.com/X-F1REBALL-X/HearBridge-PS5) | `cd5b7fce1b8226d8850cdd306437550098c6a62b`, main; latest release observed `v1.3.6` | root LICENSE and NOTICE explicitly GPL-3.0-or-later | behavioral reference only |
-| [BlueZ libsbc](https://git.kernel.org/pub/scm/bluetooth/sbc.git) | `b3deb8a5dcfb42d8c10ba1f2f1ac9bd7bf7271cc`, release 2.2; independently checked Git/archive and selected hashes | all seven selected code files explicitly LGPL-2.1-or-later; retained COPYING.LIB and AUTHORS | vendored pristine selection plus two recorded patches, optional host-only static encoder; no PS5 link |
+| [BlueZ libsbc](https://git.kernel.org/pub/scm/bluetooth/sbc.git) | `b3deb8a5dcfb42d8c10ba1f2f1ac9bd7bf7271cc`, release 2.2; independently checked Git/archive and selected hashes | all seven selected code files explicitly LGPL-2.1-or-later; retained COPYING.LIB and AUTHORS | vendored pristine selection plus three recorded patches; optional host encoder and independently selected target self-test; no live media integration |
 | [PS5Dev/PS5SDK](https://github.com/PS5Dev/PS5SDK) | repository README and LICENSE examined; no build pin selected | GPL v2 license text; exact per-file GPL-2.0-only vs later-version grants need review | historical ecosystem reference; no dependency |
 | [ps5-payload-dev/pacbrew-repo](https://github.com/ps5-payload-dev/pacbrew-repo) | `722187f0ee246c0d7d57401c8a97de1c7f4e2ff0` metadata | packages require individual license/source review | ecosystem discovery only; no package used |
 | [ps5-payload-dev/elfldr](https://github.com/ps5-payload-dev/elfldr) | release `v0.27`, tag and default head `2a8da002e5292481ea964daa7342bbf4855f4c33` | README and inspected `elfldr.c`, `pt.c`: GPL-3.0-or-later | external pre-existing loader contract research; no loader implementation imported |
@@ -93,7 +102,7 @@ field's behavior from the SDK typedef's name.
 ### Per-file reuse decision
 
 All entries are pinned to the inventory revisions. The SDK subset below, capture
-diagnostic adaptation and optional host-only libsbc selection are implemented.
+diagnostic adaptation and optional host/target-self-test libsbc selection are implemented.
 Other entries remain research/candidate decisions. Preserve copyright and license notices,
 exact source, local changes and attribution when adopting further material.
 
@@ -197,11 +206,11 @@ which claims have been reproduced here.
 | Avcap2 capture, Ipmi prerequisite, NID resolution, private parameter block and statuses | [PlayPods capture.c](https://github.com/FGGstore/FGG-PlayPods/blob/d726e1c32568048aae66f3218c0540adc357e408/src/capture.c), [HearBridge avcap2.c](https://github.com/X-F1REBALL-X/HearBridge-PS5/blob/cd5b7fce1b8226d8850cdd306437550098c6a62b/src/avcap2.c) | retain C module loading, resolution, layout and cleanup; never expose private structs to Rust; verify format/status units |
 | USB control command requests, USB FS event/ACL transfers and lifetime | [PlayPods hci.c](https://github.com/FGGstore/FGG-PlayPods/blob/d726e1c32568048aae66f3218c0540adc357e408/src/hci.c), [HearBridge hci_usb.c](https://github.com/X-F1REBALL-X/HearBridge-PS5/blob/cd5b7fce1b8226d8850cdd306437550098c6a62b/src/bt/hci_usb.c) | C adapter; ownership and native delivery remain blockers |
 | Vendor identification, descriptors, MediaTek endpoint pairing | [btchip.h](https://github.com/X-F1REBALL-X/HearBridge-PS5/blob/cd5b7fce1b8226d8850cdd306437550098c6a62b/src/bt/btchip.h), [usb_hci_desc.c](https://github.com/X-F1REBALL-X/HearBridge-PS5/blob/cd5b7fce1b8226d8850cdd306437550098c6a62b/src/bt/usb_hci_desc.c) | C controller backend; match actual VID/PID/descriptors, fail unknown |
-| MediaTek scan pause and restoration | [hci_cmd.c](https://github.com/X-F1REBALL-X/HearBridge-PS5/blob/cd5b7fce1b8226d8850cdd306437550098c6a62b/src/bt/hci_cmd.c) | C quirk policy only after coexistence tests; excluded from first probe |
-| Credits, foreign events and shared endpoint risks | [PlayPods bt.c](https://github.com/FGGstore/FGG-PlayPods/blob/d726e1c32568048aae66f3218c0540adc357e408/src/bt.c), HearBridge USB source above | independent Rust accounting; do not adopt timer-based credit refill as proof of available buffers |
+| MediaTek scan pause and restoration | [hci_cmd.c](https://github.com/X-F1REBALL-X/HearBridge-PS5/blob/cd5b7fce1b8226d8850cdd306437550098c6a62b/src/bt/hci_cmd.c) | source-reviewed C quirk candidates may be implemented; production activation needs coexistence evidence and proven restoration; excluded from the existing first probe |
+| Credits, foreign events and shared endpoint risks | [PlayPods bt.c](https://github.com/FGGstore/FGG-PlayPods/blob/d726e1c32568048aae66f3218c0540adc357e408/src/bt.c), HearBridge USB source above | raw-HCI accounting by its reviewed owner, or system-owned accounting behind a native channel ABI; never use timer-based credit refill |
 | Resident-audio evidence limitations | [RFC](https://github.com/FGGstore/FGG-PlayPods/blob/d726e1c32568048aae66f3218c0540adc357e408/docs/RESIDENT-AUDIO-RFC.md), [hardware summary](https://github.com/FGGstore/FGG-PlayPods/blob/d726e1c32568048aae66f3218c0540adc357e408/docs/hardware-summary.json) | test design reference, not our compatibility evidence |
 | SDK linker target/script/CRT and 16 KiB alignment research | [prospero-clang](https://github.com/ps5-payload-dev/sdk/blob/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/host/bin/prospero-clang), [prospero-lld](https://github.com/ps5-payload-dev/sdk/blob/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/host/bin/prospero-lld) | original project minimal startup/linker script and direct LLVM 18.1.8 tools now used; no project PS5 loader |
-| Startup credential/syscall permission mutation | [crt.c](https://github.com/ps5-payload-dev/sdk/blob/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/crt/crt.c), [patch.c](https://github.com/ps5-payload-dev/sdk/blob/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/crt/patch.c) | scope blocker to default runtime adoption; no local implementation |
+| Startup credential/syscall permission mutation | [crt.c](https://github.com/ps5-payload-dev/sdk/blob/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/crt/crt.c), [patch.c](https://github.com/ps5-payload-dev/sdk/blob/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/crt/patch.c) | stock startup remains excluded; a separate reviewed minimal own-process permission adapter follows AGENTS.md, not blanket adoption of patch.c |
 | Debug notification request layout and libkernel entry point | [notify_debug sample](https://github.com/ps5-payload-dev/sdk/blob/a7685ce8e97ce1f8a4f38253a41d54241c9124f1/samples/notify_debug/main.c) | visible HW-1 lifecycle marker only; bounded text, no imported library/module load, and failure remains explicit |
 
 ## License decisions and unresolved questions

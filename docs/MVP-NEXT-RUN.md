@@ -6,6 +6,15 @@ executed. See HW3-EVIDENCE.md. This is implementation authority
 and a preparation/run plan, not a claim that playback will work on that date.
 Read AGENTS.md, SESSION-HANDOFF.md and MVP-STATE.md before work.
 
+Policy update, 2026-10-26: the user has no current PS5 environment. Hardware
+windows and dated run orders in this document are historical. Continue coherent
+candidate implementation under current AGENTS.md with console validation
+pending; PS5 remains the functional/audio acceptance target. Separate
+source-backed diagnostics follow its experimental admission rules rather than
+requiring their intended measurements to be established beforehand. Existing
+candidate bounds and production ownership/credit requirements remain intact;
+this update supplies neither a new transport mechanism nor permission to run.
+
 Relay progress on 2026-10-25: L2CAP Classic signaling (`0e32102`), bounded
 SBC-over-RTP plus the real host RTP/L2CAP/ACL scenario (`0c2ecf5`), the concrete
 ownership blocker/experiment audit (`4ef1d00`) and the dry-run-first hardware
