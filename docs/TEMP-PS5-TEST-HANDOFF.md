@@ -7,9 +7,14 @@ Window update, 2026-10-26: read [HW4-EVIDENCE.md](HW4-EVIDENCE.md) first.
 The six-item kit was built at clean `20a5d66`, uploaded and fully read back.
 The retained generated-application log fails Store directory acquisition with
 raw errno 1; other per-item outcomes were overwritten/Unknown. The user then
-requested frontend cleanup: all eight PS5-BT slots were removed and none was
-reuploaded. Keep the local kit; next prepare only setup when the operator is
-ready, then collect before another launch. Do not treat the report of all ELFs
+requested frontend cleanup: all eight PS5-BT slots were removed. On resumption,
+only setup was restored, hash-verified and manually run. Its retained schema-1
+report rejects root metadata after successful open/fstat, with clean close and
+reported normal controller input. The rejected predicate remains Unknown.
+The next schema-2 setup report adds predicate bits without changing protection
+or native call bounds; select `tools/setup_test_plan.json` for a single-item kit.
+Keep the old kit, verify the new artifact and collect before another launch.
+Do not treat the report of all ELFs
 executing with normal controller input as six passing profiles.
 
 The selected environment is PS5 Slim / firmware 13.40, PayloadManager 0.6.3,

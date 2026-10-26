@@ -10,6 +10,14 @@ then three application candidates. Two standalone candidates isolate failures
 only after a clean, reviewed outcome. Each item is a separate manual launch;
 save its log before another launch truncates `/data/ps5-bt-hw1.log`.
 
+The [2026-10-26 retained setup result](HW4-EVIDENCE.md) is root policy rejection
+after successful open/fstat, with clean close. The follow-up uses the one-item
+`tools/setup_test_plan.json`; schema 2 adds a predicate mask described in
+[APPLICATION-SETUP.md](APPLICATION-SETUP.md). Keep only one PS5-BT slot visible
+during this follow-up. A reported rejection bit does not verify the native
+metadata layout or authorize a permission change; legacy schema-1 logs have no
+such detail. The six-item plan remains available for later reviewed progression.
+
 There is **no admitted usable Bluetooth connection backend**, no ready safe
 active-HCI test artifact, and no artifact that verifies the native PCM format.
 The earlier native L2CAP result, errno 47, remains a transport blocker. Passing

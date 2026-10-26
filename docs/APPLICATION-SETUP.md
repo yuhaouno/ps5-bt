@@ -101,9 +101,14 @@ persistent scoped state, not resources to be removed during ordinary cleanup.
 
 ## Versioned report and result interpretation
 
-`setup_namespace.h` defines independent ABI `0x00010000`, a 64-byte primitive
-report. Native `stat`, paths, UID, tokens, keys, pointers and capture bytes are
-not copied into it. All numeric raw failures and cleanup evidence remain local
+`setup_namespace.h` defines independent ABI `0x00020000`, a 72-byte primitive
+report with log schema 2. It preserves the first 64 bytes' field offsets and
+appends `validation_failed_mask` plus a zero reserved word. The original
+64-byte ABI `0x00010000`/schema-1 artifacts remain in their immutable kits;
+callers must compile against the matching version and size. The local collector
+accepts both log schemas without inventing missing schema-1 detail.
+Native `stat`, paths, UID, tokens, keys, pointers and capture bytes are
+not copied into the report. All numeric raw failures and cleanup evidence remain local
 diagnostic fields; do not replace them with a generic Bluetooth error.
 
 | Field / value | Meaning |
@@ -125,6 +130,52 @@ diagnostic fields; do not replace them with a generic Bluetooth error.
 | `raw_errno`, `raw_return` | Primary traversal/native operation evidence |
 | `cleanup_errno`, `cleanup_raw_return` | First failed close's separate errno/raw result; errno zero does not erase a nonzero raw failure |
 | `operations` | Normal checkpoints used, bounded by 32 |
+| `validation_failed_mask` | Schema 2 only: failed source predicates below; nonzero exactly when the primary status is -4 |
+
+The rejection mask identifies checks over the **compiled SDK layout**, not an
+independent measurement of the native layout, actual UID or permissions:
+
+| Bit | Rejected predicate |
+| --- | --- |
+| `0x01` | Metadata is not interpreted as a directory |
+| `0x02` | Parent owner is neither root nor the payload's observed effective UID |
+| `0x04` | Group/other writable without the sticky bit |
+| `0x08` | Before/opened device or inode differs |
+| `0x10` | Final or newly created component is not owned by the payload UID |
+| `0x20` | Final or newly created component does not have exact mode 0700 |
+
+Before opening a non-root component, only its type is checked. After successful
+`fstat`, every applicable original predicate contributes a bit, including
+overlapping failures. Root can produce only bits 0x01/0x02/0x04. Identity needs
+a non-root opened component; private-owner/mode checks apply only to final or
+newly created components. No new native call or cancellation checkpoint is added.
+Both local `stat` buffers are zero-initialized so incomplete writes cannot turn
+old stack contents into reported predicates; this does not validate a native ABI.
+The first policy mask survives cleanup failure or later cancellation. Other
+outcomes, including reentry/prior-uncertainty refusal, retain a zero mask. No
+global rejection state is retained. Descriptor counts, 32 checkpoints, four
+consume-once closes and all protection rules are unchanged.
+
+## Admitted schema-2 follow-up
+
+The [2026-10-26 setup run](HW4-EVIDENCE.md) opened root and obtained `fstat`
+return 0, then rejected its metadata at stage 2 with clean close. Its schema-1
+report cannot identify which predicate rejected it. The schema-2 hypothesis is
+that the mask can distinguish those source-level conditions without exposing
+raw metadata or changing permissions. Real `stat` layout and underlying cause
+remain unresolved even if a particular bit is reported.
+
+Use the single-item `tools/setup_test_plan.json` with `prepare_ps5_window.py`
+to build/package a fresh committed source revision. Keep the prior kit and log.
+Prerequisites are the existing loader kernel-R/W resolver, reviewed 23 POSIX
+exports plus `mkdirat`, and a current confirmed operator window. Only the fixed
+setup traversal/possible missing-component creation above is admitted; there is
+no new command, radio, capture or privilege operation. Native synchronous calls
+retain their existing limitation. Observe the 15-second external ceiling and
+controller before/during/after; stop on timeout, controller change or uncertain
+cleanup. Collect immediately, review the mask and primary/cleanup results before
+another launch. Do not infer a native layout fix, chmod/chown or credential
+change from a predicate bit. A new build must be hash-verified before selection.
 
 A success report requires verified/opened/closed masks all `0x0f`, zero current
 and prior cleanup-failure masks, and the complete matching identity-bearing
@@ -170,6 +221,13 @@ python3 tests/application/run_setup.py --cc cc
 
 The runner uses private temporary outputs and bounded compiler/test processes.
 Strict C11 `-Wall -Wextra -Werror -pedantic` and ASan/UBSan executions pass.
+The schema-2 follow-up covers each rejection bit, simultaneous root failures,
+primary-plus-close failure, incomplete native stat output, and zero per-call
+mask on cancellation/reentry/native errors. The 48 collector tests preserve
+legacy schema-1 results and reject malformed/incoherent new masks; 16 window
+tests and 13 preparer tests pass. Builder/package/kit self-tests and a target
+link/structural inspection also pass. Rebuild/package from the final clean
+commit before deployment; these checks do not execute the new report on PS5.
 These tests establish bounded logic and error preservation, not PS5 export,
 permission, durability, coexistence or native cleanup acceptance. Target
 compilation/link and kit identity are integration checks reported with the

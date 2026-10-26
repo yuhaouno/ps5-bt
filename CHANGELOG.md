@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Preserve the observed root-policy rejection in the setup-only PS5 rerun.
+  Extend its report to ABI 2/log schema 2 with six numeric predicate-failure
+  bits, zero-initialized stat buffers and legacy-log collection support.
+  Add a single-item setup plan for immediate per-run collection. Native calls,
+  protection and cleanup bounds are unchanged; rejection details need hardware.
+
 - Record the 2026-10-26 application window: six built/imported/hash-verified
   candidates, retained Store directory I/O failure before generated encoding,
   overwritten per-item outcomes and operator-reported normal controller input.

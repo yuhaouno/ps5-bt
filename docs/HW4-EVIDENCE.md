@@ -75,33 +75,61 @@ policy rejection (-4 with errno 0), and the lock/flock stage was not reached.
 The report does not justify chmod/chown, deleting a lock, changing credentials
 or replacing a native API. No SBC result or pacing success follows.
 
-## Current remote state and next bounded step
+## Slot cleanup and subsequent setup run
 
 A setup-only rerun was requested to obtain its finer stage/mask evidence, but
 the user could not identify the entry in the overflowing frontend list and
-requested removal first. **That rerun has not been confirmed or accepted.**
+requested removal first. The first rerun request therefore produced no evidence.
 
 At the user's request, the manager's reviewed `/manage:delete` interface removed
 all eight PS5-BT slots: the six new candidates plus historical
 `ps5-bt-native-l2cap-probe` and `ps5-bt-capture-observe`. A fresh manager inventory
 confirmed zero PS5-BT slots and unchanged unrelated slot identities. Local kit,
-source packages and collected evidence remain available. Nothing was reuploaded
-or launched after cleanup; no native private directory/lock was altered.
+source packages and collected evidence remain available. At that cleanup
+checkpoint no candidate remained; no native private directory/lock was altered.
 The inspected delete route/owner are from `itsPLK/ps5-payload-manager` revision
 `3f881e8e569eba3054d1784a1962439b2eee92c2`; their source hashes match the existing
 [0.6.3 review](PAYLOADMANAGER-SLOTS.md). Its GPL-3.0 license was inspected; no
 implementation was copied. Exact `local/ps5-bt-*` slot keys were used. The owner
 also removes those selected slots' autoload/favorite entries as part of deletion.
 
-When the operator is ready in a confirmed window, prepare only the canonical
-setup slot, verify its full remote hash, then collect immediately after its one
-manual launch. Its stages 2/3/4/5 distinguish root/data/ps5-bt/control; preserve
-operation count, opened/verified/closed masks, primary error and both import
-groups. Use the existing 15-second ceiling and controller checks. A clean
-negative result is evidence to review, not permission to relax protection.
-If setup passes but Store still fails, a separately admitted diagnostic of the
-actual Store traversal needs numeric operation/component reporting before lock
-acquisition. Do not blindly repeat every candidate.
+The user then asked to continue in the same session. Only the original canonical
+setup slot was reimported and verified against its original kit:
+
+- ELF SHA-256: `9de999a6738f30f9d72ca2bf1a3eac7b69bdb08fe795ad288fe1b53c9413b504`.
+- Build ID: `f0d6937b54ecc2d875306879bcb72d9bb9c15033c14199c2135aff5eff1b259d`.
+- Source HEAD: `20a5d665abd4c6a5fccb3125c622b65cb14f1220`; schema 1.
+
+The operator confirmed return within the requested ceiling and normal controller
+behavior before/during/after. Immediate collection saved private
+`application-setup-727vy8yq.log` and JSON, classified `complete_failure`.
+Log SHA-256: `882d64685f9c648962f0087e1934cf78e1cfe0488dbbf0ea3c2b589e4edc5bbb`.
+It contains matching run begin/finish and final payload return 1:
+
+| Setup field | Observed value |
+| --- | --- |
+| stage / status / errno | 2 / -4 / 0 |
+| operations | 4 |
+| opened / closed / verified / created masks | 1 / 1 / 0 / 0 |
+| native raw return / mkdirat lookup | 0 / 0 |
+| current/prior cleanup-failure masks and raw cleanup | All zero |
+| POSIX imports | 23 resolved; clean shutdown |
+
+The inspected source makes these four operations mkdirat lookup, effective UID,
+root open and root fstat. Open succeeded and fstat returned 0, followed by root
+policy rejection and exactly one successful close. No `/data` traversal or
+directory creation occurred. This is a different failure classification from
+the earlier Store I/O/errno-1 result; it does not establish a common root cause.
+The rejected root predicate and actual stat layout remain Unknown. Matching
+identity plus the operator report still leaves collector freshness Unknown.
+
+The next bounded candidate adds a six-bit rejection mask under setup ABI 2/log
+schema 2, with the same native operations, protection and cleanup bounds. See
+the [admission and bit meanings](APPLICATION-SETUP.md#admitted-schema-2-follow-up).
+Prepare only the single-item setup plan, keep the old kit, verify the new hash
+and collect before any next launch. The new mask requires hardware evidence;
+it must not be inferred retrospectively from this schema-1 run. No other profile
+has acquired a new result and no application workload is cleared by this test.
 
 Native PCM format/time, Bluetooth ownership/channel availability and allowance
 remain gated. No pairing, headset playback or audio acceptance was established.

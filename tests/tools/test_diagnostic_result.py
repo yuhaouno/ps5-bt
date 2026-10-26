@@ -111,14 +111,16 @@ def application_mode_log(mode, fields=None, workload=None, preflight=None, statu
     return text
 
 
-def setup_log(fields=None, outcome="complete", init_status=0, status=2):
+def setup_log(fields=None, outcome="complete", init_status=0, status=2, schema=2):
     values = {"stage": 6, "status_bits": 0, "errno": 0, "lookup_hi": 0, "lookup_lo": 0,
               "created_mask": 0, "verified_mask": 15, "opened_mask": 15, "closed_mask": 15,
               "cleanup_failed_mask": 0, "cleanup_errno": 0, "cleanup_raw_bits": 0,
               "prior_cleanup_mask": 0, "operations": 13, "raw_bits": 0}
+    if schema == 2:
+        values["validation_failed_mask"] = 0
     if fields:
         values.update(fields)
-    body = [result.SETUP_CONFIG]
+    body = [result.SETUP_CONFIG if schema == 2 else result.SETUP_CONFIG_V1]
     if init_status:
         body += imports(2, status=init_status, resolved=3)
     else:
@@ -170,6 +172,85 @@ class CollectorTest(unittest.TestCase):
                        {"raw_bits": 0xffffffff}, {"raw_bits": 4}]:
             with self.subTest(fields=fields):
                 self.assertEqual(self.collect(setup_log(fields), manifest("application-setup"))["classification"], "complete_failure")
+
+    def test_setup_legacy_schema_preserves_success_cancel_and_failure(self):
+        examples = [(setup_log(schema=1), "complete_success"),
+                    (setup_log({"status_bits": 1}, outcome="cancelled", schema=1), "incomplete_evidence"),
+                    (setup_log({"stage": 2, "status_bits": 0xfffffffc, "verified_mask": 0,
+                                "opened_mask": 1, "closed_mask": 1, "operations": 4},
+                               outcome="failed", status=1, schema=1), "complete_failure")]
+        for text, expected in examples:
+            with self.subTest(expected=expected):
+                record = self.collect(text, manifest("application-setup"))
+                self.assertEqual(record["classification"], expected)
+                self.assertEqual(record["diagnostic"]["configuration"]["schema"], 1)
+                self.assertNotIn("validation_failed_mask", record["diagnostic"]["numeric"])
+        mixed = setup_log({"validation_failed_mask": 0}, schema=1)
+        record = self.collect(mixed, manifest("application-setup"))
+        self.assertEqual(record["classification"], "complete_failure")
+        self.assertIn("setup_contract_mismatch", record["diagnostic"]["issues"])
+
+    def test_setup_validation_bits_retain_policy_evidence_at_applicable_stages(self):
+        for stage, created, masks in [(2, 0, (1, 2, 4, 7)), (3, 0, (1, 2, 4, 8, 15)),
+                                      (4, 0, (1, 2, 4, 8, 15)), (4, 1, (16, 32, 63)),
+                                      (5, 0, (1, 2, 4, 8, 16, 32, 63))]:
+            for rejected in masks:
+                component = 1 << (stage - 2)
+                fields = {"stage": stage, "status_bits": 0xfffffffc,
+                          "validation_failed_mask": rejected, "created_mask": created,
+                          "opened_mask": component * 2 - 1, "closed_mask": component * 2 - 1,
+                          "verified_mask": component - 1, "operations": 4}
+                with self.subTest(stage=stage, rejected=rejected, created=created):
+                    record = self.collect(setup_log(fields, outcome="failed", status=1), manifest("application-setup"))
+                    self.assertEqual(record["classification"], "complete_failure")
+                    self.assertNotIn("setup_contract_mismatch", record["diagnostic"]["issues"])
+                    self.assertEqual(record["diagnostic"]["numeric"]["validation_failed_mask"], [rejected])
+                    self.assertEqual(record["diagnostic"]["descriptor_cleanup"], "reported_complete")
+        # A pre-open type rejection has no current-component descriptor.
+        fields = {"stage": 3, "status_bits": 0xfffffffc, "validation_failed_mask": 1,
+                  "opened_mask": 1, "closed_mask": 1, "verified_mask": 1, "operations": 5}
+        record = self.collect(setup_log(fields, outcome="failed", status=1), manifest("application-setup"))
+        self.assertNotIn("setup_contract_mismatch", record["diagnostic"]["issues"])
+
+    def test_setup_validation_bits_reject_incoherent_context_or_status(self):
+        base = {"stage": 2, "status_bits": 0xfffffffc, "validation_failed_mask": 2,
+                "opened_mask": 1, "closed_mask": 1, "verified_mask": 0, "operations": 4}
+        for changed in ({"validation_failed_mask": 0}, {"validation_failed_mask": 64},
+                        {"validation_failed_mask": 8}, {"validation_failed_mask": 16},
+                        {"validation_failed_mask": 32}, {"stage": 1}, {"stage": 6},
+                        {"status_bits": 0}, {"status_bits": 1}, {"status_bits": 0xffffffff},
+                        {"errno": 1}, {"raw_bits": 0xffffffff}, {"lookup_lo": 1},
+                        {"verified_mask": 1}, {"opened_mask": 0, "closed_mask": 0},
+                        {"validation_failed_mask": 1, "opened_mask": 0, "closed_mask": 0},
+                        {"stage": 3, "validation_failed_mask": 16, "opened_mask": 3, "closed_mask": 3},
+                        {"stage": 4, "validation_failed_mask": 32, "opened_mask": 7, "closed_mask": 7},
+                        {"stage": 5, "validation_failed_mask": 8, "opened_mask": 7, "closed_mask": 7}):
+            with self.subTest(changed=changed):
+                record = self.collect(setup_log(base | changed, outcome="failed", status=1), manifest("application-setup"))
+                self.assertEqual(record["classification"], "complete_failure")
+                self.assertIn("setup_contract_mismatch", record["diagnostic"]["issues"])
+        for text in (setup_log({"validation_failed_mask": 1}),
+                     setup_log({"status_bits": 1, "validation_failed_mask": 1}, outcome="cancelled"),
+                     setup_log({"status_bits": 0xffffffff, "errno": 1, "validation_failed_mask": 1}, outcome="failed")):
+            self.assertIn("setup_contract_mismatch", self.collect(text, manifest("application-setup"))["diagnostic"]["issues"])
+
+    def test_setup_validation_field_requires_schema_order_and_exact_numeric_marker(self):
+        text = setup_log()
+        line = "application_setup_validation_failed_mask=0x00000000\n"
+        variants = [text.replace(line, ""), text.replace(line, line + line),
+                    text.replace(line, "application_setup_validation_failed_mask=0\n"),
+                    text.replace(line, "").replace("event=application_setup_imports_closed", line + "event=application_setup_imports_closed"),
+                    text.replace("schema=2", "schema=3", 1)]
+        for changed in variants:
+            with self.subTest(changed=changed):
+                record = self.collect(changed, manifest("application-setup"))
+                self.assertNotEqual(record["classification"], "complete_success")
+        # Values outside the fixed whitelist remain absent from durable JSON.
+        redacted = text.replace(line, line + "application_setup_uid=0x12345678\napplication_setup_stat_bytes=private-stat\n")
+        record = self.collect(redacted, manifest("application-setup"))
+        self.assertEqual(record["classification"], "complete_success")
+        self.assertNotIn("12345678", json.dumps(record))
+        self.assertNotIn("private-stat", json.dumps(record))
 
     def test_setup_raw_failure_retains_signed_native_patterns_and_creation(self):
         record = self.collect(setup_log({"stage": 4, "status_bits": 0xffffffff, "errno": 5,

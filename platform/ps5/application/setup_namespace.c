@@ -3,7 +3,7 @@
  * from the pinned target SDK headers, never a guessed syscall/layout. */
 #include "setup_namespace.h"
 #include "posix_imports.h"
-_Static_assert(sizeof(struct ps5_app_setup_report) == 64, "setup report ABI");
+_Static_assert(sizeof(struct ps5_app_setup_report) == 72, "setup report ABI");
 static int setup_active;
 static uint32_t setup_uncertain;
 static int setup_cleanup_errno, setup_cleanup_return;
@@ -30,9 +30,15 @@ static int checkpoint(ps5_app_cancel_fn cancelled,
   ++r->operations;
   return 1;
 }
-static int protected_parent(const struct stat *st, uid_t owner) {
-  return S_ISDIR(st->st_mode) && (st->st_uid == 0 || st->st_uid == owner) &&
-         (!(st->st_mode & 0022) || (st->st_mode & S_ISVTX));
+static uint32_t parent_rejections(const struct stat *st, uid_t owner) {
+  uint32_t rejected = 0;
+  if (!S_ISDIR(st->st_mode))
+    rejected |= PS5_APP_SETUP_REJECT_TYPE;
+  if (st->st_uid != 0 && st->st_uid != owner)
+    rejected |= PS5_APP_SETUP_REJECT_PARENT_OWNER;
+  if ((st->st_mode & 0022) && !(st->st_mode & S_ISVTX))
+    rejected |= PS5_APP_SETUP_REJECT_PARENT_WRITE;
+  return rejected;
 }
 static int same_node(const struct stat *a, const struct stat *b) {
   return a->st_dev == b->st_dev && a->st_ino == b->st_ino;
@@ -73,7 +79,7 @@ int32_t ps5_app_setup_namespace(ps5_app_lookup_fn lookup,
   const char *names[4] = {"/", "data", "ps5-bt", "control"};
   for (unsigned index = 0; index < 4; ++index) {
     r->stage = 2 + index;
-    struct stat before;
+    struct stat before = {0};
     int created = 0;
     if (index) {
       if (!checkpoint(cancelled, r))
@@ -105,6 +111,7 @@ int32_t ps5_app_setup_namespace(ps5_app_lookup_fn lookup,
         }
       }
       if (!S_ISDIR(before.st_mode)) {
+        r->validation_failed_mask = PS5_APP_SETUP_REJECT_TYPE;
         finish(r, -4, 0);
         goto cleanup;
       }
@@ -123,16 +130,23 @@ int32_t ps5_app_setup_namespace(ps5_app_lookup_fn lookup,
     r->opened_mask |= 1u << index;
     if (!checkpoint(cancelled, r))
       goto cleanup;
-    struct stat after;
+    struct stat after = {0};
     r->raw_return = ps5_app_fstat(owned[index], &after);
     if (r->raw_return) {
       finish(r, -1, *ps5_app_posix_error());
       goto cleanup;
     }
-    if ((index && !same_node(&before, &after)) ||
-        !protected_parent(&after, owner) ||
-        ((index == 3 || created) &&
-         (after.st_uid != owner || (after.st_mode & 07777) != 0700))) {
+    uint32_t rejected = parent_rejections(&after, owner);
+    if (index && !same_node(&before, &after))
+      rejected |= PS5_APP_SETUP_REJECT_IDENTITY;
+    if (index == 3 || created) {
+      if (after.st_uid != owner)
+        rejected |= PS5_APP_SETUP_REJECT_PRIVATE_OWNER;
+      if ((after.st_mode & 07777) != 0700)
+        rejected |= PS5_APP_SETUP_REJECT_PRIVATE_MODE;
+    }
+    if (rejected) {
+      r->validation_failed_mask = rejected;
       finish(r, -4, 0);
       goto cleanup;
     }

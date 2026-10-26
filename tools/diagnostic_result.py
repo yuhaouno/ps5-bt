@@ -39,10 +39,12 @@ CAPTURE_KEYS = {"stage", "status_bits", "raw_status_bits", "lookup_hi", "lookup_
                 "stop_bits", "close_bits"}
 
 
-SETUP_CONFIG = "event=application_setup_begin schema=1 namespace=fixed private_mode=0700 radio=Unavailable capture=Unavailable"
-SETUP_KEYS = {"stage", "status_bits", "errno", "lookup_hi", "lookup_lo", "created_mask", "verified_mask",
+SETUP_CONFIG_V1 = "event=application_setup_begin schema=1 namespace=fixed private_mode=0700 radio=Unavailable capture=Unavailable"
+SETUP_CONFIG = "event=application_setup_begin schema=2 namespace=fixed private_mode=0700 radio=Unavailable capture=Unavailable"
+SETUP_KEYS_V1 = {"stage", "status_bits", "errno", "lookup_hi", "lookup_lo", "created_mask", "verified_mask",
               "opened_mask", "closed_mask", "cleanup_failed_mask", "cleanup_errno", "cleanup_raw_bits",
               "prior_cleanup_mask", "operations", "raw_bits"}
+SETUP_KEYS = SETUP_KEYS_V1 | {"validation_failed_mask"}
 APPLICATION_CONFIG = "event=application_begin schema=1 mode=control-only transport=Unavailable capture=Unavailable native_format=Unknown codec=Unavailable"
 GENERATED_CONFIG = "event=application_begin schema=1 mode=generated-sbc transport=Unavailable capture=Unavailable native_format=Unknown codec=diagnostic"
 OBSERVE_CONFIG = "event=application_begin schema=1 mode=capture-observe transport=Unavailable capture=raw-observe native_format=Unknown codec=Unavailable"
@@ -559,7 +561,10 @@ def setup_report(body: list[str]) -> dict:
     terminal_names = ("event=application_setup_complete", "event=application_setup_failed", "event=application_setup_cancelled")
     terminals = [(i, name) for i, line in enumerate(body) for name in terminal_names if line == name]
     closed = [i for i, line in enumerate(body) if line == "event=application_setup_imports_closed"]
-    config_ok = len(starts) == 1 and body[starts[0]] == SETUP_CONFIG
+    schema = ({SETUP_CONFIG_V1: 1, SETUP_CONFIG: 2}.get(body[starts[0]])
+              if len(starts) == 1 else None)
+    config_ok = schema is not None
+    required_keys = SETUP_KEYS if schema == 2 else SETUP_KEYS_V1
     if not config_ok:
         issues.append("missing_or_duplicate_setup_configuration")
     if len(terminals) != 1:
@@ -601,12 +606,12 @@ def setup_report(body: list[str]) -> dict:
     if len(closed) > 1 or closed and not (init_ok and shutdown_ok):
         issues.append("setup_import_cleanup_not_confirmed")
     attempted = bool(numbers)
-    complete_fields = all(one(key) is not None for key in SETUP_KEYS)
+    complete_fields = all(one(key) is not None for key in required_keys)
     descriptor_cleanup = "Unknown"
     if attempted and not complete_fields:
         issues.append("missing_or_duplicate_setup_numeric_evidence")
     if complete_fields:
-        values = {key: one(key) for key in SETUP_KEYS}
+        values = {key: one(key) for key in required_keys}
         opened, closed_mask, verified = (values[key] for key in ("opened_mask", "closed_mask", "verified_mask"))
         failed_mask, prior = values["cleanup_failed_mask"], values["prior_cleanup_mask"]
         coherent = (values["stage"] in range(1, 7) and values["operations"] <= 32
@@ -614,6 +619,27 @@ def setup_report(body: list[str]) -> dict:
                     and values["created_mask"] <= 3 and not ((opened | verified | closed_mask | failed_mask | prior) & ~15)
                     and not (verified & ~opened or failed_mask & ~closed_mask)
                     and closed_mask == opened)
+        if schema == 2:
+            rejected = values["validation_failed_mask"]
+            stage = values["stage"]
+            component = 1 << (stage - 2) if stage in range(2, 6) else 0
+            # These are predicates over the selected SDK struct layout, not
+            # independent evidence of the console's native layout or identity.
+            permitted = 7 if stage == 2 else 15 if stage in (3, 4) else 63 if stage == 5 else 0
+            if stage == 4 and values["created_mask"] & 1:
+                permitted |= 48
+            policy_failure = values["status_bits"] == 0xfffffffc
+            coherent &= (bool(rejected) == policy_failure and not (rejected & ~permitted))
+            if rejected:
+                coherent &= not (verified & component)
+                # A pre-open fstatat type check can reject without acquiring the
+                # component; all other checks require a successful open/fstat.
+                coherent &= not (rejected & ~1) or bool(opened & component)
+                coherent &= stage != 2 or bool(opened & component)
+                coherent &= not any(values[key] for key in ("errno", "raw_bits", "lookup_hi", "lookup_lo"))
+        elif "validation_failed_mask" in numbers:
+            # A v2 field cannot silently upgrade a historical v1 report.
+            coherent = False
         if not coherent:
             failure = True
             issues.append("setup_contract_mismatch")
@@ -666,7 +692,8 @@ def setup_report(body: list[str]) -> dict:
     cleanup = "failed" if "failed" in (descriptor_cleanup, imports_cleanup) else "reported_complete" if descriptor_cleanup == imports_cleanup == "reported_complete" else "Unknown"
     if cleanup != "reported_complete":
         issues.append("cleanup_not_confirmed")
-    return {"configuration": {"mode": "fixed-namespace-setup", "namespace": "fixed", "private_mode": "0700",
+    return {"configuration": {"mode": "fixed-namespace-setup", "schema": schema if schema else "Unknown",
+                "namespace": "fixed", "private_mode": "0700",
                 "transport": "Unavailable", "radio": "Unavailable", "capture": "Unavailable", "codec": "Unavailable",
                 "native_format": "Unknown", "max_operations": 32, "ps5_directory_durability": "Unknown"},
             "configuration_confirmed": config_ok, "numeric": numbers, "imports": imports,

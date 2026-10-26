@@ -18,6 +18,7 @@ static unsigned native_calls, fail_at, mkdir_calls, open_calls, sync_calls;
 static int fake_errno, fail_errno, close_fail_slot, cancel_at, cancel_calls;
 static int lookup_null, lookup_dirty, lookup_nested, substitute_slot;
 static int substitute_device;
+static int partial_stat;
 static unsigned close_fail_mask;
 static int close_raw_return, close_errno, cancel_on_close, close_cancelled;
 static int cancel_reentry_at;
@@ -85,6 +86,12 @@ static int fake_stat(int fd, struct stat *out) {
   unsigned index = slot(fd);
   if (operation(STAT))
     return -1;
+  if (partial_stat) {
+    /* Successful but incomplete native output must not expose stack garbage
+     * as predicate evidence. This is a fault fixture, not a valid ABI. */
+    out->st_uid = nodes[index].info.st_uid;
+    return 0;
+  }
   *out = nodes[index].info;
   if (substitute_slot == (int)index) {
     if (substitute_device)
@@ -152,6 +159,7 @@ static int32_t cancelled(void) {
     struct ps5_app_setup_report nested_report;
     assert(ps5_app_setup_namespace(lookup, NULL, &nested_report) == -3);
     assert(!nested_report.operations && !nested_report.opened_mask);
+    assert(!nested_report.validation_failed_mask && !nested_report.reserved);
   }
   return close_cancelled || (cancel_at && cancel_calls >= cancel_at);
 }
@@ -163,6 +171,7 @@ static int64_t lookup(const char *name, void **out) {
     lookup_nested = 0;
     assert(ps5_app_setup_namespace(lookup, NULL, &nested_report) == -3);
     assert(nested_report.operations == 0);
+    assert(!nested_report.validation_failed_mask && !nested_report.reserved);
   }
   if (operation(LOOKUP) || lookup_failure) {
     if (lookup_dirty)
@@ -200,6 +209,7 @@ static void reset(void) {
   cancel_on_close = close_cancelled = cancel_reentry_at = 0;
   cancel_at = cancel_calls = 0;
   lookup_null = lookup_dirty = lookup_nested = substitute_device = 0;
+  partial_stat = 0;
   lookup_failure = 0;
   mkdir_side_effect_failure = 0;
   created_mode = 0700;
@@ -230,6 +240,8 @@ static void fully_closed(const struct ps5_app_setup_report *report) {
   for (int index = 1; index < close_count; ++index)
     assert(close_order[index - 1] > close_order[index]);
   assert(report->operations <= 32 && close_count <= 4);
+  assert(!report->reserved);
+  assert((report->status == -4) == (report->validation_failed_mask != 0));
   if (report->created_mask & 1)
     assert(nodes[2].exists);
   if (report->created_mask & 2)
@@ -251,10 +263,11 @@ int main(void) {
   struct ps5_app_setup_report report;
   reset();
   report = run(0);
-  assert(sizeof report == 64 && report.stage == 6);
+  assert(sizeof report == 72 && report.stage == 6);
   assert(offsetof(struct ps5_app_setup_report, raw_lookup) == 16);
   assert(offsetof(struct ps5_app_setup_report, cleanup_raw_return) == 56);
   assert(offsetof(struct ps5_app_setup_report, prior_cleanup_mask) == 60);
+  assert(offsetof(struct ps5_app_setup_report, validation_failed_mask) == 64);
   assert(report.created_mask == 3 && report.verified_mask == 15);
   assert(report.opened_mask == 15 && !report.cleanup_failed_mask);
   assert(mkdir_calls == 2 && sync_calls == 4 && open_calls == 4);
@@ -292,10 +305,12 @@ int main(void) {
     nodes[index].info.st_uid = OWNER + 1;
     report = run(-4);
     assert(!report.created_mask);
+    assert(report.validation_failed_mask == PS5_APP_SETUP_REJECT_PARENT_OWNER);
     reset();
     existing();
     nodes[index].info.st_mode = S_IFDIR | 0777;
-    run(-4);
+    report = run(-4);
+    assert(report.validation_failed_mask == PS5_APP_SETUP_REJECT_PARENT_WRITE);
     reset();
     existing();
     nodes[index].info.st_mode = S_IFDIR | 01777;
@@ -314,40 +329,71 @@ int main(void) {
       reset();
       existing();
       nodes[index].info.st_mode = (kind ? S_IFLNK : S_IFREG) | 0700;
-      run(-4);
+      report = run(-4);
+      assert(report.validation_failed_mask == PS5_APP_SETUP_REJECT_TYPE);
     }
   }
   reset();
   existing();
   nodes[3].info.st_uid = 0;
-  run(-4);
+  report = run(-4);
+  assert(report.validation_failed_mask == PS5_APP_SETUP_REJECT_PRIVATE_OWNER);
   reset();
   existing();
   nodes[3].info.st_mode = S_IFDIR | 0755;
-  run(-4);
+  report = run(-4);
+  assert(report.validation_failed_mask == PS5_APP_SETUP_REJECT_PRIVATE_MODE);
   reset();
   existing();
   nodes[3].info.st_mode = S_IFDIR | 04700;
-  run(-4);
+  report = run(-4);
+  assert(report.validation_failed_mask == PS5_APP_SETUP_REJECT_PRIVATE_MODE);
   reset();
   created_mode = 0755;
   report = run(-4);
   assert(report.created_mask == 1 && !nodes[3].exists);
+  assert(report.validation_failed_mask == PS5_APP_SETUP_REJECT_PRIVATE_MODE);
   reset();
   created_owner = 0;
   report = run(-4);
   assert(report.created_mask == 1 && !nodes[3].exists);
+  assert(report.validation_failed_mask == PS5_APP_SETUP_REJECT_PRIVATE_OWNER);
   for (unsigned index = 1; index < 4; ++index) {
     reset();
     existing();
     substitute_slot = (int)index;
-    run(-4);
+    report = run(-4);
+    assert(report.validation_failed_mask == PS5_APP_SETUP_REJECT_IDENTITY);
     reset();
     existing();
     substitute_slot = (int)index;
     substitute_device = 1;
-    run(-4);
+    report = run(-4);
+    assert(report.validation_failed_mask == PS5_APP_SETUP_REJECT_IDENTITY);
   }
+
+  /* Root can fail several predicates at once; preserve that primary evidence
+   * even when its one owned close also fails. No /data call follows. */
+  reset();
+  nodes[0].info.st_mode = S_IFREG | 0777;
+  nodes[0].info.st_uid = OWNER + 1;
+  close_fail_slot = 0;
+  report = run(-4);
+  assert(report.stage == 2 && report.operations == 4);
+  assert(report.validation_failed_mask ==
+         (PS5_APP_SETUP_REJECT_TYPE | PS5_APP_SETUP_REJECT_PARENT_OWNER |
+          PS5_APP_SETUP_REJECT_PARENT_WRITE));
+  assert(report.opened_mask == 1 && report.closed_mask == 1);
+  assert(report.cleanup_failed_mask == 1 && !report.verified_mask);
+  assert(!report.created_mask && !mkdir_calls && native_calls == 4);
+
+  reset();
+  partial_stat = 1;
+  report = run(-4);
+  assert(report.stage == 2 && report.operations == 4);
+  assert(report.validation_failed_mask == PS5_APP_SETUP_REJECT_TYPE);
+  assert(report.opened_mask == 1 && report.closed_mask == 1);
+  assert(!report.cleanup_failed_mask && !report.created_mask);
 
   /* Every fallible normal call can fail without retry; EINTR is not special. */
   for (unsigned point = 1; point <= complete_operations; ++point) {

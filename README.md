@@ -27,7 +27,10 @@ The [2026-10-26 application window](docs/HW4-EVIDENCE.md) retained a generated-m
 startup failure at protected-store directory acquisition (raw errno 1), with
 reported complete cleanup. Encoding was not reached; other per-item outcomes
 were overwritten. The operator reported normal controller behavior and requested
-removal of all PS5-BT slots; the local kit remains available for one-item testing.
+removal of all PS5-BT slots. A subsequent setup-only run rejected root metadata
+after successful open/fstat, with clean close. A versioned predicate mask and
+single-item setup plan now prepare the next bounded diagnosis; native layout
+and the cause of the rejection remain unverified.
 
 **HW-1 now executes on the recorded Slim / firmware 13.40 environment.**
 The explicit `make ps5-hw1` build uses the existing loader's kernel-R/W

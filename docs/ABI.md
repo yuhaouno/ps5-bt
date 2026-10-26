@@ -164,10 +164,14 @@ protection and timing remain Requires hardware; see APPLICATION-STARTUP.md.
 
 ## Fixed namespace preparation boundary
 
-The separately selected application-setup candidate has its own 64-byte
-`PS5_APP_SETUP_ABI=0x00010000` report, declared in
+The separately selected application-setup candidate has its own 72-byte
+`PS5_APP_SETUP_ABI=0x00020000` report, declared in
 `platform/ps5/application/setup_namespace.h`. It uses the already initialized
 POSIX import bridge and a separately typed `mkdirat` lookup; no transport, capture
-or codec ABI changes. Stages, raw errors, owned/closed masks, cancellation and
+or codec ABI changes. Version 2 appends a predicate-rejection mask and zero reserved
+word after the original 64-byte prefix; old callers must not pass smaller storage.
+Schema-1/ABI-1 kits remain separately identifiable and their logs remain readable.
+No raw stat/UID is exposed and no extra native operation is added. Stages, raw errors,
+owned/closed masks, rejection predicates, cancellation and
 sticky unknown cleanup are specified in [APPLICATION-SETUP.md](APPLICATION-SETUP.md).
 Native owner/permission/sync behavior remains Requires hardware.

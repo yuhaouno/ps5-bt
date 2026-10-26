@@ -8,8 +8,10 @@ The current dependency graph, worker ownership and blockers are tracked in
 The [2026-10-26 application result](docs/HW4-EVIDENCE.md) narrows the immediate
 startup blocker to Store directory I/O (raw errno 1), before encoding. Cleanup
 was reported complete; overwritten profiles remain Unknown. Remote PS5-BT slots
-were removed at the user's request. The next bounded step is one setup traversal
-report, collected before any next launch; no playback milestone is cleared.
+were removed at the user's request. A setup-only rerun then opened/statted root
+but rejected its metadata with clean close. The next bounded step is its
+versioned predicate report, collected before another launch; native layout
+remains unresolved and no playback milestone is cleared.
 
 Development policy, 2026-10-26: unavailable PS5 access does not block coherent
 candidate implementations. Prioritize application lifecycle integration,

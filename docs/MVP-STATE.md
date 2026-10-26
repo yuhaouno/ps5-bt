@@ -9,9 +9,12 @@ ELFs with normal controller behavior, but launches overwrote the fixed log.
 Only generated-application failure is correlated: imports/entropy succeeded,
 Store directory acquisition returned I/O -2/raw errno 1, and cleanup completed.
 No generated workload ran; other profiles remain Unknown. At the user's request
-all eight PS5-BT slots were removed; verified remaining count is zero. Keep the
-local kit and private evidence. Next, when the operator is ready, prepare only
-setup and collect its finer traversal report immediately. No rerun is confirmed.
+all eight PS5-BT slots were removed. After resumption only setup was restored,
+verified and run: root open/fstat succeeded, then policy rejection -4/errno 0;
+one descriptor closed cleanly and controller input was reported normal. That
+schema-1 log cannot identify the failed predicate. The next candidate adds six
+predicate bits under ABI 2/schema 2 with the same protection/call bounds. Use the
+single-item setup plan; preserve the original `20a5d66` kit and private logs.
 
 ## New-machine test preparation, 2026-10-26
 

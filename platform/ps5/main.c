@@ -38,7 +38,7 @@ static void application_import_report(const struct ps5_app_posix_report *r) {
 #ifdef PS5_BT_APPLICATION_SETUP
 static int application_setup(void) {
   const uint8_t begin[] =
-      "event=application_setup_begin schema=1 namespace=fixed "
+      "event=application_setup_begin schema=2 namespace=fixed "
       "private_mode=0700 radio=Unavailable capture=Unavailable\n";
   const uint8_t complete[] = "event=application_setup_complete\n";
   const uint8_t failed[] = "event=application_setup_failed\n";
@@ -69,6 +69,7 @@ static int application_setup(void) {
     FIELD("prior_cleanup_mask", setup.prior_cleanup_mask);
     FIELD("operations", setup.operations);
     FIELD("raw_bits", setup.raw_return);
+    FIELD("validation_failed_mask", setup.validation_failed_mask);
 #undef FIELD
     int32_t shutdown = ps5_app_posix_shutdown(&imports);
     application_import_report(&imports);

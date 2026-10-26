@@ -95,6 +95,8 @@ int32_t ps5_app_setup_namespace(ps5_app_lookup_fn lookup,
       .raw_return = -7,
       .cleanup_raw_return = state.cleanup_mask || state.prior_mask ? -9 : 0,
       .prior_cleanup_mask = state.prior_mask,
+      .validation_failed_mask =
+          state.setup_status == -4 ? PS5_APP_SETUP_REJECT_PARENT_OWNER : 0,
   };
   return state.setup_status;
 }
@@ -134,7 +136,7 @@ static size_t occurrences(const char *text) {
 static void checked(unsigned reports, int completed, int cancelled,
                     int failed) {
   assert(occurrences(
-             "event=application_setup_begin schema=1 namespace=fixed "
+             "event=application_setup_begin schema=2 namespace=fixed "
              "private_mode=0700 radio=Unavailable capture=Unavailable\n") == 1);
   assert(occurrences("application_import_stage=") == reports);
   assert(occurrences("application_import_return_hi=") == reports);
@@ -158,6 +160,11 @@ static void checked(unsigned reports, int completed, int cancelled,
     assert(strstr(state.log, "application_setup_lookup_lo=0xfffffff9\n"));
     assert(strstr(state.log, "application_setup_raw_bits=0xfffffff9\n"));
     assert(strstr(state.log, "application_setup_created_mask=0x00000001\n"));
+    assert(strstr(state.log, state.setup_status == -4
+                                 ? "application_setup_validation_failed_mask="
+                                   "0x00000002\n"
+                                 : "application_setup_validation_failed_mask="
+                                   "0x00000000\n"));
     assert(strstr(state.log, "application_import_return_hi=0x80000000\n"));
     assert(strstr(state.log, "application_import_return_lo=0x00000000\n"));
   }

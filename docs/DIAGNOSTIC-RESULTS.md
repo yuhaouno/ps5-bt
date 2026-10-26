@@ -197,7 +197,7 @@ exit/return status 2, controller observations and interrupted-run handling. Its
 exact begin marker is:
 
 ```text
-event=application_setup_begin schema=1 namespace=fixed private_mode=0700 radio=Unavailable capture=Unavailable
+event=application_setup_begin schema=2 namespace=fixed private_mode=0700 radio=Unavailable capture=Unavailable
 ```
 
 A full result has exactly two complete `application_import_*` groups: init stage
@@ -213,12 +213,26 @@ retain their original three-group entropy and runtime requirements.
 The whitelisted `application_setup_*` keys are `stage`, `status_bits`, `errno`,
 `lookup_hi`, `lookup_lo`, `created_mask`, `verified_mask`, `opened_mask`,
 `closed_mask`, `cleanup_failed_mask`, `cleanup_errno`, `cleanup_raw_bits`,
-`prior_cleanup_mask`, `operations` and `raw_bits`. Every key occurs exactly once
+`prior_cleanup_mask`, `operations`, `raw_bits` and `validation_failed_mask`.
+Every key occurs exactly once
 when setup was entered. Native signed i32 status/return and signed i64 lookup
 results retain their complete raw u32 bit patterns/word pairs, including negative
 error values; the collector does not turn those values into unsigned success.
 Only these numeric fields are retained: paths, addresses, credentials and arbitrary
 setup-prefixed text never enter the JSON.
+
+The collector also accepts the original exact schema-1 begin marker and its
+original fields. Its absent validation mask stays absent; no rejection reason
+is synthesized for older hardware logs. Mixing the new field into schema 1,
+unknown schemas or missing/duplicate schema-2 fields cannot pass.
+
+Schema 2 requires a nonzero validation mask exactly for policy status -4; every
+other status requires zero. The six bits and stage-specific applicability are
+defined in [APPLICATION-SETUP.md](APPLICATION-SETUP.md). Unknown bits, checks
+requiring an unopened component, root identity/private bits, or a rejected
+component also marked verified are incoherent. Successful policy evaluation
+cannot be inferred from native return zero alone. Predicate bits describe the
+compiled SDK interpretation, not confirmation of the native metadata layout.
 
 Success requires setup stage 6, status/errno/lookup/raw return zero, verified,
 opened and closed masks all 15, created mask in 0..3, zero cleanup/prior-uncertainty

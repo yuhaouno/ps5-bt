@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "target_host": "192.168.1.111",
+  "ftp_port": 2121,
+  "remote_root": "/data/pldmgr/payloads/local",
+  "remote_log": "/data/ps5-bt-hw1.log",
+  "candidates": [
+    {
+      "id": "application-setup",
+      "order": 1,
+      "artifact": "build/ps5/ps5-bt-application-setup.elf",
+      "build_manifest": "build/ps5/ps5-bt-application-setup.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-application-setup-source.tar.gz",
+      "slot": "ps5-bt-application-setup",
+      "remote_filename": "ps5-bt-application-setup.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=application_setup_begin schema=2 namespace=fixed private_mode=0700 radio=Unavailable capture=Unavailable",
+        "application_setup_stage=0x00000006",
+        "application_setup_status_bits=0x00000000",
+        "application_setup_validation_failed_mask=0x00000000",
+        "application_setup_verified_mask=0x0000000f",
+        "application_setup_opened_mask=0x0000000f",
+        "application_setup_closed_mask=0x0000000f",
+        "application_setup_cleanup_failed_mask=0x00000000",
+        "event=application_setup_imports_closed",
+        "event=application_setup_complete",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "native lookup, directory protection, ownership, sync or cleanup fails; never chmod/chown an existing path",
+        "no final return within external timeout; preserve incomplete log and stop further tests"
+      ]
+    }
+  ]
+}

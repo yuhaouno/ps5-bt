@@ -54,6 +54,22 @@ paths, finite candidate count and the existing fixed-target kit plan contract.
 A newly reviewed setup candidate can be selected only after its builder/package
 profile exists. Preparation still does not execute that native setup operation.
 
+For the admitted setup predicate follow-up, select only that candidate and keep
+the old six-item kit intact:
+
+```sh
+python3 tools/prepare_ps5_window.py --build \
+  --plan tools/setup_test_plan.json \
+  --llvm-config /absolute/path/to/LLVM-18.1.8/bin/llvm-config \
+  --output-dir build/ps5/setup-predicates-001
+```
+
+This uses setup ABI 2/log schema 2 from the committed source, with the same
+fixed-path native call/protection bounds. It does not prepare five other remote
+slots or launch anything. Verify the resulting identity, deploy only setup,
+and collect the manual run before selecting a next item. See
+[APPLICATION-SETUP.md](APPLICATION-SETUP.md#admitted-schema-2-follow-up).
+
 ## One local build command
 
 After the dry-run passes, explicitly build all selected materials:
