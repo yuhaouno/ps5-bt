@@ -9,7 +9,7 @@ claim or Bluetooth address is recorded.
 
 ## Current development authority, 2026-10-26
 
-The user currently has no PS5 test environment. Do not infer access from the
+The user plans a later console window; it is not currently confirmed. Do not infer access from the
 historical LAN window below. Implement coherent candidates with PS5 validation
 pending; functional, audio-quality, latency, coexistence and stability acceptance
 remains on PS5, and a Linux Bluetooth backend is not a prerequisite.
@@ -20,6 +20,77 @@ persisted but never logged, exposed or committed. Source-backed isolated
 transport experiments have separate admission from production support; no
 competing-reader, timer-credit or system-driver exception is implied. Existing
 tests, implementations and hardware facts below are unchanged by this policy.
+
+## Next-window application workload continuation, 2026-10-26
+
+The user asked to push existing commits first, authorized further parallel offline
+work, and confirmed the planned upcoming environment remains Slim/13.40,
+PayloadManager 0.6.3 and WH-1000XM4. The push succeeded and was independently
+read back: origin/feat/mvp-bringup = 5acae454ec756c8ef265c0ac61e828cfc18c0179.
+The subsequent commits below remain local. There is no currently confirmed online
+console window and no deployment, FTP connection, launch or hardware result in
+this continuation. The old window is not execution authority. Workers finished;
+root retained integration/commit ownership.
+
+- `5691f30`: fixed-storage observed-clock generated PCM workload using the existing
+  Rust scheduler and a borrowed persistent BlockEncoder, with retained complete
+  frames and an explicit hash/discard sink.
+- `e2b8a52`: bounded raw CaptureOwner observation, no PCM inference, separate host
+  and opaque native time, byte/status/unknown-gap counts and explicit caller cleanup.
+- `9834c04`: actual native factory consume/reopen on the same storage under one
+  persistent Recovery and local resource epoch. HRTB scoped access prevents native
+  owner escape. This is a tested library candidate, not automatic main-loop
+  reconnect or an additional hardware payload.
+- `6517192`: carry validated intra-quantum time through the portable loop and driver,
+  start Stop budgets at that accepted instant, reject new work after global
+  deadline and preserve accepted time for clock-free failure cleanup.
+- `00129a1`: separately selected application-generated/application-observe targets,
+  actual protected store/listener/clock startup, local audio lanes and numeric
+  results. Generated full success requires 750 blocks, 57,750 bytes and the pinned summary
+  and a fresh post-discard completion observation before its exclusive two-second bound.
+  Current raw observation selects a 256-call ceiling, 100 ms first settle, 10 ms interval,
+  exclusive two-second, at most 190 scheduled reads and no catch-up; historical diagnostics
+  and BOUNDED 20-read/100 ms helper remain unchanged. Fresh clocks before audio steps
+  prevent stale pre-network/pre-encode timestamps admitting late work.
+
+Both new target ELFs linked/inspected. Independent staged snapshots passed fmt,
+whole-workspace tests (437 ordinary + one compile-fail), strict Clippy and whole-workspace
+freestanding checking. Native fixtures include 33 ps5-app tests + one borrow-escape
+compile-fail, seven runtime host tests, real successive TCP clients, full 750-block
+persistent codec summaries, repeated raw capture through the actual Rust/C owner,
+mid-work Stop, failed final encoder-stage initialization and fresh deadline jumps.
+C import/entry sanitizer tests pass. Source-package/build/kit self-tests,
+36 local-result tests and 12 fake-FTP window-helper tests pass. The final staged
+serialization/marker update was separately tested. Full make check's unchanged
+x86 syscall execution fixture remains unavailable on ARM macOS (errno 86); this
+was not weakened, silently skipped or called a pass. These are offline checks.
+
+Read NEXT-WINDOW-READINESS.md before the upcoming console window. Final clean-HEAD
+builds/source bundles follow this handoff commit. The selected three-item kit is
+build/ps5/next-window-kit-20261026; full nine-item inventory is kept separately.
+Manifests carry the actual source revision and hashes. New helpers default to
+no network and no output writes; explicit execution only performs bounded
+read-only slot/hash preflight or private no-clobber log/result collection.
+They neither prepare directories/slots nor upload or launch. Host fsync does not
+prove PS5 persistence and matching build identity does not prove log freshness.
+
+An existing private 0700 /data/ps5-bt/control directory owned by this payload
+identity is required; current existence/protection is unverified. Matching
+PayloadManager slots must also be prepared before
+the application tests can run. Native imports/entropy/protection/timing/cleanup
+remain Requires hardware. If application setup fails cleanly, independent
+continuous-SBC/one-read-Rust-capture candidates remain separate fallbacks; uncertain
+cleanup or changed controller input stops the window, rather than another test.
+
+All three application procedures passing does not complete the audio chain:
+there is no usable admitted Bluetooth connection backend/active HCI test artifact,
+the prior L2CAP create returned errno 47, and native PCM format/time units remain
+Unknown. Raw bytes or successful encoding cannot promote NativeAudio. Real route/
+owned allowance (or source-proven system-managed channel ABI), format verification,
+headset pairing/playback, quality/latency/stability and coexistence still need
+separate evidence and may require further implementation. Passing these tests
+does not guarantee a headset connection in a few hours or after one adjustment.
+Rust remains the mainline.
 
 ## Native startup integration continuation, 2026-10-26
 
