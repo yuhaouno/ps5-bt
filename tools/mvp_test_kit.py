@@ -4,6 +4,7 @@
 import argparse
 import ftplib
 import hashlib
+import io
 import json
 import re
 import shutil
@@ -120,18 +121,19 @@ def validate_candidate(root, candidate, head):
         "sbc-continuous": "sbc_continuous",
         "capture-stream": "capture_stream",
         "capture-observe": "capture_observe",
+        "application-control": "application_control",
     }.get(candidate["id"])
     if expected_variant is None:
         raise ValueError("unreviewed candidate id")
     variants = ("native_query", "native_l2cap_probe", "usb_metadata", "capture_preflight", "capture_once",
-                "sbc_selftest", "capture_observe", "sbc_continuous", "capture_stream")
+                "sbc_selftest", "capture_observe", "sbc_continuous", "capture_stream", "application_control")
     if any(type(manifest.get(key, False)) is not bool for key in variants) or [
         key for key in variants if manifest.get(key, False)
     ] != [expected_variant]:
         raise ValueError(f"wrong diagnostic variant: {candidate['id']}")
     if not manifest.get("loader_kernel_resolver"):
         raise ValueError("candidate lacks reviewed loader kernel resolver")
-    if expected_variant in ("sbc_continuous", "capture_stream"):
+    if expected_variant in ("sbc_continuous", "capture_stream", "application_control"):
         build_id = manifest.get("diagnostic_build_id")
         if (not isinstance(build_id, str) or not re.fullmatch(r"[0-9a-f]{64}", build_id)
                 or manifest.get("diagnostic_candidate") != artifact.stem):
@@ -187,7 +189,13 @@ def runbook(plan, head, entries):
             "",
         ]
     lines += [
-        "For the two identity-bearing Rust candidates, save the local log and use",
+        "The application-control item requires an already prepared directory with mode 0700 at",
+        "`/data/ps5-bt/control` directory owned by the payload identity. The kit",
+        "does not create it. Missing/unsafe permissions are a startup failure.",
+        "This item binds ephemeral loopback only and does not reveal its token;",
+        "it does not provide LAN access or activate capture, codec or Bluetooth.",
+        "",
+        "For identity-bearing Rust candidates, save the local log and use",
         "`tools/diagnostic_result.py` with its matching manifest and explicit",
         "before/during/after controller observations. Never infer Unknown as normal.",
         "A missing matching finish/return remains an interrupted result.",
@@ -336,10 +344,58 @@ def self_test():
             pass
         else:
             raise AssertionError("path escape accepted")
+        # Exercise selected-variant and embedded-identity checks for every item.
+        for candidate in plan["candidates"]:
+            artifact = root / candidate["artifact"]
+            artifact.write_bytes(b"synthetic-elf")
+            manifest_path = root / candidate["build_manifest"]
+            source = root / candidate["source_bundle"]
+            variant = {"usb-binding": "usb_metadata", "capture-settled": "capture_once",
+                       "sbc-selftest": "sbc_selftest", "capture-observe": "capture_observe",
+                       "sbc-continuous": "sbc_continuous", "capture-stream": "capture_stream",
+                       "application-control": "application_control"}[candidate["id"]]
+            manifest = {"git_head": "test-head", "git_status": [], "sha256": digest(artifact),
+                        "size": artifact.stat().st_size, "loader_kernel_resolver": True,
+                        variant: True}
+            if variant in ("sbc_continuous", "capture_stream", "application_control"):
+                manifest.update(diagnostic_build_id="b" * 64, diagnostic_candidate=artifact.stem)
+            def write_inputs():
+                manifest_path.write_text(json.dumps(manifest))
+                members = {"ps5-bt-source/build-manifest.json": manifest_path.read_bytes()}
+                if variant in ("sbc_selftest", "sbc_continuous"):
+                    members.update({name: b"synthetic" for name in (
+                        "ps5-bt-source/relink/relink.py", "ps5-bt-source/relink/bundle-manifest.json",
+                        "ps5-bt-source/project/third_party/sbc/upstream/COPYING.LIB")})
+                with tarfile.open(source, "w:gz") as archive:
+                    for name, data in members.items():
+                        info = tarfile.TarInfo(name); info.size = len(data)
+                        archive.addfile(info, io.BytesIO(data))
+            def reject():
+                write_inputs()
+                try:
+                    validate_candidate(root, candidate, "test-head")
+                except ValueError:
+                    return
+                raise AssertionError("invalid candidate identity/selection accepted")
+            write_inputs()
+            validate_candidate(root, candidate, "test-head")
+            manifest["native_query"] = True
+            reject()
+            del manifest["native_query"]
+            manifest["loader_kernel_resolver"] = False
+            reject()
+            manifest["loader_kernel_resolver"] = True
+            if "diagnostic_build_id" in manifest:
+                manifest["diagnostic_build_id"] = "bad"
+                reject()
+                manifest["diagnostic_build_id"] = "b" * 64
+                manifest["diagnostic_candidate"] = "other"
+                reject()
+        assert "already prepared directory with mode 0700 at" in runbook(plan, "test-head", [])
         sample = root / "sample"
         sample.write_bytes(b"bounded")
         assert digest(sample) == hashlib.sha256(b"bounded").hexdigest()
-    print("PASS MVP kit plan bounds, target pin, path rejection and hashing")
+    print("PASS MVP kit plan bounds, target pin, seven candidate selections, embedded identity, loader gate, path rejection and hashing")
 
 
 def main():

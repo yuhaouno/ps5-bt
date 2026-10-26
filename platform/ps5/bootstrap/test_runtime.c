@@ -120,7 +120,7 @@ int __kernel_init(payload_args_t *args)
 
 unsigned long kernel_dynlib_dlsym(int pid, unsigned int handle, const char *name)
 {
-#if defined(PS5_BT_CAPTURE_PROBE) || defined(PS5_BT_CAPTURE_STREAM)
+#if defined(PS5_BT_CAPTURE_PROBE) || defined(PS5_BT_CAPTURE_STREAM) || defined(PS5_BT_APPLICATION_CONTROL)
     if (handle == 7) {
         assert(pid == -1 && !strcmp(name, "module_symbol"));
         return mode == MODE_KERNEL_FALLBACK ? (unsigned long)(uintptr_t)fake_write : 0;
@@ -180,7 +180,7 @@ long __crt_syscall(long number, ...)
     const char *name = va_arg(args, const char *);
     void *out = va_arg(args, void *);
     va_end(args);
-#if defined(PS5_BT_CAPTURE_PROBE) || defined(PS5_BT_CAPTURE_STREAM)
+#if defined(PS5_BT_CAPTURE_PROBE) || defined(PS5_BT_CAPTURE_STREAM) || defined(PS5_BT_APPLICATION_CONTROL)
     if (module == 7) {
         assert(!strcmp(name, "module_symbol"));
         if (mode == MODE_WRITE_RESOLVE_NULL)
@@ -336,7 +336,7 @@ int main(void)
     assert(ps5_bootstrap_lookup("write", &symbol) == 13 && !symbol);
     mode = MODE_WRITE_RESOLVE_NULL;
     assert(ps5_bootstrap_lookup("write", &symbol) == PS5_BT_IO && !symbol);
-#if defined(PS5_BT_CAPTURE_PROBE) || defined(PS5_BT_CAPTURE_STREAM)
+#if defined(PS5_BT_CAPTURE_PROBE) || defined(PS5_BT_CAPTURE_STREAM) || defined(PS5_BT_APPLICATION_CONTROL)
     resolver_ready = 0;
     symbol = (void *)1;
     assert(ps5_bootstrap_module_lookup(7, "module_symbol", &symbol) == PS5_BT_IO && !symbol);

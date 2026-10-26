@@ -211,10 +211,17 @@ dependencies = [
 name = "ps5-runtime"
 version = "0.0.1"
 dependencies = [
+ "bt-app",
  "bt-audio",
  "bt-capture",
+ "bt-control",
  "bt-core",
+ "bt-device",
+ "bt-discovery",
  "bt-hci",
+ "bt-listener",
+ "bt-runner",
+ "ps5-app",
  "ps5-platform",
 ]
 

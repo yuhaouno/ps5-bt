@@ -134,3 +134,49 @@ resolver mechanism, kernel offset, permission mutation, module unloading or
 transport ownership. Rust's separately selected one-read capture owner calls
 the new opaque capture ABI; the baseline and older diagnostic stay separate.
 Native units remain Unknown and execution requires a current hardware window.
+
+
+## Independent native application-control selection
+
+The explicit `PS5_BT_APPLICATION_CONTROL` selection retains the baseline entry,
+loader-kernel resolver, syscall bridge and existing diagnostic logging/notification
+limits. It adds no credential/syscall-origin setter, system-driver change or new
+kernel offset. Its use of `ps5_bootstrap_module_lookup` is the same reviewed
+current-process-only helper; capture constructors remain disabled in this mode.
+No radio command, native capture call or SBC encoding occurs.
+
+Before entering Rust, the C entry resolves the fixed POSIX export table and errno
+slot against exact pinned SDK declarations. Missing or dirty exports fail before
+any descriptor. Entropy uses one read-only, no-follow/nonblocking character-device
+open and at most 16 progress-making reads for 16 bytes; failure/Stop still consumes
+close once, rejects uncertainty and scrubs temporary secrets. No proprietary import
+library, target libc, guessed syscall or alternative unreviewed entropy source is
+used. Native API availability/entropy quality remain Requires hardware. Full source,
+header/notices and export lifetimes are in PS5-POSIX-IMPORTS.md.
+
+Rust then acquires the concrete cached clock, existing protected FileStore and
+persistent listener. The private `/data/ps5-bt/control` directory must already
+exist with mode 0700 and reviewed native protections; startup neither creates
+it nor treats path existence as durability. An ephemeral loopback bind supplies
+the exact Host/Origin policy and a fresh unlogged bearer. This is a control-only
+startup probe, not LAN deployment or Bluetooth/audio support. Bounds are fixed in
+APPLICATION-STARTUP.md: finite runtime/turn/wait/HTTP/Stop policies and consume-once
+reverse cleanup. Kernel calls are trusted synchronous boundaries, not preemptible
+hard-time guarantees.
+
+Unsafe Rust invariants are exclusive atomic access to stable disjoint static
+buffers, valid export/errno lifetimes on the same native thread, no reentrant
+native callbacks, bounded readable secret input and no surviving reference after
+return. The atomic entry guard must check poison while owning exclusivity before
+borrowing storage. StoreSlot/StoreLease keep moved application state independent
+of native resource addresses, and restore the actual store before factory cleanup.
+Stop remains a separate atomic latch and cannot be reset at entry. Cleanup certainty
+includes prior client-close/HTTP errors and the factory's final results; later close
+success cannot certify an earlier uncertain descriptor. Scrub guards cover caller/
+owned tokens and HTTP buffers. Uncertainty poisons reuse in the same process.
+
+The builder source/header/ELF inspections and host fault tests establish a reviewable
+candidate only. No application-control execution, native persistence, timing or
+controller coexistence result follows from earlier HW-1/capture/codec runs. A fresh
+explicit hardware window, artifact identity, durable entered/final outcomes and
+controller checks before/during/after remain mandatory; no deployment occurs here.

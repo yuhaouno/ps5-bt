@@ -2,8 +2,10 @@
 
 The public project/package name is not selected. Crate names are local and
 unpublished. Builds never contact or deploy to a console. The PS5 output is a
-real diagnostic ELF linking C -> Rust -> an Unsupported adapter; the explicit HW-1 variant has executed on Slim/13.40, but it does not provide
-working Bluetooth or HCI controller capability information. The separate USB
+real diagnostic ELF linking C -> Rust -> an Unsupported Bluetooth adapter, plus
+separately selected capture, codec and control-only application candidates. The
+explicit HW-1 variant has executed on Slim/13.40, but it does not provide working
+Bluetooth or HCI controller capability information. The separate USB
 diagnostic below has read device descriptors on one console.
 
 These build/import constraints describe the selected diagnostic artifacts.
@@ -212,7 +214,7 @@ See SBC-IMPLEMENTATION.md for exact commands and remaining PS5 ABI/link gates.
 ### Bounded hardware-test kit
 
 After the intended changes are committed and the worktree is clean, rebuild the
-four independently selected candidates and their corresponding source packages:
+seven independently selected kit candidates and their corresponding source packages:
 
 ```sh
 LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-usb-metadata
@@ -227,6 +229,15 @@ python3 tools/package_source.py \
 LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-capture-observe
 python3 tools/package_source.py \
   --manifest build/ps5/ps5-bt-capture-observe.manifest.json
+LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-sbc-continuous
+python3 tools/package_source.py \
+  --manifest build/ps5/ps5-bt-sbc-continuous.manifest.json
+LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-capture-stream
+python3 tools/package_source.py \
+  --manifest build/ps5/ps5-bt-capture-stream.manifest.json
+LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-application-control
+python3 tools/package_source.py \
+  --manifest build/ps5/ps5-bt-application-control.manifest.json
 python3 tools/mvp_test_kit.py --assemble
 ```
 
@@ -291,8 +302,8 @@ After a clean commit and rebuild, package this candidate with:
 python3 tools/package_source.py --manifest build/ps5/ps5-bt-sbc-continuous.manifest.json
 ```
 
-The test-kit plan now includes this fifth independent candidate; build/package
-it alongside the other four before assembly. No new slot is created by the
+The seven-item test-kit plan includes this independent candidate; build/package
+all selected manifests and corresponding sources before assembly. No new slot is created by the
 uploader. A new hardware window and execution authorization remain required.
 
 ## Experimental Rust capture entry
@@ -304,8 +315,8 @@ lints, freestanding external-ABI checks and the C ASan/UBSan lifecycle harness.
 same reviewed module lookup as the older capture diagnostic. Format/time remain
 unknown; raw bytes and native metadata are never logged or encoded.
 Package the clean build with `tools/package_source.py --manifest
-build/ps5/ps5-bt-capture-stream.manifest.json`. The kit now has six independent
-candidates; build/package all six before assembly. This creates no new hardware
+build/ps5/ps5-bt-capture-stream.manifest.json`. The kit has seven independent
+candidates including application-control; build/package all seven before assembly. This creates no new hardware
 window or deployment authority. See CAPTURE-STREAM.md for exact admission.
 
 ## Native clock/wait adapter candidate
@@ -314,11 +325,13 @@ window or deployment authority. See CAPTURE-STREAM.md for exact admission.
 checks, C ASan/UBSan and external freestanding compilation. Production selection
 is `ps5-platform/external-clock-wait`; its final platform link must explicitly
 include `platform/ps5/scheduler/scheduler_clock.c`. It supplies no native transport
-or readiness backend and adds no diagnostic artifact. See PLATFORM-CLOCK.md.
+or readiness backend. The application-control candidate below independently
+selects it for finite startup/HTTP driving; the adapter adds no standalone clock
+diagnostic. See PLATFORM-CLOCK.md.
 
 ## Correlated local experiment results
 
-The new Rust capture and continuous SBC candidates embed an input-build identity
+The Rust capture, continuous SBC and application-control candidates embed an input-build identity
 matching `diagnostic_build_id` / `diagnostic_candidate` in their manifest. Their
 unique begin/finish markers precede the runtime's existing termination report.
 After an authorized hardware run and local log collection,
@@ -327,3 +340,57 @@ cleanup and abnormal-run classification. All three controller observations must
 be entered explicitly; Unknown remains Unknown. This collector never connects
 to a console. See DIAGNOSTIC-RESULTS.md; `python3 tests/tools/test_diagnostic_result.py`
 checks parser and persistence failure paths.
+
+
+## Control-only native application candidate
+
+Build the independently selected candidate with the existing loader resolver:
+
+```sh
+make ps5-application-control
+# Equivalent explicit builder selection:
+python3 tools/build_ps5.py --application-control --loader-kernel-resolver
+```
+
+Use the same pinned Rust/LLVM setup and optional `PS5_SDK_SOURCE` as other
+variants. This writes `build/ps5/ps5-bt-application-control.elf` plus its matching
+manifest/map/inspection files. Selection is mutually exclusive with the other
+diagnostic modes. The builder hashes the Rust/C sources, independent candidate
+identity and exact `tools/application_sdk_headers.json` inventory, compiles the
+43-header target dependency closure, and binds existing store/listener calls to
+reviewed selected exports. Missing imports fail before resource acquisition.
+No target libc/import library or new syscall-number fallback is linked.
+
+The candidate assembles the concrete factory, protected store, persistent HTTP
+listener, fallible clock/wait, Application/Runner and finite Rust owner loop.
+It performs no Bluetooth, capture or codec operation. The chosen listener is an
+ephemeral port on `127.0.0.1`; this is not a LAN control deployment. Fresh native
+entropy supplies the bearer token; token/port/address/path are never logged.
+The caller must already have a private `/data/ps5-bt/control` directory with exact
+mode 0700 and appropriate native protections. The candidate does not create or
+relax that directory, and a missing/unsafe path fails with observable cleanup.
+PS5 import availability, entropy, filesystem protection/durability, scheduling
+and wireless-controller behavior remain Requires hardware.
+
+Default budgets are 5,000,000 observed microseconds, 20,000 turns, 10,000 wait
+calls, 64 accepted clients and 100,000 us per HTTP request/normal protocol stop.
+Wait requests are at most 1000 us; kernel calls may overrun their requested bounds.
+Stop remains observable across import/entropy/startup/HTTP and cleanup. Primary
+and prior client-close uncertainty survive later successful resource closes.
+Existing baseline/capture/SBC artifacts retain their original limits. See
+APPLICATION-STARTUP.md and PS5-POSIX-IMPORTS.md for precise contracts.
+
+After committing intended changes, rebuild from the clean commit and package:
+
+```sh
+python3 tools/package_source.py --manifest build/ps5/ps5-bt-application-control.manifest.json
+```
+
+The package includes the exact original target headers/notices and preserves
+`--application-control --loader-kernel-resolver` in its rebuild command. This
+candidate does not execute the SBC archive or need codec replacement materials.
+It is the seventh independently packaged kit candidate; assembly requires all
+seven matching clean-commit builds/source bundles. No final kit identity exists
+until assembly succeeds. The uploader does not create the application-control
+console slot. Building and packaging never deploy or authorize a hardware run. A new current authorized window and
+explicit controller observations are required before execution.

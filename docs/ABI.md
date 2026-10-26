@@ -3,8 +3,8 @@
 The optional codec has a separate integer/pointer boundary in
 `platform/codec/ps5_bt_sbc.h`, documented in SBC-IMPLEMENTATION.md. It queries
 caller storage size/alignment and retains only pointers inside that borrowed
-allocation until finish; it never retains PCM/output buffers. It neither
-changes this transport ABI nor establishes a capture audio ABI. The separate
+allocation until finish; it never retains PCM/output buffers. It changes neither this transport ABI nor the separately versioned
+experimental capture ABI, and establishes no native capture format. The separate
 generated-signal SBC self-test now links the target codec through that C
 boundary; hardware execution remains separately recorded. The independent
 `continuous-sbc` Rust runtime feature calls that same owner through
@@ -122,3 +122,42 @@ bounded `usleep` request per caller step retain no output pointer. Cancellation
 skips native calls; close consumes cached state once. See PLATFORM-CLOCK.md for
 exact signatures, lifetime, conversion, regression, request bounds and source
 review. An at-most-1ms request is not a measured bound on native elapsed time.
+
+
+## Native application imports and control-only entry
+
+The separate `application-control` feature uses the unchanged store/listener
+boundaries and independent clock ABI through `ps5-app` fixed-storage owners.
+`platform/ps5/application/posix_bridge.h` defines the independent `0x00010000`
+selected-export bridge and its 48-byte numeric report. Native sockaddr/stat,
+flags and errno types stay in C compiled against the exact pinned header closure.
+All required exports resolve before any descriptor acquisition; no native layout,
+raw syscall number or libc import is invented. See PS5-POSIX-IMPORTS.md.
+
+The Rust application entry and Stop hooks are primitive experimental functions:
+
+```c
+void ps5_rust_application_request_stop(void);
+int32_t ps5_rust_application_stop_requested(void);
+int32_t ps5_rust_application_probe(
+    int64_t (*lookup)(const char *, void **),
+    const uint8_t *secret, uint32_t secret_len);
+```
+
+The caller supplies exactly 32 readable lowercase ASCII hex bytes from fresh
+128-bit entropy, keeps the reviewed resolver/export lifetimes valid, initializes
+matching native POSIX imports first and scrubs its original token after return.
+Rust validates/copies the secret into an owned scrub guard and retains no pointer
+after the call. No secret, path or native pointer appears in reports. Missing
+imports/entropy prevent entry; no predictable fallback is permitted. The concurrent
+Stop latch remains available throughout finite startup/drive/cleanup and is not
+reset at entry. Non-reentrant backing storage is protected by an atomic guard;
+cleanup uncertainty poisons reuse. Return 0 means clean control-only completion
+or cancellation, never audio acceptance; return 1 means failure. Actual operation
+and cleanup masks/diagnostics distinguish unacquired from closed resources.
+
+This entry binds only an ephemeral loopback listener and uses the existing private
+`/data/ps5-bt/control` directory, requiring mode 0700. It issues no radio command,
+creates no credit owner and performs no capture or codec call. It changes no
+transport ABI version or existing diagnostic's bounds. Native imports, entropy,
+protection and timing remain Requires hardware; see APPLICATION-STARTUP.md.

@@ -1,5 +1,74 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "ps5_bt.h"
+#ifdef PS5_BT_APPLICATION_CONTROL
+#include "application/posix_bridge.h"
+#include "bootstrap/bootstrap.h"
+static void application_field(const char *name, uint64_t value,
+                              unsigned digits) {
+  char line[128];
+  uint32_t length = 0;
+  while (*name && length < 90)
+    line[length++] = *name++;
+  for (unsigned bits = digits * 4; bits; bits -= 4)
+    line[length++] = "0123456789abcdef"[(value >> (bits - 4)) & 15];
+  line[length++] = '\n';
+  ps5_platform_log((const uint8_t *)line, length);
+}
+static void application_import_report(const struct ps5_app_posix_report *r) {
+  application_field("application_import_stage=0x", r->stage, 8);
+  application_field("application_import_status_bits=0x", (uint32_t)r->status,
+                    8);
+  application_field("application_import_errno=0x", (uint32_t)r->raw_errno, 8);
+  application_field("application_import_lookup_hi=0x",
+                    (uint64_t)r->raw_lookup >> 32, 8);
+  application_field("application_import_lookup_lo=0x", (uint32_t)r->raw_lookup,
+                    8);
+  application_field("application_import_return_hi=0x",
+                    (uint64_t)r->raw_return >> 32, 8);
+  application_field("application_import_return_lo=0x", (uint32_t)r->raw_return,
+                    8);
+  application_field("application_import_resolved=0x", r->resolved, 8);
+  application_field("application_import_cleanup_flags=0x", r->cleanup_flags, 8);
+  application_field("application_import_cleanup_errno=0x",
+                    (uint32_t)r->cleanup_errno, 8);
+}
+static int application_control(void) {
+  const uint8_t begin[] = "event=application_preflight_begin schema=1 "
+                          "radio=Unavailable capture=Unavailable\n";
+  const uint8_t failed[] = "event=application_preflight_failed\n";
+  const uint8_t cancelled[] = "event=application_preflight_cancelled\n";
+  const uint8_t complete[] = "event=application_preflight_cleanup_complete\n";
+  struct ps5_app_posix_report report;
+  uint8_t secret[32] = {0};
+  ps5_platform_log(begin, sizeof begin - 1);
+  int32_t status = ps5_app_posix_init_cancel(
+      ps5_bootstrap_lookup, ps5_rust_application_stop_requested, &report);
+  application_import_report(&report);
+  if (status) {
+    ps5_platform_log(status == 1 ? cancelled : failed,
+                     status == 1 ? sizeof cancelled - 1 : sizeof failed - 1);
+    return status == 1 ? 0 : 1;
+  }
+  status = ps5_app_random_token_cancel(
+      secret, ps5_rust_application_stop_requested, &report);
+  application_import_report(&report);
+  int result = 0;
+  if (status) {
+    result = (status == 1 && !report.cleanup_flags) ? 0 : 1;
+    ps5_platform_log(status == 1 ? cancelled : failed,
+                     status == 1 ? sizeof cancelled - 1 : sizeof failed - 1);
+  } else
+    result =
+        ps5_rust_application_probe(ps5_bootstrap_lookup, secret, sizeof secret);
+  ps5_app_scrub(secret, sizeof secret);
+  int32_t cleanup = ps5_app_posix_shutdown(&report);
+  application_import_report(&report);
+  if (cleanup)
+    result = 1;
+  ps5_platform_log(complete, sizeof complete - 1);
+  return result;
+}
+#endif
 #ifdef PS5_BT_NATIVE_L2CAP_PROBE
 #include "bootstrap/bootstrap.h"
 #include "diagnostics/native_l2cap_probe.h"
@@ -151,6 +220,10 @@ int main(void) {
   ps5_platform_log(run_begin, sizeof run_begin - 1);
 #endif
   int result = (int)ps5_rust_probe();
+#ifdef PS5_BT_APPLICATION_CONTROL
+  if (application_control() != 0)
+    result = 1;
+#endif
 #ifdef PS5_BT_CAPTURE_STREAM
   if (ps5_rust_capture_stream(ps5_continuous_now_us) != 0)
     result = 1;

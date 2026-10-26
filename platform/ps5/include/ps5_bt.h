@@ -30,5 +30,10 @@ _Noreturn void ps5_platform_abort(void);
 
 /* Rust entry consumed by our C bootstrap. */
 int32_t ps5_rust_probe(void);
+/* Independently selected bounded control-only entry. secret is 32 lowercase hex
+ * bytes from a protected native source, valid only for the synchronous call. */
+int32_t ps5_rust_application_probe(int64_t (*lookup)(const char *, void **), const uint8_t *secret, uint32_t secret_len);
+void ps5_rust_application_request_stop(void);
+int32_t ps5_rust_application_stop_requested(void);
 
 #endif

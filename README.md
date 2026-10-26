@@ -10,8 +10,9 @@ with future Linux and FreeBSD backends.
 
 **Status: diagnostic ELF bring-up. No playable audio or
 verified PS5 support yet.** The workspace contains portable contracts and packet
-parsers, a Rust/C seam, and an adapter that explicitly returns
-`Unsupported`. It is an independent project, not a translation or fork of an
+parsers, Rust/C capture and codec candidates, and a separately selected
+control-only native application assembly. The production Bluetooth adapter
+explicitly returns `Unsupported`. It is an independent project, not a translation or fork of an
 existing payload. The final public name is undecided; repository and package
 collision checks must precede naming. All Cargo packages are `publish = false`.
 
@@ -57,14 +58,15 @@ The earlier second-machine build reproduction remains in
 | Bounded capture observation | Executed on one Slim/13.40 environment | immediate Empty then 8,192 bytes after one wait; checked clock call and clean cleanup; native PCM format/timestamp still unknown |
 | SBC-over-RTP/A2DP packetization | Implemented on host | fixed negotiated MTU/frame boundaries, atomic backpressure, sequence/sample timestamps and wrap tests; no AVDTP/live stream |
 | Media send orchestration | Implemented on host | SBC/RTP/L2CAP/ACL submission now uses an external credit owner; Busy/credit stops retain the PDU and terminal errors report cancellation counts; no clock or live transport |
+| PS5 control-only application assembly | Target-linked candidate | actual factory, protected store, persistent listener, fallible clock and bounded Rust loop; ephemeral loopback only, no radio/capture/codec operation; PS5 execution pending |
 | PS5 resource factory | Rust candidate | concrete fixed-storage clock/store/listener/capture/SBC constructors, staged acquisition and reverse cleanup; native imports/behavior require validation, unknown format and radio authority remain gated |
 | Bounded application loop and resource rebuild | Portable candidate | typed HTTP/control/input/capture/encode/send lanes, work quotas, observable global stop and consume-once resources; factory reopen preserves fault tickets/epochs; native acquisition and readiness remain pending |
 | Management/ACL runner | Portable candidate | discovery-to-device/SSP bridge, actual capability gates, retained input and shared-credit control/media ordering; no production PS5 acquisition or ownership authority |
 | Single-owner application driver | Implemented on host | device security, SDP/channel scheduling, explicit start/stop/restart, continuous audio handoff and finite media/recovery budgets; typed loop/listener candidates, no activated PS5 backend |
 | A2DP source session binding | Implemented on host | Classic Ready/context gate, automatic bounded SBC negotiation, explicit sample-gap timestamps, media-channel binding, partial-PDU-aware stop and clean restart; no capture/encoder/pacing, LAN owner loop or PS5 activation |
 | Native clock/finite wait | Experimental adapter | separately versioned, fallible cached clock and one at-most-1ms wait request per step; host/native fixture and target-object checks only, native latency remains unverified |
-| Native control listener/service | POSIX candidate | bounded sequential-client service, fixed HTTP buffers, per-request/total budgets, Stop before accept/read and consume-once cleanup; native PS5 link/permissions remain unverified |
-| LAN management service/page | Portable candidate | bounded v1/v2 HTTP service, actual-state actions, opaque device/SSP IDs, safe static page and nonblocking connection pump; no PS5 listener or activation |
+| Native control listener/service | Target-linked candidate | bounded sequential clients and fixed HTTP buffers; selected-export PS5 link plus native startup assembly, with runtime imports/permissions still Requires hardware |
+| LAN management service/page | Portable service and control-only startup candidate | bounded v1/v2 authenticated service and actual-state page; separate ephemeral loopback candidate keeps all radio/capture/codec operations unavailable |
 | Experimental Rust capture entry | Candidate | separate versioned Avcap2 ABI and consume-once owner, explicit unknown format/time, tested normalization/timeline/block bridge; one-read target ELF linked, PS5 execution pending |
 | Continuous PCM-to-SBC scheduling | Implemented on host | sample-clock block pacing, retained encoded offers, bounded concealment/rebuffer/expiry and persistent real host codec adapter; declared normalized input and independent target encoder/capture candidates, no playable PS5 integration |
 | PCM staging, nominal sample timeline and bounded recovery | Host-only implementation | caller-owned stereo i16 queue; synthetic gaps/stalls; no resampler or live audio |
@@ -74,7 +76,7 @@ The earlier second-machine build reproduction remains in
 | PS5 diagnostic ELF with explicit loader kernel resolver | Verified on one environment | Slim/13.40: Rust entry, durable lifecycle and final 2; notifications returned success |
 | Optional read-only native stack-version query | Executed | sysctlbyname resolved; query returned -1; version and controller remain Unknown |
 | Unconnected native L2CAP socket probe | Executed; negative on one Slim/13.40 | UDP control created/closed; L2CAP creation -1 / errno 47; normal wireless input; no usable native channel established |
-| Live PS5 transport and capture | Unsupported | adapter explicitly returns Unsupported |
+| Production PS5 Bluetooth/captured-audio playback | Unsupported | transport remains Unsupported; experimental capture byte reads do not establish PCM format or playback |
 | PS5 Fat / Slim / Pro | Limited hardware evidence | one Slim/13.40 diagnostic run path; other models and Bluetooth remain Unknown |
 | Console firmware | Limited hardware evidence | user-reported 13.40 diagnostic execution only |
 | Marvell/NXP and MediaTek controllers | Experimental research targets | upstream source inspected; no live backend |
@@ -106,6 +108,7 @@ make ps5-native-query # separate opt-in query ELF; run only after baseline entry
 make ps5-native-l2cap-probe # create/close two unconnected sockets; no radio traffic requested
 make ps5-sbc-selftest # generated-signal codec test; no Bluetooth/capture operation
 make ps5-capture-observe # first data/deadline/error, at most 20 reads/two seconds
+make ps5-application-control # separate finite loopback/control-only candidate; PS5 unverified
 python3 tools/mvp_test_kit.py # dry-run next-window plan; no network/deployment
 ```
 
@@ -154,7 +157,7 @@ This policy does not import an upstream stack or transfer its hardware claims. S
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
 The workspace contains `bt-a2dp`, `bt-app`, `bt-audio`, `bt-avdtp`, `bt-channel`,
 `bt-control`, `bt-core`, `bt-device`, `bt-discovery`, `bt-store`, `bt-runner`,
-`bt-listener`,
+`bt-listener`, `bt-capture`, `ps5-app`,
 `bt-codec`, `bt-hci`, `bt-l2cap`, `bt-link`, `bt-media-session`, `bt-sdp`,
 `bt-session`, `ps5-sys`,
 `ps5-platform`, and `ps5-runtime`. The first initiator-side L2CAP Basic-mode channel machine, SDP
@@ -168,10 +171,18 @@ media-channel binding and the existing credit-aware sender on the host; it has
 no PS5 activation. See [the application binding contract](docs/SOURCE-SESSION.md).
 The bounded LAN management service and static page are implemented; see
 [the control contract](docs/LAN-MANAGEMENT.md). An [optional native listener](docs/CONTROL-LISTENER.md) is implemented separately.
-A PS5 socket listener is not active. The [portable application driver](docs/APPLICATION-OWNER.md) now owns
-selected-device security, channel/SDP progression, source negotiation, normalized
-PCM encoding/pacing handoff and bounded stop/recovery. Native capture/target
-encoder integration, a live PS5 owner loop and PS5 LAN listener remain absent.
+The [portable application driver](docs/APPLICATION-OWNER.md) owns selected-device
+security, channel/SDP progression, source negotiation, normalized PCM scheduling
+and bounded stop/recovery. Rust capture and target SBC seams are implemented as
+independent candidates; actual native format, traffic ownership and headset
+acceptance remain unresolved.
+The separate [control-only application](docs/APPLICATION-STARTUP.md) assembles
+`ps5-app`, the real protected store/listener/clock, Application/Runner and a finite
+owner loop. It binds an ephemeral loopback port and uses a fresh unlogged bearer
+secret. It requires an existing private `/data/ps5-bt/control` directory with mode
+0700; it creates no directory. No radio, capture or codec operation is enabled.
+PS5 imports, entropy, filesystem protection and scheduling remain Requires
+hardware. The default diagnostic and existing capture/SBC bounds stay unchanged.
 The [portable management/ACL runner](docs/APPLICATION-RUNNER.md) supplies bounded
 loop steps and explicit retained-packet/ticket ownership for a platform scheduler.
 See [next-session work and hardware run order](docs/MVP-NEXT-RUN.md).
@@ -214,9 +225,9 @@ Bluetooth protocol stack has been imported; the capture diagnostic adaptation
 has separate provenance. [UPSTREAM.md](docs/UPSTREAM.md)
 records exact revisions, licenses, behavior provenance, credits, and update rules.
 The optional codec imports selected BlueZ libsbc 2.2 source under
-LGPL-2.1-or-later with three recorded patches. Only the separately selected
-target self-test links that archive into a PS5 ELF; production codec execution
-remains unverified. The corresponding-source package includes application
+LGPL-2.1-or-later with three recorded patches. The separately selected
+short self-test and continuous Rust diagnostic link that replaceable archive
+into PS5 ELFs; production codec execution remains unverified. The corresponding-source package includes application
 objects and a working codec replacement/relink script. See
 [target codec workflow](docs/SBC-TARGET.md) and
 [vendored notices](third_party/sbc/VENDORED.md).

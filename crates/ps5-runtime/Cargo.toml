@@ -12,10 +12,19 @@ crate-type = ["rlib", "staticlib"]
 
 [features]
 default = []
+application-control = ["dep:bt-runner", "dep:bt-app", "dep:bt-device", "dep:bt-discovery", "dep:bt-control", "dep:bt-listener", "dep:bt-capture", "dep:bt-audio", "dep:ps5-app", "ps5-app/native-resources", "bt-listener/external-posix"]
+application-control-host = ["application-control", "ps5-app/host-candidate"]
 capture-stream = ["dep:bt-capture", "bt-capture/external-avcap2"]
 continuous-sbc = ["dep:bt-audio", "bt-audio/target-libsbc"]
 
 [dependencies]
+ps5-app = { path = "../ps5-app", optional = true }
+bt-listener = { path = "../bt-listener", optional = true }
+bt-control = { path = "../bt-control", optional = true }
+bt-discovery = { path = "../bt-discovery", optional = true }
+bt-device = { path = "../bt-device", optional = true }
+bt-app = { path = "../bt-app", optional = true }
+bt-runner = { path = "../bt-runner", optional = true }
 bt-capture = { path = "../bt-capture", optional = true }
 bt-audio = { path = "../bt-audio", optional = true }
 bt-core = { path = "../bt-core" }

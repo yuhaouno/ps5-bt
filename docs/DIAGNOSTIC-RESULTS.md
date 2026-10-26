@@ -8,8 +8,9 @@ an operator-held input; the JSON never embeds arbitrary log text or file paths.
 
 ## Artifact and run correlation
 
-The new independently selected Rust `sbc-continuous` and `capture-stream`
-artifacts embed the build identity recorded by their manifest:
+The independently selected Rust `sbc-continuous`, `capture-stream` and
+`application-control` artifacts embed the build identity recorded by their
+manifest:
 
 ```text
 event=run_begin build_id=<64 lowercase hex digits> candidate=<artifact stem>
@@ -116,6 +117,76 @@ material are never copied into JSON. A raw log hash is retained without the
 log contents. Extend the whitelist and profile validation deliberately when
 adding another artifact or changing a diagnostic contract.
 
+## Control-only application profile
+
+The `application_control` manifest flag selects only
+`ps5-bt-application-control`. It follows the same unique outer run identity and
+final exit/return rules. Its C preflight can fail or be cancelled before Rust
+runtime entry, so the collector records `runtime_entered` and
+`preflight_outcome` separately. Missing native imports or a private-directory /
+factory failure followed by a complete outer lifecycle are `complete_failure`,
+not `missing_entry`. A preflight cancellation before runtime entry is
+`incomplete_evidence`; it is not a completed runtime acceptance test. An early
+clean Stop that never drives the complete application is also incomplete.
+
+A successful profile requires exactly the current source-defined begin event:
+
+```text
+event=application_begin schema=1 mode=control-only transport=Unavailable capture=Unavailable native_format=Unknown codec=Unavailable
+```
+
+The runtime logs the actual numeric configuration passed to execution. The
+collector requires duration 5,000,000 microseconds, aggregate stop timeout
+100,000 microseconds, at most 20,000 turns, 10,000 waits and 64 accepted clients.
+These are operation/time budgets, not measured latency or real-time scheduling
+guarantees. Clock/turn/wait/client counters must respect those bounds; a
+nonzero drive failure, forced stop, unfinished state, stop error or invalid
+configuration cannot pass. Stop reasons 1 (Requested) and 2 (Deadline) are the
+only successful complete-run reasons. The application must report closed
+protocol state and matching completed native resource cleanup.
+
+The factory emits numeric required/active/cleanup/failed masks. The complete
+control-only profile requires required mask 7, active mask 0, cleanup mask 7,
+failed mask 0 and cleanup uncertainty 0. The bits are factory resource indices:
+Clock 0, Store 1, Listener 2, Capture 3 and Encoder 4. Partial startup may report
+only a subset cleaned; that evidence is retained without promoting the run to
+full startup success. Individual missing mask/cleanup records remain Unknown.
+`application_fault_resource` uses the separate MainLoop resource namespace;
+`application_failed_resource` uses factory indices. The collector retains these
+raw numbers and does not silently reinterpret one namespace as the other.
+
+C's import/entropy/shutdown records are bounded groups of the same ten
+whitelisted numeric fields, beginning with `application_import_stage`. A full
+successful runtime requires init stage 3 with 23 resolved exports, entropy stage
+6, shutdown stage 8, all matching zero status/errno/lookup/cleanup fields, and an
+explicit `application_preflight_cleanup_complete` after shutdown. Each group
+must be complete and appear in order: init, entropy, Rust begin/report/complete,
+shutdown, preflight cleanup. Import `return_hi`/`return_lo` retain the raw signed i64 native return as two
+u32 words. Full success requires init/shutdown raw return 0 and the last successful
+entropy read between 1 and 16 bytes; zero, negative or oversized entropy returns
+cannot pass even with a forged Complete marker. Import state cleanup and native factory cleanup
+are separate results; neither implies the other. A missing shutdown or missing
+factory cleanup is not repaired by a final status 2. Cancellation/failure can
+retain a shorter import report sequence with cleanup Unknown.
+
+HTTP failure records are bounded five-field groups with a source, cause, raw
+error bits, cleanup-present flag and cleanup bits. Clean recoverable client
+timeouts/cancellations remain observable and need not fail an otherwise completed
+service test. Malformed groups, any present/nonzero cleanup error, a failed close
+or terminal service/application error cannot pass. A later successful factory
+close does not erase an earlier uncertain HTTP client close. Factory and HTTP
+cleanup evidence remain distinct in the record.
+
+Only fixed numeric error/counter/mask fields and fixed profile strings are
+persisted. Import resolution addresses, private-directory paths, HTTP bearer
+material, arbitrary `application_*` fields and request contents are excluded.
+`configuration_confirmed` distinguishes matching actual runtime configuration
+from the required profile shown for a preflight that never entered Rust.
+Transport, capture and codec remain Unavailable and native format remains
+Unknown; this profile establishes no Bluetooth/audio activation. All headset
+audio acceptance and PS5 log persistence remain Unknown even after a complete
+control-only result.
+
 ## Resource and persistence bounds
 
 Each input must be a regular local file of at most 1 MiB. Logs have at most
@@ -148,5 +219,8 @@ python3 tests/tools/test_diagnostic_result.py
 Tests cover complete profiles, interrupted and truncated logs, identity reuse,
 fake/early completion, failed status and digest/count/timing mismatches, missing
 cleanup, controller Unknown/changed, dirty source, duplicate keys, input bounds,
-private atomic no-clobber output and both file/directory fsync failures. These
+private atomic no-clobber output and both file/directory fsync failures. The
+application profile additionally covers preflight failure/cancellation, native
+factory faults, unavailable gates, actual budget limits, missing/duplicate masks,
+import-group integrity/order and secret/path/address exclusion. These
 are collection tests against synthetic logs, not hardware evidence.

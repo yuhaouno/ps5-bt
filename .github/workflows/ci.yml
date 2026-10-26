@@ -18,3 +18,5 @@ jobs:
         run: rustup show active-toolchain
       - name: Host tests, C boundary and no_std archive
         run: make check check-c-sanitize
+      - name: Native resource and application startup candidates
+        run: make application-startup-test

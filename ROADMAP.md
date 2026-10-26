@@ -19,6 +19,15 @@ Source-backed isolated transport experiments use AGENTS.md's admission rules;
 production ownership/credit guarantees still gate support. No console window
 is currently available from this chat; the 2026-10-25 window below is historical.
 
+The separate `ps5-application-control` candidate now assembles the real resource
+factory, protected store, persistent listener, fallible clock and Rust application
+loop into a target-linked ELF. It uses an existing private 0700 directory,
+ephemeral loopback and fresh unlogged authorization; no Bluetooth, capture or codec
+operation occurs. Startup unwinds partial resources and store leases observably;
+Stop, clock faults and execution budgets remain bounded. PS5 imports, entropy,
+filesystem/scheduling and controller coexistence are still Requires hardware.
+See [APPLICATION-STARTUP.md](docs/APPLICATION-STARTUP.md).
+
 The Rust `ps5-app` candidate now constructs actual reviewed native resource
 owners in stages and unwinds them in reverse on startup failure. Control-only,
 unknown-format capture observation and explicit generated-SBC modes are separate;
@@ -28,14 +37,16 @@ See [PS5-RESOURCE-FACTORY.md](docs/PS5-RESOURCE-FACTORY.md).
 A persistent listener service now safely lends its owned native client to
 reusable HTTP state, accepts successive clients under total budgets and checks
 Stop before accept/read. This closes the single-client wiring gap offline;
-PS5 import/permission and native application activation remain separate gates.
+The control-only target now links that listener; PS5 import/permission behavior
+and any LAN/radio/audio activation remain separate gates.
 See [LISTENER-SERVICE.md](docs/LISTENER-SERVICE.md).
 
-The two new Rust diagnostic artifacts now embed matching build identities.
+Three Rust candidates—capture-stream, continuous SBC and application-control—
+now embed matching build identities.
 A bounded local collector records actual numeric outcomes, cleanup, interruption
 and explicit controller observations without copying private log text; host
-persistence does not prove PS5 durability. Six independently selectable artifacts
-have matching source/relink/kit support. See
+persistence does not prove PS5 durability. Seven independently selectable kit artifacts have matching source support;
+the codec selections additionally retain replacement/relink materials. See
 [DIAGNOSTIC-RESULTS.md](docs/DIAGNOSTIC-RESULTS.md).
 
 A separate fallible native clock/wait candidate now provides cached reviewed
@@ -47,8 +58,9 @@ The portable application loop now binds concrete HTTP/control/input/audio/send
 owners under finite quotas and global Stop. Factory-based resource reconstruction
 consumes capture/encoder cleanup, retains failure budgets and uses fresh epochs;
 a rebuilt application accepts an already-spent retry ticket without spending it
-again. Native PS5 factory and readiness wiring stay gated by transport/capture
-evidence. See [APPLICATION-LOOP.md](docs/APPLICATION-LOOP.md).
+again. Native resource construction now has an independent control-only assembly;
+production routing/readiness and capture/audio activation remain gated by
+transport/format evidence. See [APPLICATION-LOOP.md](docs/APPLICATION-LOOP.md).
 
 The experimental Rust capture owner now has a separate Avcap2 ABI, explicit
 format/time evidence, declared-input normalization and retained block bridge.
@@ -129,9 +141,9 @@ media submission driver now pass host tests and the real SBC example, including
 Busy retry, zero-credit backpressure and exact completion accounting. They do
 not establish a hardware reservation, native routing or sample-clock pacing.
 The thin LAN foundation now has a host-tested authenticated request boundary,
-single-owner command tickets and redacted status serialization. It has no
-listener, rendered page or PS5 integration and therefore is not a user-facing
-control capability yet.
+single-owner command tickets and redacted status serialization. At that earlier snapshot it had no listener or rendered page. The later
+service, resource factory and control-only application candidate above supersede
+that implementation limit without supplying radio or audio acceptance.
 
 | Milestone | Deliverable | Exit evidence | Current state |
 | --- | --- | --- | --- |
@@ -159,8 +171,8 @@ the runtime is reviewed. Do not open artificial issues for each empty crate.
 
 Initial host validation: four Rust parser tests, 15 C/Rust seam scenarios, C stub
 contract checks, fmt/check/Clippy and the freestanding archive build/inspection.
-Current local checks: 289 ordinary Rust tests, one compile-fail check and eight
-host codec checks,
+Earlier portable-wave checks: 289 ordinary Rust tests, one compile-fail check
+and eight host codec checks,
 208 encoder reference vectors, 12 decoder checks, replacement-archive linking,
 four host PCM recovery scenarios,
 descriptor/native-query C tests with ASan/UBSan, 15 ABI

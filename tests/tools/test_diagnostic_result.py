@@ -42,6 +42,44 @@ def log(candidate="sbc-continuous", status=2):
                       f"event=payload_return status={status}", ""])
 
 
+def imports(stage, status=0, resolved=0, cleanup_flags=0, cleanup_errno=0, errno=0):
+    values = {"stage": stage, "status_bits": status, "errno": errno, "lookup_hi": 0,
+              "lookup_lo": 0, "return_hi": 0, "return_lo": 16 if stage == 6 and status == 0 else 0,
+              "resolved": resolved, "cleanup_flags": cleanup_flags,
+              "cleanup_errno": cleanup_errno}
+    return [f"application_import_{key}=0x{value:08x}" for key, value in values.items()]
+
+
+def application_log(fields=None, preflight=None, status=2):
+    body = [result.APPLICATION_PREFLIGHT]
+    if preflight == "failed":
+        body += imports(2, status=0xffffffff, resolved=3)
+        body += ["event=application_preflight_failed"]
+    elif preflight == "cancelled":
+        body += imports(2, status=1, resolved=3)
+        body += ["event=application_preflight_cancelled"]
+    elif preflight == "entropy_cancelled":
+        body += imports(3, resolved=23) + imports(4, status=1)
+        body += ["event=application_preflight_cancelled"] + imports(8)
+        body += ["event=application_preflight_cleanup_complete"]
+    else:
+        values = {**result.APPLICATION_BUDGET, "result": 0, "drive_entered": 1, "factory_entered": 1,
+                  "stop_reason": 2, "drive_failure": 0, "clock_calls": 1000, "turns": 1000,
+                  "waits": 990, "forced": 0, "finished": 1, "stop_error_bits": 0,
+                  "cleanup_uncertain": 0, "required_mask": 7, "active_mask": 0, "cleanup_mask": 7,
+                  "cleanup_failed_mask": 0, "clients": 2, "client_failures": 0, "protocols_closed": 1}
+        if fields is not None:
+            values.update(fields)
+        body += imports(3, resolved=23) + imports(6)
+        body += [result.APPLICATION_CONFIG]
+        body += [f"application_{key}=0x{value:08x}" for key, value in values.items()]
+        body += ["event=application_complete"] + imports(8)
+        body += ["event=application_preflight_cleanup_complete"]
+    return "\n".join([f"event=run_begin build_id={BUILD} candidate=ps5-bt-application-control", *body,
+                      f"event=run_finish build_id={BUILD}", f"event=payload_exit status={status}",
+                      f"event=payload_return status={status}", ""])
+
+
 class CollectorTest(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
@@ -187,6 +225,116 @@ class CollectorTest(unittest.TestCase):
     def test_duplicate_termination_and_fake_embedded_return_are_interrupted(self):
         for text in [log() + "event=payload_return status=2\n", log().replace("event=payload_return", "prefix event=payload_return")]:
             self.assertEqual(self.collect(text)["classification"], "interrupted")
+
+    def test_application_control_complete_profile_records_radio_unavailable(self):
+        record = self.collect(application_log(), manifest("application-control"))
+        self.assertEqual(record["classification"], "complete_success")
+        diagnostic = record["diagnostic"]
+        self.assertTrue(diagnostic["runtime_entered"])
+        self.assertTrue(diagnostic["configuration_confirmed"])
+        self.assertEqual(diagnostic["cleanup"], "reported_complete")
+        self.assertEqual(diagnostic["configuration"]["transport"], "Unavailable")
+        self.assertEqual(diagnostic["configuration"]["native_format"], "Unknown")
+        self.assertEqual([group["stage"] for group in diagnostic["imports"]], [3, 6, 8])
+        self.assertEqual(record["audio_acceptance"], "Unknown")
+
+    def test_application_preflight_failure_and_cancellation_never_infer_runtime_entry(self):
+        record = self.collect(application_log(preflight="failed", status=1), manifest("application-control"))
+        self.assertEqual(record["classification"], "complete_failure")
+        self.assertFalse(record["diagnostic"]["runtime_entered"])
+        self.assertEqual(record["diagnostic"]["preflight_outcome"], "failed")
+        self.assertEqual(record["diagnostic"]["cleanup"], "Unknown")
+        for stage in ["cancelled", "entropy_cancelled"]:
+            record = self.collect(application_log(preflight=stage), manifest("application-control"))
+            self.assertEqual(record["classification"], "incomplete_evidence")
+            self.assertFalse(record["diagnostic"]["runtime_entered"])
+            self.assertEqual(record["diagnostic"]["preflight_outcome"], "cancelled")
+            self.assertEqual(record["diagnostic"]["factory_cleanup"], "Unknown")
+        self.assertEqual(record["diagnostic"]["preflight_cleanup"], "reported_complete")
+
+    def test_application_native_factory_failure_and_cleanup_fault_remain_complete_failures(self):
+        for fields in [{"result": 1, "stop_reason": 3, "failed_resource": 1, "error_bits": 0xfffffffb},
+                       {"cleanup_uncertain": 1}, {"cleanup_failed_mask": 2}, {"active_mask": 1},
+                       {"forced": 1}, {"finished": 0}, {"stop_error_bits": 0xfffffffd}]:
+            with self.subTest(fields=fields):
+                record = self.collect(application_log(fields), manifest("application-control"))
+                self.assertEqual(record["classification"], "complete_failure")
+        text = application_log().replace("application_import_cleanup_flags=0x00000000", "application_import_cleanup_flags=0x00000001", 1)
+        self.assertEqual(self.collect(text, manifest("application-control"))["classification"], "complete_failure")
+
+    def test_application_gates_config_counts_and_budget_are_checked(self):
+        for fields in [{"max_turns": 20001}, {"duration_us": 1}, {"turns": 20001},
+                       {"waits": 10001}, {"clients": 65}, {"client_failures": 3},
+                       {"clock_calls": 1001}, {"clock_calls": 0}, {"drive_failure": 4}, {"stop_reason": 8}]:
+            with self.subTest(fields=fields):
+                self.assertEqual(self.collect(application_log(fields), manifest("application-control"))["classification"], "complete_failure")
+        text = application_log().replace("transport=Unavailable capture=Unavailable native_format=Unknown codec=Unavailable", "transport=Ready capture=Unavailable native_format=Unknown codec=Unavailable")
+        self.assertEqual(self.collect(text, manifest("application-control"))["classification"], "complete_failure")
+
+    def test_application_missing_cleanup_duplicate_markers_and_partial_logs_do_not_pass(self):
+        original = application_log()
+        for text in [original.replace("application_cleanup_mask=0x00000007\n", ""),
+                     original.replace("event=application_preflight_cleanup_complete\n", ""),
+                     original.replace("event=application_complete", "event=application_complete\nevent=application_complete"),
+                     original.replace(result.APPLICATION_CONFIG, result.APPLICATION_CONFIG + "\n" + result.APPLICATION_CONFIG),
+                     original.replace("application_turns=0x000003e8", "application_turns=0x000003e8\napplication_turns=0x000003e8")]:
+            self.assertNotEqual(self.collect(text, manifest("application-control"))["classification"], "complete_success")
+        text = original[:original.index("event=application_complete")]
+        self.assertEqual(self.collect(text, manifest("application-control"))["classification"], "interrupted")
+
+    def test_application_preflight_group_integrity_order_and_redaction(self):
+        original = application_log()
+        for text in [original.replace("application_import_errno=0x00000000\n", "", 1),
+                     original.replace("application_import_resolved=0x00000017", "application_import_resolved=0x00000016"),
+                     original.replace("application_import_errno=0x00000000", "application_import_errno=0x00000001", 1),
+                     original.replace("event=application_complete\n", "").replace(result.APPLICATION_CONFIG, result.APPLICATION_CONFIG + "\nevent=application_complete")]:
+            self.assertNotEqual(self.collect(text, manifest("application-control"))["classification"], "complete_success")
+        secret = "00001111222233334444555566667777"
+        text = original.replace("event=application_complete", f"application_token={secret}\napplication_path=/private/operator/path\napplication_address=192.168.1.9\nevent=application_complete")
+        record = self.collect(text, manifest("application-control"))
+        self.assertEqual(record["classification"], "complete_success")
+        encoded = json.dumps(record)
+        for text in [secret, "/private/operator/path", "192.168.1.9"]:
+            self.assertNotIn(text, encoded)
+
+    def test_application_http_cleanup_groups_are_explicit_and_fail_closed(self):
+        def with_http(values):
+            lines = "".join(f"application_http_{key}=0x{value:08x}\n" for key, value in values.items())
+            return application_log().replace("event=application_complete", lines + "event=application_complete")
+        clean = {"failure_source": 1, "failure_cause": 4, "failure_raw_bits": 0,
+                 "cleanup_present": 0, "cleanup_bits": 0}
+        record = self.collect(with_http(clean), manifest("application-control"))
+        self.assertEqual(record["classification"], "complete_success") # recoverable client timeout
+        self.assertEqual(record["diagnostic"]["http"], [clean])
+        for group in [{**clean, "cleanup_present": 1, "cleanup_bits": 35},
+                      {**clean, "cleanup_bits": 35}, {**clean, "cleanup_present": 2},
+                      {**clean, "failure_source": 4}, {**clean, "failure_source": 2},
+                      {**clean, "failure_cause": 9}, {**clean, "failure_cause": 99},
+                      {key: value for key, value in clean.items() if key != "cleanup_bits"}]:
+            self.assertEqual(self.collect(with_http(group), manifest("application-control"))["classification"], "complete_failure")
+        malformed = with_http(clean).replace("event=application_complete", "application_http_cleanup_bits=invalid\nevent=application_complete")
+        self.assertEqual(self.collect(malformed, manifest("application-control"))["classification"], "complete_failure")
+        duplicate = with_http(clean).replace("event=application_complete", "".join(f"application_http_{key}=0x{value:08x}\n" for key, value in clean.items()) + "event=application_complete")
+        self.assertEqual(self.collect(duplicate, manifest("application-control"))["classification"], "complete_failure")
+
+    def test_application_entropy_native_return_is_bounded_and_retained(self):
+        original = application_log()
+        for value in [0, 17, 0xffffffff]:
+            text = original.replace("application_import_return_lo=0x00000010", f"application_import_return_lo=0x{value:08x}")
+            record = self.collect(text, manifest("application-control"))
+            self.assertEqual(record["classification"], "complete_failure")
+            self.assertEqual(record["diagnostic"]["imports"][1]["return_lo"], value)
+
+    def test_application_clean_early_stop_is_incomplete_without_full_runtime_acceptance(self):
+        fields = {"result": 0, "drive_entered": 0, "factory_entered": 0}
+        text = application_log()
+        start = text.index("application_result=")
+        end = text.index("event=application_complete")
+        text = text[:start] + "".join(f"application_{key}=0x{value:08x}\n" for key, value in fields.items()) + text[end:]
+        record = self.collect(text, manifest("application-control"))
+        self.assertEqual(record["classification"], "incomplete_evidence")
+        self.assertTrue(record["diagnostic"]["runtime_entered"])
+        self.assertEqual(record["diagnostic"]["factory_cleanup"], "Unknown")
 
     def test_atomic_write_is_private_and_refuses_to_overwrite(self):
         record = self.collect()

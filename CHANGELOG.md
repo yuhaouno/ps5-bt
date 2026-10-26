@@ -14,6 +14,14 @@
 
 ## Unreleased
 
+- Add a separate finite control-only application ELF assembling the actual Rust
+  resource factory, protected store, persistent listener, fallible clock/wait,
+  Application/Runner and startup owner. Use an existing private 0700 directory,
+  ephemeral loopback bind and fresh unlogged authorization; keep radio, capture
+  and codec operations unavailable. Preserve partial-startup/store-lease cleanup,
+  bounded Stop/drain and prior client-close uncertainty. Native PS5 imports,
+  entropy, protection and scheduling still require hardware acceptance.
+
 - Add a selected-export POSIX bridge and exact SDK-header inventory for the
   native application candidate. Resolve the full table before descriptor use,
   preserve native/cleanup failures and generate ephemeral HTTP authorization

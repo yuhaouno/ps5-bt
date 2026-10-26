@@ -200,10 +200,9 @@ meaningful. Do not commit Sony firmware, library files, game data or PCM capture
 
 ## Current host limitation, 2026-10-26
 
-The ARM macOS development host passes the workspace's 396 ordinary Rust checks,
-one compile-fail check, formatting/Clippy/freestanding checks, C sanitizers,
-explicit capture/clock/codec/loop checks, host candidate suites and Rust archive
-inspection. `make check` stops at unchanged `tools/test_syscall_checked.py`
+The preceding capture/audio/loop wave recorded 396 ordinary Rust checks plus
+feature suites; current native application/resource suites are listed below.
+On this ARM macOS host, `make check` stops at unchanged `tools/test_syscall_checked.py`
 because the host cannot execute its generated x86 binary (errno 86, Bad CPU
 type). This is unavailable host execution, not a passing syscall test or PS5
 result. Keep the test intact; report the full Make target as blocked and run
@@ -298,11 +297,50 @@ with no undefined imports or SIMD register use. This is no PS5 timing result.
 
 ## Identity and local-result checks
 
-`python3 tests/tools/test_diagnostic_result.py` runs 17 adversarial tests covering
-both new profiles, exact native read/status/flag combinations, malformed or
+`python3 tests/tools/test_diagnostic_result.py` exercises all three identity-bearing
+profiles—capture-stream, continuous SBC and application-control—including exact native read/status/flag combinations, malformed or
 missing identity/configuration/cleanup, dirty manifests, truncated/interrupted
 runs, numeric bounds and private atomic file/directory-fsync failure behavior.
 Main-entry C tests check begin/probe/experiment/finish ordering. Source-package
 checks reject missing/invalid embedded identity and mismatched candidate names.
 All input logs in these checks are synthetic; controller/audio/persistence
 acceptance is never inferred from them.
+
+
+## Concrete native startup and control-only loop
+
+```sh
+make application-startup-test  # factory/import/Rust startup and C-main suites
+# Individual Rust commands:
+cargo test -p bt-runner --locked
+cargo test -p ps5-runtime --features application-control-host --locked
+cargo clippy -p ps5-runtime --all-targets --features application-control-host --locked -- -D warnings
+cargo check -p ps5-runtime --features application-control --target x86_64-unknown-none --locked
+make ps5-application-control
+```
+
+The factory suite exercises every acquisition-stage failure, reverse cleanup,
+explicit native-format gates, disabled resources, external store handoff and
+actual protected-store/loopback/listener/codec owners with synthetic native clock
+and capture exports. The selected-export C ASan/UBSan harness covers every missing,
+dirty/null import, errno/lifetime, finite entropy-device lifecycle and cancellation
+with consume-once close; it opens no console device. The target build checks the
+exact pinned header dependency union, actual C/Rust link and ELF structure.
+
+Startup/driver tests cover store leases without self references, pre-entry and
+between-stage Stop, persistent Stop during delayed drain, finite clock/wait/turn
+faults, normal request/response continuation across borrowed loop views and
+reverse cleanup. Runtime tests run actual private temporary POSIX stores and
+loopback TCP clients with the real C clock context and synthetic reviewed exports.
+They keep transport/capture/codec unavailable and cover ephemeral endpoint/token
+bounds, clock and wait errors, prior client-close uncertainty and backing-storage
+poison guards. No credential or Bluetooth operation is admitted by these tests.
+
+HTTP request/response buffers and the owned bearer guard are scrubbed on return;
+reports must contain no token, private path, address, sample or pointer. Primary
+failure and earlier uncertain client close cannot be erased by a later successful
+Listener.close. Source-package and local-result checks must bind the independent
+application candidate identity, exact header inventory and numeric operation/
+cleanup masks, rejecting missing or interrupted outcomes. Detailed test evidence
+belongs to the final committed handoff; these commands do not prove PS5 imports,
+entropy, protection, latency, durability, scheduler behavior or coexistence.

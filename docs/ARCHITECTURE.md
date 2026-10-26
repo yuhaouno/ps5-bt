@@ -63,19 +63,20 @@ on any PS5 crate; they are not a prerequisite for PS5 development or acceptance.
 
 | Crate | Initial responsibility | Dependency direction |
 | --- | --- | --- |
+| `bt-capture` | versioned capture owner, explicit format/timeline and retained normalization/block bridge | optional Avcap2 ABI; unknown native format/time cannot become encoded PCM |
 | `ps5-app` | fixed-storage concrete candidate resource factory with explicit modes and reverse cleanup | existing clock/store/listener/capture/codec owners; no transport authority or credits |
-| `bt-runner` | `no_std` discovery/device/management bridge and noninterleaving connection ACL pumps | application, discovery, control and framing; no ownership discovery or native waits |
+| `bt-runner` | `no_std` management/ACL pumps, bounded typed loop, store lending and fallible startup drive | application/control/audio/framing; no native ownership discovery or radio authority |
 | `bt-discovery` | `no_std` bounded Classic Inquiry/Cancel and stable device observations | core/HCI/link types; no native transport or automatic pairing |
 | `bt-store` | protected fixed-record filesystem owner through opaque versioned C ABI | device/link; optional native POSIX or separately linked external adapter |
-| `bt-listener` | one nonblocking listener/client owner through opaque versioned C ABI | control socket trait; optional native POSIX or separately linked external adapter |
+| `bt-listener` | nonblocking listener/client owner and persistent bounded successive-client service | control HTTP state; host POSIX or separately linked reviewed target adapter |
 | `bt-app` | `no_std` single-owner selected-connection application driver, channel/source/audio handoff and finite stop/retry budgets | device/channel/source/audio and existing framing crates; no native loop/ownership proof or listener |
-| `bt-audio` | `no_std` normalized PCM block pacing, persistent encoder boundary and ticketed complete-SBC handoff | `bt-core`, optional existing host `bt-codec`; no capture ABI or transport |
+| `bt-audio` | `no_std` normalized PCM pacing, persistent encoder and complete-SBC handoff | `bt-core`, optional host/target `bt-codec`; no native capture assumptions or transport |
 | `bt-channel` | `no_std` SDP/channel scheduling, acceptance-gated publication and bounded cleanup/reopen | L2CAP/SDP/core/HCI; no native transport/credits |
 | `bt-device` | `no_std` selected-peer approval, protected bond-record/store lifecycle and forget revocation | link/core/HCI; no platform filesystem or inquiry |
 | `bt-a2dp` | `no_std` bounded complete-frame SBC-over-RTP packetization | `bt-core`; no session or transport dependency |
 | `bt-avdtp` | `no_std` bounded initiator signaling and conservative SBC capability/session state | `bt-core`; bounded receive reassembly; no transport owner or media binding |
 | `bt-core` | `no_std` contracts, SBC parameters, PCM staging and nominal sample timeline | no dependencies |
-| `bt-codec` | `no_std` caller-storage encoder owner; real generic libsbc behind host-only feature | `bt-core`; C static archive only with `host-libsbc` |
+| `bt-codec` | `no_std` caller-storage encoder owner; separately selected host and target generic libsbc | `bt-core`; host-only compiler path or inspected external replaceable target archive |
 | `bt-control` | `no_std` authenticated v1/v2 management, static page service and bounded socket pump | no dependencies; no listener or transport owner |
 | `bt-hci` | `no_std` typed command/event/ACL framing, capability decoding and externally owned ACL reservation accounting | `bt-core`; no platform dependency or ownership discovery |
 | `bt-l2cap` | `no_std` basic framing, bounded handle/epoch ACL fragmentation/reassembly and initiator-side Classic Basic-mode signaling | `bt-core`, `bt-hci`; no live transport, credit ledger or responder allocator |
@@ -96,22 +97,27 @@ security candidate are host-tested. `bt-session` now binds Classic Ready and
 explicit channels to negotiation/media submission on the host. `bt-app` now
 owns selected-device security and protocol channel/SDP scheduling, and drives the
 normalized PCM scheduler into Source media submission. Protected store semantics
-are implemented; a concrete PS5 store, native capture/target encoder
-integration and live PS5 owner loop remain work. Portable inquiry, an optional
-POSIX store/listener, static LAN page and management/ACL runner are implemented
-separately; see APPLICATION-RUNNER.md. No connection backend is active.
+are implemented. Rust capture/target SBC candidates and a concrete native resource
+factory now exist. The separate application-control entry assembles the reviewed
+PS5 POSIX imports, store/listener/clock and bounded Rust owner loop, while every
+radio/capture/codec operation stays unavailable. Its ephemeral loopback service
+requires a pre-existing private 0700 directory and fresh unlogged secret. Native
+imports, entropy, filesystem protection and scheduling remain Requires hardware;
+no connection backend is active. See APPLICATION-STARTUP.md and APPLICATION-RUNNER.md.
 See [the application contract](APPLICATION-OWNER.md). Split
 them when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
 `no_std` on the freestanding target. Portable crates remain `no_std` everywhere.
 No async executor, allocator, GUI framework, or configuration framework is needed
 for the minimal bootstrap. This does not prohibit bounded engine initialization
-or the thin LAN page. Its portable request/state contract is implemented without
-a native PS5 listener; the static-page service and optional host POSIX listener
-are independently selectable candidates, not activated runtime capabilities.
-The optional offline codec is separate from the diagnostic runtime:
-`host-libsbc` requires TARGET == HOST and fails before invoking a host C compiler
-for a cross target. Its C-private state lives in caller-owned aligned storage,
+or the thin LAN page. The selected control-only application binds a native
+loopback listener through reviewed target headers/imports; it does not enable a
+LAN listener, Bluetooth ownership or audio. The default diagnostic is unchanged.
+The codec archive is independently selected: `host-libsbc` requires TARGET == HOST
+and fails before invoking a host C compiler for a cross target; `target-libsbc`
+accepts the reviewed Rust target and verifies an externally built archive. The
+short C and continuous Rust SBC diagnostics remain separate from application-control.
+Codec-private state lives in caller-owned aligned storage,
 queried through integer/pointer ABI calls and borrowed exclusively by Rust.
 See SBC-IMPLEMENTATION.md for invariants, patches and target/distribution gates.
 

@@ -243,3 +243,15 @@ posix-imports-test:
 	mkdir -p build/host/app-target
 	$(HOST_CC) -std=gnu11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer tests/application/posix_imports_test.c -o build/host/app-target/posix-imports-test
 	build/host/app-target/posix-imports-test
+
+.PHONY: application-startup-test ps5-application-control
+ps5-application-control:
+	python3 tools/build_ps5.py --application-control --loader-kernel-resolver
+
+application-startup-test: resource-factory-test posix-imports-test
+	cargo test -p bt-runner --locked
+	cargo test -p ps5-runtime --features application-control-host --locked
+	cargo clippy -p ps5-runtime --all-targets --features application-control-host --locked -- -D warnings
+	cargo check -p ps5-runtime --target x86_64-unknown-none --features application-control --locked
+	$(HOST_CC) -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -fno-omit-frame-pointer -Iplatform/ps5/include tests/application/application_main_test.c -o build/host/app-target/main-test
+	build/host/app-target/main-test

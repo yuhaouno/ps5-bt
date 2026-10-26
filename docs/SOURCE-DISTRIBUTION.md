@@ -3,8 +3,10 @@
 A diagnostic ELF handed to another person must be accompanied by the actual
 corresponding source and retained license notices. A GitHub link alone does not
 supply that package. This packaging workflow is for the reviewed
-`minimal-syscall-v6` diagnostic, whose adapter returns Unsupported; it establishes
-no PS5, firmware, loader, controller or audio compatibility and is not a release.
+`minimal-syscall-v6` diagnostic and independently selected capture, codec and
+control-only application candidates. The production transport remains Unsupported;
+packaging establishes no PS5, firmware, loader, controller or audio compatibility
+and is not a release.
 
 After the intended project changes are committed, rebuild the ELF from the clean
 commit using the pinned toolchain described in [TOOLCHAIN.md](TOOLCHAIN.md).
@@ -25,6 +27,7 @@ python3 tools/package_source.py --manifest build/ps5/ps5-bt-usb-metadata.manifes
 python3 tools/package_source.py --manifest build/ps5/ps5-bt-capture-preflight.manifest.json
 python3 tools/package_source.py --manifest build/ps5/ps5-bt-capture-once.manifest.json
 python3 tools/package_source.py --manifest build/ps5/ps5-bt-sbc-selftest.manifest.json
+python3 tools/package_source.py --manifest build/ps5/ps5-bt-application-control.manifest.json
 ```
 
 Each writes its corresponding `build/ps5/<artifact-stem>-source.tar.gz`, binds
@@ -81,7 +84,10 @@ The archive contains:
   descriptor/ioctl headers. Their original bytes and file-specific BSD and other
   copyright, license and disclaimer notices remain intact. The root GPL text
   does not replace those terms. Default, native-query and capture packages do
-  not include these additional SDK headers.
+  not include these additional SDK headers. The application-control variant
+  independently includes its exact 43-header target POSIX dependency closure from
+  `tools/application_sdk_headers.json`, retaining every original notice and the
+  expanded original bytes of upstream errno/fcntl/stdint header links.
 - `ps5-bt-source/build-manifest.json`: the original ELF build record, including
   its SHA-256 and the original clean project commit. The standalone associated
   ELF, compiler tools, SDK binaries, console files and Git history are not
@@ -137,7 +143,7 @@ firmware-specific facts.
 
 The packaging self-test uses synthetic SDK/header/relink fixtures and real
 temporary Git repositories. It verifies deterministic archives and exact
-contents/rebuild flags for all seven diagnostic variants; retained original
+contents/rebuild flags for every supported diagnostic selection; retained original
 header bytes; the exact codec source and immutable relink maps; replacement
 codec/Rust archive/baseline ELF identity; missing/modified relink rejection;
 missing variant-source rejection; boolean/exclusivity rules; capture resolver
@@ -147,11 +153,33 @@ payloads or accesses a PS5.
 
 ## New Rust diagnostic identities
 
-The independent `--capture-stream` and `--sbc-continuous` builds are packaged by
-the same clean-commit workflow. Their manifests must additionally record a
-valid embedded build identity and matching candidate stem. Both source bundles
+The independent `--capture-stream`, `--sbc-continuous` and `--application-control`
+builds use the same clean-commit workflow. Their manifests must additionally record
+a valid embedded build identity and matching candidate stem. All three source bundles
 include all tracked capture/clock/runner sources; the continuous SBC bundle also
 includes its exact LGPL source and executable replacement-link materials.
-The kit includes both alongside the original four candidates. Generated outcomes
+The seven-item kit includes all three alongside the original four candidates. Generated outcomes
 and raw hardware logs remain external evidence, not corresponding source.
 See DIAGNOSTIC-RESULTS.md for bounded local outcome collection.
+
+
+## Control-only application source selection
+
+`--application-control` packaging requires the exact matching candidate stem,
+embedded build identity, Rust archive, factory/startup/service sources, selected
+POSIX bridge/redirect headers and original SDK header map. It preserves the explicit
+`--application-control --loader-kernel-resolver` rebuild command. Target header
+identity is separate from USB metadata selection: missing, changed, extra or
+escaping `sdk_headers` entries fail before packaging. The original 43-header
+inventory retains its distinct BSD/USL/Barcroft/WIDE/NetBSD/FreeBSD Foundation and
+advertising-clause notices. No SDK header is modified or replaced by host layouts.
+
+This artifact links the reviewed protected store/listener/clock and Rust control-only
+assembly, performs no radio/capture/codec operation and requires no codec archive or
+replacement-link subtree. The complete tracked source still retains the existing
+codec sources/notices for other independently selected variants. Its package is
+reviewable source delivery, not a native import/entropy/filesystem/scheduling result.
+An existing private 0700 directory, ephemeral loopback policy and fresh unlogged
+authorization are runtime prerequisites; none is provisioned, deployed or inferred
+by packaging. Existing capture/SBC diagnostic bounds and replacement obligations
+remain unchanged. See APPLICATION-STARTUP.md and PS5-POSIX-IMPORTS.md.

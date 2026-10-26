@@ -9,6 +9,9 @@ mod capture_stream;
 #[cfg(feature = "continuous-sbc")]
 mod continuous_sbc;
 
+#[cfg(feature = "application-control")]
+mod application;
+
 use bt_core::{BluetoothTransport, Error, PacketKind};
 use ps5_platform::{Transport, log};
 

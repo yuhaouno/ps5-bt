@@ -28,9 +28,14 @@ SDK_FILES = {
     "crt/klog.h": "19fc44e52797d1a1f9959f5f7e6dee6006f600486f4bae451db862510a2cbe11",
 }
 USB_SDK_HEADERS = json.loads((ROOT / "tools/usb_sdk_headers.json").read_text())
+APPLICATION_SDK_HEADERS = json.loads((ROOT / "tools/application_sdk_headers.json").read_text())
 # Expand the upstream stdint.h symlink into the identical, notice-bearing target
 # bytes when provisioning a standalone subset rather than a Git checkout.
-SDK_HEADER_ALIASES = {"include/freebsd/stdint.h": "include/freebsd/sys/stdint.h"}
+SDK_HEADER_ALIASES = {
+    "include/freebsd/stdint.h": "include/freebsd/sys/stdint.h",
+    "include/freebsd/errno.h": "include/freebsd/sys/errno.h",
+    "include/freebsd/fcntl.h": "include/freebsd/sys/fcntl.h",
+}
 
 
 def digest(path):
@@ -43,10 +48,10 @@ def run(command, capture=False, env=None):
                           text=True, stdout=subprocess.PIPE if capture else None, env=env).stdout
 
 
-def sdk_sources(source=None, usb_metadata=False):
+def sdk_sources(source=None, usb_metadata=False, application_control=False):
     """A fixed subset, not an SDK installation or unverified moving checkout."""
     directory = Path(source).resolve() if source else ROOT / ".sdk" / SDK_REVISION
-    selected = SDK_FILES | (USB_SDK_HEADERS if usb_metadata else {})
+    selected = SDK_FILES | (USB_SDK_HEADERS if usb_metadata else {}) | (APPLICATION_SDK_HEADERS if application_control else {})
     for name, expected in selected.items():
         path = directory / name
         if not path.exists() and not source:
@@ -114,7 +119,8 @@ def self_test():
         for stem in ("ps5-bt", "ps5-bt-native-query", "ps5-bt-usb-metadata",
                      "ps5-bt-capture-preflight", "ps5-bt-capture-once",
                      "ps5-bt-sbc-selftest", "ps5-bt-capture-observe",
-                     "ps5-bt-native-l2cap-probe"):
+                     "ps5-bt-native-l2cap-probe", "ps5-bt-application-control",
+                     "ps5-bt-capture-stream", "ps5-bt-sbc-continuous"):
             for suffix in suffixes:
                 (base / f"{stem}.{suffix}").write_text(stem)
         invalidate_output("ps5-bt-native-query", base)
@@ -132,6 +138,10 @@ def self_test():
         invalidate_output("ps5-bt-native-l2cap-probe", base)
         assert not any((base / f"ps5-bt-native-l2cap-probe.{suffix}").exists() for suffix in suffixes)
         assert (base / "ps5-bt-native-query.elf").read_text() == "optional"
+        invalidate_output("ps5-bt-application-control", base)
+        assert not any((base / f"ps5-bt-application-control.{suffix}").exists() for suffix in suffixes)
+        assert all((base / f"ps5-bt-capture-stream.{suffix}").is_file() for suffix in suffixes)
+        assert all((base / f"ps5-bt-sbc-continuous.{suffix}").is_file() for suffix in suffixes)
     print("PASS missing/modified SDK and missing toolchain failure paths")
 
 
@@ -151,6 +161,8 @@ def host_test(source):
     run([output])
     run([*command, "-DPS5_BT_CAPTURE_STREAM", "-DPS5_BT_LOADER_KERNEL_RESOLVER"])
     run([output])
+    run([*command, "-DPS5_BT_APPLICATION_CONTROL", "-DPS5_BT_LOADER_KERNEL_RESOLVER"])
+    run([output])
     print("PASS synthetic host startup resolver/log/error/memory cases (not loader execution)")
 
 
@@ -163,10 +175,10 @@ def invalidate_output(stem, output=None):
 def build(args):
     stem = artifact_stem(args)
     invalidate_output(stem)
-    if (args.capture_preflight or args.capture_once or args.capture_observe or args.capture_stream) and not args.loader_kernel_resolver:
-        raise ValueError("capture diagnostics require the explicit existing-loader kernel resolver")
+    if (args.capture_preflight or args.capture_once or args.capture_observe or args.capture_stream or args.application_control) and not args.loader_kernel_resolver:
+        raise ValueError("capture/application diagnostics require the explicit existing-loader kernel resolver")
     tools = llvm_tools(args.llvm_config)
-    source = sdk_sources(args.sdk_source, args.usb_metadata)
+    source = sdk_sources(args.sdk_source, args.usb_metadata, args.application_control)
     host_test(source)
     review = ROOT / "docs/RUNTIME-REVIEW.md"
     if not review.is_file():
@@ -184,6 +196,8 @@ def build(args):
     rust_command = ["cargo", "build", "-p", "ps5-runtime", "--release", "--target",
                     "x86_64-unknown-none", "--target-dir", ROOT / "target", "--locked"]
     rust_env = os.environ.copy()
+    if args.application_control:
+        rust_command += ["--features", "application-control"]
     if args.capture_stream:
         rust_command += ["--features", "capture-stream"]
     if args.sbc_continuous:
@@ -209,7 +223,11 @@ def build(args):
     if args.capture_preflight or args.capture_once or args.capture_observe:
         sources += [ROOT / "platform/ps5/diagnostics/capture_probe.c",
                     ROOT / "platform/ps5/diagnostics/capture_observe.c"]
-    if args.capture_stream:
+    if args.application_control:
+        sources += [ROOT / "platform/ps5/application/posix_imports.c",
+                    ROOT / "platform/ps5/scheduler/scheduler_clock.c",
+                    ROOT / "platform/store/bond_file_store.c", ROOT / "platform/control/tcp_listener.c"]
+    if args.capture_stream or args.application_control:
         sources.append(ROOT / "platform/ps5/capture/capture_stream.c")
     if args.sbc_continuous or args.capture_stream:
         sources.append(ROOT / "platform/ps5/diagnostics/continuous_clock.c")
@@ -234,6 +252,8 @@ def build(args):
         flags.append("-DPS5_BT_CAPTURE_OBSERVE")
     if args.capture_preflight:
         flags.append("-DPS5_BT_CAPTURE_PREFLIGHT")
+    if args.application_control:
+        flags.append("-DPS5_BT_APPLICATION_CONTROL")
     if args.capture_stream:
         flags.append("-DPS5_BT_CAPTURE_STREAM")
     if args.sbc_continuous:
@@ -241,11 +261,17 @@ def build(args):
     if args.sbc_selftest:
         flags.append("-DPS5_BT_SBC_SELFTEST")
     diagnostic_build_id = None
-    if args.sbc_continuous or args.capture_stream:
+    if args.sbc_continuous or args.capture_stream or args.application_control:
         identity_headers = [ROOT / "platform/ps5/bootstrap/bootstrap.h",
                             ROOT / "platform/ps5/include/ps5_bt.h"]
-        if args.capture_stream:
+        if args.capture_stream or args.application_control:
             identity_headers.append(ROOT / "platform/ps5/capture/capture_stream.h")
+        if args.application_control:
+            identity_headers += [ROOT / name for name in (
+                "platform/ps5/application/posix_bridge.h", "platform/ps5/application/posix_imports.h", "platform/ps5/application/posix_redirect.h",
+                "platform/ps5/scheduler/scheduler_clock.h", "platform/store/bond_file_store.h",
+                "platform/control/tcp_listener.h")]
+
         identity = {
             "candidate": stem,
             "rust_archive": digest(ROOT / "target/x86_64-unknown-none/release/libps5_runtime.a"),
@@ -253,19 +279,30 @@ def build(args):
             "sources": {str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else path.name: digest(path)
                         for path in [*sources, *identity_headers]},
             "sdk": SDK_FILES,
+            "sdk_headers": APPLICATION_SDK_HEADERS if args.application_control else {},
             "flags": flags,
             "linker": digest(ROOT / "platform/ps5/bootstrap/minimal.ld"),
         }
         diagnostic_build_id = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         flags += [f'-DPS5_BT_DIAGNOSTIC_BUILD_ID="{diagnostic_build_id}"',
                   f'-DPS5_BT_DIAGNOSTIC_CANDIDATE="{stem}"']
+    app_dependencies = set()
     for index, path in enumerate(sources):
         obj = output / f"{stem}-{index}-{path.stem}.o"
         extra = ["-Wno-sign-compare"] if path.name == "kernel.c" else []
         if args.usb_metadata and path.name == "usb_probe.c":
             extra += ["-DPS5_BT_USB_PROBE_TARGET", "-isystem", source / "include/freebsd", "-isystem", source / "include",
                       "-MD", "-MF", output / f"{stem}-usb-headers.d"]
+        if args.application_control and path.name in ("posix_imports.c", "bond_file_store.c", "tcp_listener.c"):
+            dependency_file = output / f"{stem}-{index}-headers.d"
+            extra += ["-isystem", source / "include/freebsd", "-isystem", source / "include",
+                      "-MD", "-MF", dependency_file]
+            if path.name != "posix_imports.c":
+                extra += ["-include", ROOT / "platform/ps5/application/posix_redirect.h",
+                          "-DPS5_BT_LISTENER_SOCKADDR_HAS_LEN"]
         run([tools["clang"], *flags, *extra, "-c", path, "-o", obj])
+        if args.application_control and path.name in ("posix_imports.c", "bond_file_store.c", "tcp_listener.c"):
+            app_dependencies.update(dependency_file.read_text().replace("\\\n", " ").split())
         objects.append(obj)
     archive = ROOT / "target/x86_64-unknown-none/release/libps5_runtime.a"
     link_flags = ["-m", "elf_x86_64", "-pie", "--no-dynamic-linker",
@@ -289,6 +326,7 @@ def build(args):
     report["capture_once"] = args.capture_once
     report["capture_observe"] = args.capture_observe
     report["capture_stream"] = args.capture_stream
+    report["application_control"] = args.application_control
     report["sbc_selftest"] = args.sbc_selftest
     report["sbc_continuous"] = args.sbc_continuous
     if diagnostic_build_id is not None:
@@ -318,7 +356,16 @@ def build(args):
         for name in ("platform/ps5/diagnostics/capture_probe.h",
                      "platform/ps5/diagnostics/capture_observe.h"):
             report["project_sources"][name] = digest(ROOT / name)
-    if args.capture_stream:
+    if args.application_control:
+        for name in ("platform/ps5/application/posix_bridge.h", "platform/ps5/application/posix_imports.h", "platform/ps5/application/posix_redirect.h",
+                     "platform/ps5/scheduler/scheduler_clock.h", "platform/store/bond_file_store.h",
+                     "platform/control/tcp_listener.h"):
+            report["project_sources"][name] = digest(ROOT / name)
+        report["sdk_headers"] = {str(Path(name).relative_to(source)): digest(Path(name))
+                                 for name in app_dependencies if Path(name).is_relative_to(source / "include")}
+        if report["sdk_headers"] != APPLICATION_SDK_HEADERS:
+            raise ValueError("application SDK header dependency inventory differs from reviewed pin")
+    if args.capture_stream or args.application_control:
         name = "platform/ps5/capture/capture_stream.h"
         report["project_sources"][name] = digest(ROOT / name)
     if args.sbc_selftest or args.sbc_continuous:
@@ -359,6 +406,8 @@ def build(args):
 
 
 def artifact_stem(args):
+    if args.application_control:
+        return "ps5-bt-application-control"
     if args.capture_stream:
         return "ps5-bt-capture-stream"
     if args.sbc_continuous:
@@ -396,6 +445,8 @@ if __name__ == "__main__":
                           help="perform one bounded metadata-only capture cycle")
     variants.add_argument("--capture-observe", action="store_true",
                           help="observe first capture data for at most 20 reads/two seconds")
+    variants.add_argument("--application-control", action="store_true",
+                          help="bounded Rust control-only native factory/listener startup; no radio/capture")
     variants.add_argument("--capture-stream", action="store_true",
                           help="exercise Rust capture owner and experimental ABI with one raw read")
     variants.add_argument("--sbc-continuous", action="store_true",
