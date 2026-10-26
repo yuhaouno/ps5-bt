@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add a separately selectable queue-drain adapter over pressure v1: retain the
+  old cap until two slots are free or a 500 ms episode expires. Repeated shrink
+  requests cannot extend the deadline; expiry preserves observable upstream
+  admission drops. Verify actual queue ordering, no credit mutation, stalled
+  expiry and clock bounds with sanitizers. Hardware benefit remains unverified.
+
 - Add an original, allocation-free queue-pressure policy and opt-in reference
   adapter. Suppress upward bitrate probing under pressure, request bounded
   early reductions after 40 ms near capacity, and hold the resulting bitrate

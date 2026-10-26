@@ -2,3 +2,4 @@
 # Check the applied source with git diff --check in the upstream checkout.
 bounded-reference.patch whitespace=-blank-at-eol
 queue-pressure.patch whitespace=-blank-at-eol,-space-before-tab
+queue-drain.patch whitespace=-blank-at-eol,-space-before-tab

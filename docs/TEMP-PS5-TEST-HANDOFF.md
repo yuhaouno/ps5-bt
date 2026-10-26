@@ -4,6 +4,34 @@ Updated 2026-10-27 after the user's priority correction. This is the current
 execution queue; it supersedes earlier diagnostic sequences and pending-run
 instructions. Read `AGENTS.md`, then only the sources needed for the next change.
 
+## Next candidate: bounded queue drain
+
+The user requested the shrink fix and preparation of the next test, confirming
+devices remain available. The new `--queue-drain` build layers an original ABI-v1
+policy and three-file adapter over the unchanged pressure-v1 artifact sources.
+It waits for two free slots under a smaller target, at most 500 ms per episode;
+retargeting/repeated requests cannot extend that deadline. Timeout or bad clock
+applies the requested cap with the upstream drop behavior still observable.
+No packet editing, trimming, credit changes or new radio/runtime mechanism is
+introduced. Temporary retention can increase queue delay; hardware must measure
+the tradeoff. Full policy scope is in the [module README](../experiments/queue-pressure/README.md#bounded-queue-shrinking-candidate).
+
+Kit: `build/reference/queue-drain-candidate`; ELF
+`hearbridge/dist/PS5-BT-HearBridge-drain-1.3.6.elf`, 727,184 bytes,
+SHA-256 `ce20c0a8253c95470461bd2d9f27416ce770b14a09006bd8e1bf0f206ab3644e`.
+Fresh-source target build and 71-import check passed. The actual upstream queue
+admission/order/expiry regression and policy bounds pass strict warnings plus
+ASan/UBSan, including from the freshly extracted candidate. Existing connection
+switch and slow/fast channel-configuration checks pass (zero failures).
+No hardware run yet.
+Use the same 30-second capture-first and 180-second overall cooperative bounds,
+preserve the completed pressure state and verify upload before any launch.
+Observe whether a deferred shrink actually occurs, its elapsed time and cap,
+sender/audible drops, backlog/bitpool and controller operation before/during/after.
+Keep the missing disconnect-completion limitation; no superiority claim follows
+from one clean run. Readiness means current audible PS5 content, explicit XM4
+pairing mode and normal wireless controller input.
+
 ## Queue-pressure comparison result — 2026-10-27
 
 The user has now authorized proceeding with the planned comparison and said

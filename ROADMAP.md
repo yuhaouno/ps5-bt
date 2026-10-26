@@ -13,7 +13,8 @@ and a second 30-second captured game/menu audio run are operator-confirmed.
 Production integration, longer-term acceptance and comparative improvements remain pending.
 The first original queue-pressure policy completed one short XM4 comparison
 (one reported dropout versus approximately two previously); repeated benefit
-is not established. Next inspect queue-cap reduction while occupied; see
+is not established. A bounded queue-drain candidate now addresses cap reduction
+while occupied; its effect on continuity and delay still requires hardware. See
 [its scope and tradeoffs](experiments/queue-pressure/README.md).
 
 Milestones are evidence gates, not dates or promises. A compiling archive, a

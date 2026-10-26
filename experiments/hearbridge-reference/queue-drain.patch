@@ -1,0 +1,93 @@
+--- a/ps5.mk
++++ b/ps5.mk
+@@ -3,7 +3,7 @@
+ include $(PS5_PAYLOAD_SDK)/toolchain/prospero.mk
+ 
+ VERSION := $(shell sed -n 's/^\#define HEARBRIDGE_VERSION "\(.*\)"/\1/p' src/version.h)
+-ELF   := dist/PS5-BT-HearBridge-pressure-$(VERSION).elf
++ELF   := dist/PS5-BT-HearBridge-drain-$(VERSION).elf
+ BUILD ?= build/ps5
+ 
+ CFLAGS  := -std=c11 -Wall -Wextra -O2 -Isrc -Isrc/bt -Isrc/a2dp
+--- a/Makefile
++++ b/Makefile
+@@ -231,3 +231,10 @@
+ 	@mkdir -p $(BUILD)/host
+ 	cc -std=c11 -Wall -Wextra -O2 -Isrc -Isrc/a2dp tests/test_linktune.c src/a2dp/linktune.c src/a2dp/rate.c src/a2dp/ps5bt_queue_pressure.c -o $(BUILD)/host/test_linktune
+ 	$(BUILD)/host/test_linktune
++
++# PS5-BT experimental shrinking policy against the real queue admission path.
++.PHONY: test-queue-drain
++test-queue-drain:
++	@mkdir -p $(BUILD)/host
++	cc -std=c11 -Wall -Wextra -Werror -D_DEFAULT_SOURCE -g -fsanitize=address,undefined -fno-omit-frame-pointer -Isrc -Isrc/bt -Isrc/a2dp tests/test_queue_drain.c src/bt/blocklist.c src/bt/connreq.c src/bt/acl_track.c src/a2dp/acl_pool.c src/a2dp/avrcp.c src/a2dp/hfp.c src/a2dp/sdp_server.c src/bt/hci_cmd.c src/util.c -o $(BUILD)/host/test_queue_drain
++	$(BUILD)/host/test_queue_drain
+--- a/src/a2dp/btlink.c
++++ b/src/a2dp/btlink.c
+@@ -9,6 +9,7 @@
+ #include "log.h"
+ #include "util.h"
+ #include "rate.h"
++#include "ps5bt_queue_drain.h"
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -142,6 +143,8 @@
+     int txq_head, txq_n, txq_media;
+     int tx_is_media;          /* set around a media send */
+     int media_cap;            /* media queue depth for this link (tuned) */
++    int media_requested_cap;
++    ps5bt_queue_drain media_drain; /* single-owner, bounded cap reduction */
+     long media_dur_ms;        /* audio length of the next media packet */
+     long media_clock;         /* pacing clock: due time of the next media packet */
+     long cur_due;
+@@ -239,6 +242,22 @@
+     return 1;
+ }
+ 
++/* Advisory cap changes never alter queued PDUs or transport credits. */
++static void media_cap_step(btlink *l, long now)
++{
++    ps5bt_queue_drain_result r;
++    int old;
++    if (l->media_requested_cap <= 0) return;
++    old = btlink_media_cap(l);
++    r = ps5bt_queue_drain_step(&l->media_drain, now, (unsigned)old,
++                              (unsigned)l->media_requested_cap, (unsigned)l->txq_media);
++    l->media_cap = (int)r.cap;
++    if (r.reason != PS5BT_DRAIN_KEEP || old != l->media_cap)
++        log_line("ps5-bt drain: reason=%d cap=%d->%d target=%d media=%d waited=%ld ms max=%d ms",
++                 (int)r.reason, old, l->media_cap, l->media_requested_cap,
++                 l->txq_media, (long)r.waited_ms, PS5BT_QUEUE_DRAIN_MAX_MS);
++}
++
+ /* Send queued ACL packets while credits allow. */
+ static void tx_flush(btlink *l)
+ {
+@@ -252,6 +271,8 @@
+         l->txq_head = (l->txq_head + 1) % TXQ_MAX;
+         l->txq_n--;
+     }
++    /* Every pump and before enqueue: settle after drain, or enforce deadline. */
++    media_cap_step(l, now_ms());
+     if (now - l->pool.last_stats_ms >= 1000 && l->pool.sent) {
+         acl_pool *p = &l->pool;
+         log_line("acl: sent=%lu queued=%lu dropped=%lu (media %lu) credits evt=%lu fallback=%lu "
+@@ -1668,6 +1689,7 @@
+ {
+     btlink *l = calloc(1, sizeof *l);
+     if (!l) return NULL;
++    ps5bt_queue_drain_init(&l->media_drain);
+     l->hci = hci;
+     l->acl_mtu = acl_mtu > 0 ? (unsigned)acl_mtu : 1021;
+     l->pool.limit = (acl_buffers > 0 ? acl_buffers : 7) - ACL_RESERVE;
+@@ -2542,7 +2564,8 @@
+     if (!l) return;
+     if (n < HB_QUEUE_FLOOR_PKTS) n = HB_QUEUE_FLOOR_PKTS;
+     if (n > MEDIA_Q_MAX) n = MEDIA_Q_MAX;
+-    l->media_cap = n;
++    l->media_requested_cap = n;
++    media_cap_step(l, now_ms());
+ }
+ 
+ void btlink_set_media_pace(btlink *l, long ms_per_packet)

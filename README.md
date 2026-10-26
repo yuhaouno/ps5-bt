@@ -17,6 +17,9 @@ has completed a first 30-second XM4 comparison: three early rate interventions,
 one sender drop and one reported audible dropout, versus two in the earlier
 baseline. The configured buffer target is unchanged; repeatability, quality and
 latency benefit remain unproven. See the current handoff for evidence and limits.
+The next opt-in `--queue-drain` candidate defers shrinking an occupied queue for
+at most 500 ms of observed pump time, settling earlier when two slots are free.
+Its local admission/ordering checks pass; PS5 continuity and delay need testing.
 
 A Rust-first Bluetooth Audio stack for PlayStation 5 homebrew — built for low
 latency, high quality, and portability.

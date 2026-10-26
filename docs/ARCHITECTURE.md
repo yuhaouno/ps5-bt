@@ -7,6 +7,11 @@ The separate [audible reference](REFERENCE-FIRST-AUDIO.md) and original
 an experimental comparison path; they are not the Rust production backend
 described below. Policy state is single-owner C data with a versioned header,
 applied between complete media packets, and has no transport-credit authority.
+The optional queue-drain adapter retains a prior admission cap for one bounded
+500 ms episode while waiting for two free slots under the smaller target. It
+never edits queued PDUs or credits; expiry restores the requested cap and its
+existing drop behavior. Pump/queue ownership and cooperative deadline limits
+are documented with the policy, separately from production transport acceptance.
 Research snapshot: 2026-10-23. See [RESEARCH.md](RESEARCH.md) for evidence and
 [UPSTREAM.md](UPSTREAM.md) for immutable source revisions.
 

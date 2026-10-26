@@ -43,7 +43,11 @@ def main():
     parser.add_argument("--llvm-config", default="llvm-config")
     parser.add_argument("--queue-pressure", action="store_true",
                         help="Include the separately tested PS5-BT queue-pressure policy")
+    parser.add_argument("--queue-drain", action="store_true",
+                        help="Add bounded queue shrinking (implies --queue-pressure)")
     args = parser.parse_args()
+    if args.queue_drain:
+        args.queue_pressure = True
     llvm = shutil.which(args.llvm_config)
     if not llvm:
         parser.error("LLVM with clang, ld.lld, llvm-ar and llvm-readelf is required")
@@ -73,6 +77,13 @@ def main():
             shutil.copyfile(source, hb / "src/a2dp" / name)
             policy_hashes[name] = sha256(source)
         subprocess.run(["patch", "-p1", "-t", "-i", str(pressure_patch)], cwd=hb, check=True)
+    drain_patch = HERE / "queue-drain.patch"
+    if args.queue_drain:
+        source = policy_dir / "ps5bt_queue_drain.h"
+        shutil.copyfile(source, hb / "src/a2dp" / source.name)
+        policy_hashes[source.name] = sha256(source)
+        shutil.copyfile(policy_dir / "test_queue_drain.c", hb / "tests/test_queue_drain.c")
+        subprocess.run(["patch", "-p1", "-t", "-i", str(drain_patch)], cwd=hb, check=True)
 
     # Archive corresponding sources before generating a private credential or
     # build output. Recipients generate their own password using this script.
@@ -116,6 +127,9 @@ def main():
         manifest["kind"] = "ps5-bt-queue-pressure-experiment"
         manifest["pressure_patch_sha256"] = sha256(pressure_patch)
         manifest["policy_sources_sha256"] = policy_hashes
+    if args.queue_drain:
+        manifest["kind"] = "ps5-bt-queue-drain-experiment"
+        manifest["drain_patch_sha256"] = sha256(drain_patch)
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(json.dumps(manifest, indent=2))
     print(f"Private access credential: {output / 'access.json'} (never upload or commit)")
