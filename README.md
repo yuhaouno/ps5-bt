@@ -13,8 +13,10 @@ The isolated [reference build recipe](experiments/hearbridge-reference/README.md
 keeps the upstream connection/audio chain separate from the product and records
 the retained transport mechanisms and execution decision.
 The first original [PS5-BT queue-pressure policy](experiments/queue-pressure/README.md)
-now has an opt-in target candidate: it reacts before sustained queues fill,
-without increasing the buffer target. Hardware benefit remains to be measured.
+has completed a first 30-second XM4 comparison: three early rate interventions,
+one sender drop and one reported audible dropout, versus two in the earlier
+baseline. The configured buffer target is unchanged; repeatability, quality and
+latency benefit remain unproven. See the current handoff for evidence and limits.
 
 A Rust-first Bluetooth Audio stack for PlayStation 5 homebrew — built for low
 latency, high quality, and portability.

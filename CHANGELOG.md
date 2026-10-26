@@ -19,7 +19,11 @@
   early reductions after 40 ms near capacity, and hold the resulting bitrate
   ceiling through the existing recovery interval. Keep transport/credits and
   buffer target unchanged; focused boundary/sanitizer, adapter and unchanged
-  upstream rate tests pass. PS5 comparison remains pending.
+  upstream rate tests pass. The first 30-second PS5 comparison triggered three
+  early reductions and recorded one sender/audible dropout versus two previously;
+  controller operation and headset disconnection were operator-confirmed normal.
+  Preserve missing protocol disconnect acknowledgment and unproven comparative
+  benefit; investigate cap tightening while the queue is occupied next.
 
 - Reproduce captured game/menu audio on WH-1000XM4 using the same isolated
   reference ELF with tone disabled before connection. Record 30-second playback,

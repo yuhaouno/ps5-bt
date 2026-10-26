@@ -71,3 +71,10 @@ Compare audible glitches, sender drops, actual pressure interventions, bitpool
 trajectory and buffer targets against the saved baseline. A different audio
 segment or radio conditions limit the comparison. Reduced bitrate or a single
 clean run alone does not prove superior quality, latency or stability.
+
+The first completed comparison reported one audible dropout and one sender drop,
+with three policy interventions and normal operator-reported controller operation.
+The previous baseline reported approximately two audible dropouts and two sender
+drops. See the [current evidence and next hypothesis](../../docs/TEMP-PS5-TEST-HANDOFF.md#queue-pressure-comparison-result--2026-10-27):
+the retained upstream capacity adjustment tightened the queue while occupied.
+This run demonstrates policy execution on PS5, not proven comparative superiority.

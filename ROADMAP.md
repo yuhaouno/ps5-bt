@@ -11,8 +11,10 @@ now defines the first connection/tone/capture experiment and retains exact
 upstream source identity. Its [first audible test tone](docs/REFERENCE-FIRST-AUDIO.md)
 and a second 30-second captured game/menu audio run are operator-confirmed.
 Production integration, longer-term acceptance and comparative improvements remain pending.
-The first original queue-pressure policy is now target-built for a short
-comparison; see [its scope and tradeoffs](experiments/queue-pressure/README.md).
+The first original queue-pressure policy completed one short XM4 comparison
+(one reported dropout versus approximately two previously); repeated benefit
+is not established. Next inspect queue-cap reduction while occupied; see
+[its scope and tradeoffs](experiments/queue-pressure/README.md).
 
 Milestones are evidence gates, not dates or promises. A compiling archive, a
 linked ELF, execution on a PS5, and stable audio are different achievements.

@@ -4,7 +4,7 @@ Updated 2026-10-27 after the user's priority correction. This is the current
 execution queue; it supersedes earlier diagnostic sequences and pending-run
 instructions. Read `AGENTS.md`, then only the sources needed for the next change.
 
-## Active optimization round
+## Queue-pressure comparison result — 2026-10-27
 
 The user has now authorized proceeding with the planned comparison and said
 devices are available. This supersedes the earlier two-run permission checkpoint
@@ -16,8 +16,9 @@ SHA-256 `de6e2da952d52b933c5070a6bb25fd708a2f0bab03bf3a9ab7feffa3bdd26054`,
 727,144 bytes. Six pure-policy groups (strict C11 and sanitizers), adapter checks,
 unchanged upstream rate tests, fresh-source target link and 71-import check pass.
 The original baseline remains intact. Use capture-first and the same 30-second
-media / 180-second cooperative overall bounds. Preserve old private state and
-confirm physical headset/content readiness before launch. No runtime result yet.
+media / 180-second cooperative overall bounds. The comparison is now complete:
+one operator-reported dropout versus approximately two in the earlier baseline.
+This is a short-run observation, not an established comparative improvement.
 
 Candidate commit `f7768c1` is uploaded through PayloadManager 0.6.3 at
 `192.168.1.111:8084`; FTP readback matches the hash above. The sole PS5-BT slot
@@ -27,10 +28,48 @@ The completed capture state was renamed in place to
 `/data/ps5-bt-hb-reference-capture-20261027`; its log hash matched the baseline,
 and private bonds were not downloaded. Tone state remains in its earlier archive.
 Preflight found no running reference/HearBridge process. Deployment evidence is
-under `build/reference/queue-pressure-candidate/remote/`. Launch has **not** occurred:
-the operator's current XM4 pairing-mode/content/controller readiness reply is
-pending. Use this candidate's private `access.json` for capture-first control;
-disable tone before scanning/selecting XM4, and collect immediately after launch.
+under `build/reference/queue-pressure-candidate/remote/`.
+
+The initial launch was aborted before audio by an agent-side Python event helper
+argument collision after selecting XM4. The stop path ran; no own ACL link was
+established, USB cleanup calls were acknowledged and the process exited. The
+operator confirmed normal controller input. Evidence is in `pressure-run/`;
+remote state is preserved at `/data/ps5-bt-hb-reference-pressure-abort-20261027`.
+The helper signature was corrected and call binding checked before the retry.
+
+The operator authorized continuing and reconfirmed readiness. The corrected run
+initially found no XM4; after the operator explicitly re-entered pairing mode,
+one requested rescan found it. Tone was disabled before discovery/connection.
+Immediate evidence is in `build/reference/queue-pressure-candidate/pressure-run-controlfix/`.
+
+- The 30-second capture run ended automatically: 1,160 media packets, 11,253
+  SBC frames, 1,405 successful reads, 13,132 Empty/over reads, **one sender drop**.
+  The operator reported **one audible dropout, otherwise normal**, then explicitly
+  confirmed the headset disconnected and the wireless controller remained normal.
+- The original policy intervened three times: bitpool 45 → 41 → 37 → 33.
+  The first two occurred before any sender drop; the third followed it. Queue
+  drained afterward. Initial target remained 200 ms, but existing dynamic
+  packet-count sizing produced nominal capacity durations up to 232 ms; neither
+  end-to-end latency nor actual queue delay was measured.
+- Last ACL counters: 1,217 submitted, 1,184 event credits, **28 timed fallbacks**,
+  five outstanding in six-slot accounting, max queue nine and 17 stalls. These
+  differ from the baseline's 44 fallbacks/23 stalls, but radio conditions and
+  discovery differed; real shared allowance remains unproven.
+- Capture Stop/Close/Terminate returned 0; USB cleanup calls were acknowledged,
+  final status was stopped and the process was absent. HCI Disconnection Complete
+  and AVDTP/L2CAP close responses remained unconfirmed, as in the baseline.
+- Final log: 41,467 bytes, SHA-256
+  `f72f71affad7c9f9d9ce70b174b534a0a0e6275df2e22489a6a0b78b570fcc04`.
+  No bond files were collected. Current private state retains this completed run;
+  preserve it before any later launch. No further launch is queued.
+
+Next concrete hypothesis: the existing `tune_link` shrank the media cap from
+10 to 8 immediately after rate reduction, with backlog already 8 and drops still
+0. One drop appeared within the next 235 ms. Source inspection shows the setter
+changes the cap without trimming; enqueue at capacity drops the oldest queued
+whole media packet before admitting the new one.
+Investigate bounded capacity reduction after drain, with an explicit delay bound;
+do not claim this timing proves the drop's cause or silently increase buffering.
 
 ## Objective and next decision
 
@@ -47,14 +86,14 @@ the production store to bypass its current failure.
    [recipe and concrete run scope](../experiments/hearbridge-reference/README.md).
    It retains competing system USB reads, timed credit fallback, event-mask/SSP
    and conditional scan-setting writes, plus SDK stock own-process permissions.
-   The user separately admitted two runs; both completed. A further run needs
-   its own decision. Do not claim established ownership or safe coexistence.
+   The original two runs and the separately authorized optimization comparison
+   above completed. Do not claim established ownership or safe coexistence.
 2. The user heard corresponding game/menu audio with about two very brief
    dropouts; controller input was normal and the headset disconnected afterward.
    Sender accounting also reported two drops, but correlation is unproven.
-   First inspect queue pressure before dropping: queue reached eight, then
-   upstream reduced bitpool 41 → 37 → 22. Do not treat Empty reads as audio loss
-   or timed event-credit estimates as actual controller capacity.
+   The new policy's first comparison is recorded above; follow the cap-reduction
+   hypothesis next. Do not treat Empty reads as audio loss or timed event-credit
+   estimates as actual controller capacity.
 3. Preserve this working reference for comparison. Develop the smallest scoped
    change addressing short dropouts and integrate only the required C chain;
    keep working interfaces until measurements justify replacement. Do not
@@ -95,11 +134,12 @@ Initial reference sound and production safety/stability are separate outcomes.
 - `ps5-bt-application-raw-openat` was removed after the reference upload verified.
   Its diagnostic remains **on hold**. Do not ask the user to run it by default.
   Its immutable kit is `build/ps5/raw-openat-window-kit-e328d85`; no run is known.
-- Latest verified inventory has only `local/ps5-bt-hearbridge-reference` among
-  PS5-BT slots; unrelated entries are unchanged. Both authorized runs exited.
-  First-run private state is preserved at `/data/ps5-bt-hb-reference-tone-20261027`;
-  the second remains at `/data/ps5-bt-hb-reference`. No bond file was downloaded.
-  Do not blindly relaunch: fresh mkdir would fail and both run permissions are consumed.
+- Latest verified inventory has only `local/ps5-bt-hearbridge-pressure` among
+  PS5-BT slots; unrelated entries are unchanged. All reference processes exited.
+  Tone, baseline capture and aborted pressure state are preserved at the remote
+  archive paths above. The completed pressure comparison remains at
+  `/data/ps5-bt-hb-reference`. No bond file was downloaded. Do not blindly relaunch:
+  fresh mkdir would fail; preserve evidence and confirm readiness for a later run.
 - Standalone SBC passed 750 blocks. Capture-stream returned Empty. Application
   startup failed store prerequisites. Directory comparisons found relative-open
   EPERM and absolute-open success; none established Bluetooth transport.
