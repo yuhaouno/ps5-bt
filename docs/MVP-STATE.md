@@ -1,5 +1,18 @@
 # MVP orchestration state
 
+## Retained application-window result, 2026-10-26
+
+See [HW4-EVIDENCE.md](HW4-EVIDENCE.md). The current-session window was explicitly
+confirmed, and the clean `20a5d66` six-item kit completed preparation, supported
+manager import and full remote hash validation. The user reported executing all
+ELFs with normal controller behavior, but launches overwrote the fixed log.
+Only generated-application failure is correlated: imports/entropy succeeded,
+Store directory acquisition returned I/O -2/raw errno 1, and cleanup completed.
+No generated workload ran; other profiles remain Unknown. At the user's request
+all eight PS5-BT slots were removed; verified remaining count is zero. Keep the
+local kit and private evidence. Next, when the operator is ready, prepare only
+setup and collect its finer traversal report immediately. No rerun is confirmed.
+
 ## New-machine test preparation, 2026-10-26
 
 Start with [TEMP-PS5-TEST-HANDOFF.md](TEMP-PS5-TEST-HANDOFF.md) and
@@ -45,8 +58,9 @@ claim or Bluetooth address is recorded.
 
 ## Current development authority, 2026-10-26
 
-The user plans a later console window; it is not currently confirmed. Do not infer access from the
-historical LAN window below. Implement coherent candidates with PS5 validation
+The window confirmed for the dated HW4 record above does not authorize a future
+session. Earlier offline continuations below describe their own snapshots.
+Reconfirm access before future console work. Implement coherent candidates with PS5 validation
 pending; functional, audio-quality, latency, coexistence and stability acceptance
 remains on PS5, and a Linux Bluetooth backend is not a prerequisite.
 AGENTS.md permits scoped reviewed transitional C protocol modules, independent

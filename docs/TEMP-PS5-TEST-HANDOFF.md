@@ -3,6 +3,15 @@
 Prepared 2026-10-26. Keep this temporary handoff until the next window has a
 reviewed outcome. English is canonical. Read `AGENTS.md` before changing code.
 
+Window update, 2026-10-26: read [HW4-EVIDENCE.md](HW4-EVIDENCE.md) first.
+The six-item kit was built at clean `20a5d66`, uploaded and fully read back.
+The retained generated-application log fails Store directory acquisition with
+raw errno 1; other per-item outcomes were overwritten/Unknown. The user then
+requested frontend cleanup: all eight PS5-BT slots were removed and none was
+reuploaded. Keep the local kit; next prepare only setup when the operator is
+ready, then collect before another launch. Do not treat the report of all ELFs
+executing with normal controller input as six passing profiles.
+
 The selected environment is PS5 Slim / firmware 13.40, PayloadManager 0.6.3,
 Sony WH-1000XM4. Reconfirm the console and the user's current test window before
 any console connection, upload or launch. Preparing this document and kit does

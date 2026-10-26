@@ -23,6 +23,12 @@ explicitly returns `Unsupported`. It is an independent project, not a translatio
 existing payload. The final public name is undecided; repository and package
 collision checks must precede naming. All Cargo packages are `publish = false`.
 
+The [2026-10-26 application window](docs/HW4-EVIDENCE.md) retained a generated-mode
+startup failure at protected-store directory acquisition (raw errno 1), with
+reported complete cleanup. Encoding was not reached; other per-item outcomes
+were overwritten. The operator reported normal controller behavior and requested
+removal of all PS5-BT slots; the local kit remains available for one-item testing.
+
 **HW-1 now executes on the recorded Slim / firmware 13.40 environment.**
 The explicit `make ps5-hw1` build uses the existing loader's kernel-R/W
 transport to resolve its own exports, records Rust entry and final
@@ -65,7 +71,7 @@ The earlier second-machine build reproduction remains in
 | Bounded capture observation | Executed on one Slim/13.40 environment | immediate Empty then 8,192 bytes after one wait; checked clock call and clean cleanup; native PCM format/timestamp still unknown |
 | SBC-over-RTP/A2DP packetization | Implemented on host | fixed negotiated MTU/frame boundaries, atomic backpressure, sequence/sample timestamps and wrap tests; no AVDTP/live stream |
 | Media send orchestration | Implemented on host | SBC/RTP/L2CAP/ACL submission now uses an external credit owner; Busy/credit stops retain the PDU and terminal errors report cancellation counts; no clock or live transport |
-| PS5 application startup/workloads | Target candidates | actual factory, protected store/listener/clock and Rust loop; separate control-only, 750-block generated SBC discard and bounded raw-capture observation; no radio/playback; PS5 execution pending |
+| PS5 application startup/workloads | Target candidates; generated startup failed on one Slim/13.40 | imports/entropy succeeded; Store directory I/O failed before encoding with reported clean cleanup; other current profiles Unknown; no radio/playback |
 | PS5 resource factory | Rust candidate | concrete fixed-storage clock/store/listener/capture/SBC constructors, staged acquisition and reverse cleanup; native imports/behavior require validation, unknown format and radio authority remain gated |
 | Bounded application loop and native resource rebuild | Host-tested candidates | typed bounded lanes and global stop; scoped actual store/listener close/reopen on the same storage preserves fault tickets and local resource epochs; automatic application reconnect is not installed |
 | Management/ACL runner | Portable candidate | discovery-to-device/SSP bridge, actual capability gates, retained input and shared-credit control/media ordering; no production PS5 acquisition or ownership authority |

@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Record the 2026-10-26 application window: six built/imported/hash-verified
+  candidates, retained Store directory I/O failure before generated encoding,
+  overwritten per-item outcomes and operator-reported normal controller input.
+  Remove all eight remote PS5-BT slots at the user's request; preserve the local
+  kit/evidence and select setup alone for the next observed run.
+
 - Prepare the next console window for a new testing machine: a six-item default
   plan, installed-toolchain doctor, sequential build/source packaging, verified
   portable transfer with standalone Python extraction, and matching read-only
