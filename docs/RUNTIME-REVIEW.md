@@ -124,3 +124,13 @@ HW2-EVIDENCE.md; HW3-EVIDENCE.md adds nonempty settled/bounded reads and a targe
 generated-signal SBC self-test. Native PCM format/timing, traffic ownership,
 HCI/ACL credits, pairing, tone and audio playback remain unverified. A descriptor's
 second HCI-class interface is not a proven independent transport.
+
+## Experimental capture-stream selection, 2026-10-26
+
+The independent `PS5_BT_CAPTURE_STREAM` build exposes the identical reviewed
+`ps5_bootstrap_module_lookup` implementation already selected by
+`PS5_BT_CAPTURE_PROBE`. Its host fault cases run under both flags. It adds no
+resolver mechanism, kernel offset, permission mutation, module unloading or
+transport ownership. Rust's separately selected one-read capture owner calls
+the new opaque capture ABI; the baseline and older diagnostic stay separate.
+Native units remain Unknown and execution requires a current hardware window.

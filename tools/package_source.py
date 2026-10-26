@@ -43,6 +43,9 @@ SBC_SELFTEST_SOURCES = {
 TARGET_SBC_SOURCE_FILES = frozenset(target_sbc_source_inventory())
 SBC_RELINK_DIRECTORY = PurePosixPath("build/ps5/ps5-bt-sbc-selftest-relink")
 SBC_CONTINUOUS_SOURCES = {"platform/ps5/diagnostics/continuous_clock.c"}
+CAPTURE_STREAM_SOURCES = {"platform/ps5/diagnostics/continuous_clock.c",
+                          "platform/ps5/capture/capture_stream.c",
+                          "platform/ps5/capture/capture_stream.h"}
 CODEC_VARIANTS = ("sbc_selftest", "sbc_continuous")
 
 
@@ -53,6 +56,7 @@ def relink_directory(manifest):
     return PurePosixPath("build/ps5/" + VARIANTS[variant][0] + "-relink")
 
 VARIANTS = {
+    "capture_stream": ("ps5-bt-capture-stream", CAPTURE_STREAM_SOURCES, "--capture-stream"),
     "native_l2cap_probe": ("ps5-bt-native-l2cap-probe", NATIVE_L2CAP_SOURCES, "--native-l2cap-probe"),
     "native_query": ("ps5-bt-native-query", NATIVE_SOURCES, "--native-query"),
     "usb_metadata": ("ps5-bt-usb-metadata", USB_SOURCES, "--usb-metadata"),
@@ -339,7 +343,7 @@ def validate_manifest(root, head, files, manifest_path):
     variant = selected_variant(manifest)
     if type(manifest.get("loader_kernel_resolver", False)) is not bool:
         raise ValueError("manifest loader_kernel_resolver must be a boolean")
-    if variant in ("capture_preflight", "capture_once", "capture_observe") and not manifest.get("loader_kernel_resolver", False):
+    if variant in ("capture_preflight", "capture_once", "capture_observe", "capture_stream") and not manifest.get("loader_kernel_resolver", False):
         raise ValueError("capture diagnostic requires the existing-loader kernel resolver")
     expected_headers = USB_SDK_HEADERS if variant == "usb_metadata" else {}
     if manifest.get("sdk_headers", {}) != expected_headers:
@@ -524,7 +528,7 @@ def self_test():
             root.mkdir()
             git(root, "init", "-q")
             fixture_files = (REQUIRED_FILES | NATIVE_SOURCES | NATIVE_L2CAP_SOURCES | USB_SOURCES |
-                             CAPTURE_SOURCES | SBC_SELFTEST_SOURCES | SBC_CONTINUOUS_SOURCES)
+                             CAPTURE_SOURCES | SBC_SELFTEST_SOURCES | SBC_CONTINUOUS_SOURCES | CAPTURE_STREAM_SOURCES)
             for name in fixture_files:
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -732,7 +736,7 @@ def self_test():
                 reject_variant(dict(variant_manifest, **{other_key: True}), "mixed variants")
                 escaped_sources = dict(variant_sources, **{"../outside-secret": "0" * 64})
                 reject_variant(dict(variant_manifest, project_sources=escaped_sources), "project path escape")
-                if key in ("capture_preflight", "capture_once", "capture_observe"):
+                if key in ("capture_preflight", "capture_once", "capture_observe", "capture_stream"):
                     reject_variant(dict(variant_manifest, loader_kernel_resolver=False), "capture without resolver")
                 if key == "usb_metadata":
                     for invalid_headers in ({}, {"../outside-secret": "0" * 64},

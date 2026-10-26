@@ -294,3 +294,16 @@ python3 tools/package_source.py --manifest build/ps5/ps5-bt-sbc-continuous.manif
 The test-kit plan now includes this fifth independent candidate; build/package
 it alongside the other four before assembly. No new slot is created by the
 uploader. A new hardware window and execution authorization remain required.
+
+## Experimental Rust capture entry
+
+`make capture-stream-test` runs portable/actual Rust-to-C fixture checks, strict
+lints, freestanding external-ABI checks and the C ASan/UBSan lifecycle harness.
+`make ps5-capture-stream` builds the separate one-read
+`build/ps5/ps5-bt-capture-stream.elf`. The explicit loader resolver supplies the
+same reviewed module lookup as the older capture diagnostic. Format/time remain
+unknown; raw bytes and native metadata are never logged or encoded.
+Package the clean build with `tools/package_source.py --manifest
+build/ps5/ps5-bt-capture-stream.manifest.json`. The kit now has six independent
+candidates; build/package all six before assembly. This creates no new hardware
+window or deployment authority. See CAPTURE-STREAM.md for exact admission.

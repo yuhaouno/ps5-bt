@@ -12,9 +12,11 @@ crate-type = ["rlib", "staticlib"]
 
 [features]
 default = []
+capture-stream = ["dep:bt-capture", "bt-capture/external-avcap2"]
 continuous-sbc = ["dep:bt-audio", "bt-audio/target-libsbc"]
 
 [dependencies]
+bt-capture = { path = "../bt-capture", optional = true }
 bt-audio = { path = "../bt-audio", optional = true }
 bt-core = { path = "../bt-core" }
 bt-hci = { path = "../bt-hci" }

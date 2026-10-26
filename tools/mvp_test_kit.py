@@ -118,12 +118,13 @@ def validate_candidate(root, candidate, head):
         "capture-settled": "capture_once",
         "sbc-selftest": "sbc_selftest",
         "sbc-continuous": "sbc_continuous",
+        "capture-stream": "capture_stream",
         "capture-observe": "capture_observe",
     }.get(candidate["id"])
     if expected_variant is None:
         raise ValueError("unreviewed candidate id")
     variants = ("native_query", "native_l2cap_probe", "usb_metadata", "capture_preflight", "capture_once",
-                "sbc_selftest", "capture_observe", "sbc_continuous")
+                "sbc_selftest", "capture_observe", "sbc_continuous", "capture_stream")
     if any(type(manifest.get(key, False)) is not bool for key in variants) or [
         key for key in variants if manifest.get(key, False)
     ] != [expected_variant]:

@@ -79,9 +79,22 @@ capacity/write and lifetime guarantees remain necessary for memory safety;
 post-call Rust checks cannot repair an out-of-bounds C write. Add sanitizer and
 real C conformance tests when a real backend is selected.
 
-## Future audio ABI (not implemented or frozen)
+## Experimental capture ABI v1
 
-The independent C-only capture diagnostic in CAPTURE-PROBE.md does not implement
+`platform/ps5/capture/capture_stream.h` defines an independently versioned
+`0x00010000` candidate. `bt-capture` checks the queried storage size/alignment,
+40-byte report and 36-byte read result, borrows address-stable storage and
+consumes lifecycle phases once. Raw resolver status is i64; native lifecycle
+statuses are i32. Native metadata stays opaque, native time absent and format
+Unknown. Cleanup uncertainty blocks native reopen in that process. See
+[CAPTURE-STREAM.md](CAPTURE-STREAM.md) for source/layout/lifetime review.
+The separate `ps5-runtime/capture-stream` entry performs only one NOWAIT read,
+never decodes PCM or sends Bluetooth, and retains the older diagnostic.
+
+## Proposed production audio ABI (not implemented or frozen)
+
+The independent C-only capture diagnostic in CAPTURE-PROBE.md and experimental
+Rust/C candidate in CAPTURE-STREAM.md do not implement
 this future Rust audio ABI or expose native capture handles to Rust. It has its
 own injected metadata interface; no transport ABI version change follows.
 

@@ -310,7 +310,7 @@ int64_t ps5_bootstrap_lookup(const char *name, void **out)
     return error ? error : *out ? 0 : PS5_BT_IO;
 }
 
-#ifdef PS5_BT_CAPTURE_PROBE
+#if defined(PS5_BT_CAPTURE_PROBE) || defined(PS5_BT_CAPTURE_STREAM)
 int64_t ps5_bootstrap_module_lookup(int32_t module, const char *name, void **out)
 {
     if (!out)

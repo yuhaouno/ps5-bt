@@ -48,6 +48,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "bt-capture"
+version = "0.0.1"
+
+[[package]]
 name = "bt-channel"
 version = "0.0.1"
 dependencies = [
@@ -193,6 +197,7 @@ name = "ps5-runtime"
 version = "0.0.1"
 dependencies = [
  "bt-audio",
+ "bt-capture",
  "bt-core",
  "bt-hci",
  "ps5-platform",

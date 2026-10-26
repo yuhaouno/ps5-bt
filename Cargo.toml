@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/bt-capture",
     "crates/bt-listener",
     "crates/bt-runner",
     "crates/bt-store",

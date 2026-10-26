@@ -261,3 +261,16 @@ missing wrapper exports and allocator imports. `make ps5-sbc-continuous` perform
 the actual target link, ELF inspection and baseline replacement link. The source
 packager tests both independent codec variants, complete relink identities and
 failure rejection. None executes on PS5 or establishes real-time encoding.
+
+## Experimental Rust capture checks
+
+`make capture-stream-test` covers 13 portable format/normalization/timeline/
+bridge/owner cases, the actual Rust/C fixture lifecycle, !Send compile rejection
+and C ASan/UBSan faults. Coverage includes byte/frame/capacity and finite float
+bounds, 10,000 deterministic float bit patterns, exact retained acceptance,
+known/unknown gaps, read budgets, clock failures, reentry and cleanup failures.
+The host fixture's explicit reset simulates a fresh process; the production
+cleanup-uncertainty latch cannot be reset. `make capture-entry-test` checks the
+separate main/clock boundary. `make ps5-capture-stream` builds/inspects the actual
+target ELF and does not run it. Native format/time and continuous behavior still
+require PS5 evidence; Empty is no PCM success.

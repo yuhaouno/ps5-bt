@@ -29,6 +29,7 @@ check:
 	$(MAKE) usb-probe-test
 	$(MAKE) capture-probe-test
 	$(MAKE) capture-observe-test
+	$(MAKE) capture-stream-test
 	$(MAKE) sbc-codec-test
 	$(MAKE) sbc-main-test
 	$(MAKE) continuous-main-test
@@ -194,3 +195,19 @@ continuous-main-test:
 	mkdir -p build/host/continuous-main
 	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include tests/platform/continuous_main_test.c -o build/host/continuous-main/test
 	build/host/continuous-main/test
+
+.PHONY: capture-stream-test ps5-capture-stream capture-entry-test
+ps5-capture-stream:
+	python3 tools/build_ps5.py --capture-stream --loader-kernel-resolver
+
+capture-entry-test:
+	mkdir -p build/host/capture-stream
+	$(HOST_CC) $(USB_TEST_FLAGS) -Iplatform/ps5/include tests/platform/capture_entry_test.c -o build/host/capture-stream/entry-test
+	build/host/capture-stream/entry-test
+
+capture-stream-test: capture-entry-test
+	cargo test -p bt-capture --features host-avcap2-tests --locked
+	cargo clippy -p bt-capture --all-targets --features host-avcap2-tests --locked -- -D warnings
+	cargo check -p bt-capture --features external-avcap2 --target x86_64-unknown-none --locked
+	$(HOST_CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -DPS5_CAPTURE_STREAM_HOST_TEST -fsanitize=address,undefined -fno-omit-frame-pointer -Iplatform/ps5/capture -Itests/platform platform/ps5/capture/capture_stream.c tests/platform/capture_stream_fixture.c tests/platform/capture_stream_test.c -o build/host/capture-stream/test-sanitized
+	build/host/capture-stream/test-sanitized

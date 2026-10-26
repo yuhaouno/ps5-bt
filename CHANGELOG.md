@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add a separate experimental capture ABI and Rust owner with bounded reads,
+  consume-once cleanup, raw-status preservation and sticky native cleanup
+  uncertainty. Normalize explicitly declared i16/f32 inputs, preserve independent
+  time/sample domains and retain encoder-block remainders. Build an independent
+  one-read Rust/C target diagnostic; native format/time remain Unknown.
+
 - Add independent target SBC linking and a persistent Rust `BlockEncoder`, with
   per-object ELF/import checks and external replaceable codec archives. Build a
   separate bounded 750-block generated-PCM Rust scheduler diagnostic with clock

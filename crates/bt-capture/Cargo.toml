@@ -1,0 +1,16 @@
+[package]
+name = "bt-capture"
+description = "Bounded experimental capture ownership and explicit PCM normalization"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+external-avcap2 = []
+host-avcap2-tests = ["external-avcap2"]
+
+[lints]
+workspace = true

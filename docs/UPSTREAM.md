@@ -282,3 +282,13 @@ credited by HearBridge; John Törnblom and ps5-payload-dev contributors for the
 Payload SDK; PS5SDK contributors for historical tooling; and BlueZ/libsbc
 contributors for the codec reference. This independent project is not an
 official fork, Rust translation, endorsement, or compatibility guarantee.
+
+## Experimental continuous capture adapter, 2026-10-26
+
+`platform/ps5/capture/capture_stream.{c,h}` is a separate adaptation of the
+already reviewed Avcap2 diagnostic signatures, OpenAudio parameter layout and
+status values. It retains the exact PlayPods/HearBridge pins above, conservative
+GPL-3.0-only terms, unknown format/timestamp fields, single-owner lifetime and
+consume-once cleanup. No new upstream file, permission setter, offset, module
+binary or restart policy is imported. Rust owns budgets, normalization, timeline
+and staging; the C module retains only native adaptation. See CAPTURE-STREAM.md.

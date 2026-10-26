@@ -149,6 +149,8 @@ def host_test(source):
     run([output])
     run([*command, "-DPS5_BT_CAPTURE_PROBE", "-DPS5_BT_LOADER_KERNEL_RESOLVER"])
     run([output])
+    run([*command, "-DPS5_BT_CAPTURE_STREAM", "-DPS5_BT_LOADER_KERNEL_RESOLVER"])
+    run([output])
     print("PASS synthetic host startup resolver/log/error/memory cases (not loader execution)")
 
 
@@ -161,7 +163,7 @@ def invalidate_output(stem, output=None):
 def build(args):
     stem = artifact_stem(args)
     invalidate_output(stem)
-    if (args.capture_preflight or args.capture_once or args.capture_observe) and not args.loader_kernel_resolver:
+    if (args.capture_preflight or args.capture_once or args.capture_observe or args.capture_stream) and not args.loader_kernel_resolver:
         raise ValueError("capture diagnostics require the explicit existing-loader kernel resolver")
     tools = llvm_tools(args.llvm_config)
     source = sdk_sources(args.sdk_source, args.usb_metadata)
@@ -182,6 +184,8 @@ def build(args):
     rust_command = ["cargo", "build", "-p", "ps5-runtime", "--release", "--target",
                     "x86_64-unknown-none", "--target-dir", ROOT / "target", "--locked"]
     rust_env = os.environ.copy()
+    if args.capture_stream:
+        rust_command += ["--features", "capture-stream"]
     if args.sbc_continuous:
         rust_command += ["--features", "continuous-sbc"]
         rust_env["PS5_BT_SBC_ARCHIVE"] = str(codec_archive)
@@ -205,7 +209,9 @@ def build(args):
     if args.capture_preflight or args.capture_once or args.capture_observe:
         sources += [ROOT / "platform/ps5/diagnostics/capture_probe.c",
                     ROOT / "platform/ps5/diagnostics/capture_observe.c"]
-    if args.sbc_continuous:
+    if args.capture_stream:
+        sources.append(ROOT / "platform/ps5/capture/capture_stream.c")
+    if args.sbc_continuous or args.capture_stream:
         sources.append(ROOT / "platform/ps5/diagnostics/continuous_clock.c")
     if args.sbc_selftest:
         sources.append(ROOT / "platform/codec/ps5_bt_sbc_selftest.c")
@@ -228,6 +234,8 @@ def build(args):
         flags.append("-DPS5_BT_CAPTURE_OBSERVE")
     if args.capture_preflight:
         flags.append("-DPS5_BT_CAPTURE_PREFLIGHT")
+    if args.capture_stream:
+        flags.append("-DPS5_BT_CAPTURE_STREAM")
     if args.sbc_continuous:
         flags.append("-DPS5_BT_SBC_CONTINUOUS")
     if args.sbc_selftest:
@@ -261,6 +269,7 @@ def build(args):
     report["capture_preflight"] = args.capture_preflight
     report["capture_once"] = args.capture_once
     report["capture_observe"] = args.capture_observe
+    report["capture_stream"] = args.capture_stream
     report["sbc_selftest"] = args.sbc_selftest
     report["sbc_continuous"] = args.sbc_continuous
     report["loader_kernel_resolver"] = args.loader_kernel_resolver
@@ -287,6 +296,9 @@ def build(args):
         for name in ("platform/ps5/diagnostics/capture_probe.h",
                      "platform/ps5/diagnostics/capture_observe.h"):
             report["project_sources"][name] = digest(ROOT / name)
+    if args.capture_stream:
+        name = "platform/ps5/capture/capture_stream.h"
+        report["project_sources"][name] = digest(ROOT / name)
     if args.sbc_selftest or args.sbc_continuous:
         from target_sbc import export_relink, source_inventory
         report["codec_sources"] = source_inventory()
@@ -325,6 +337,8 @@ def build(args):
 
 
 def artifact_stem(args):
+    if args.capture_stream:
+        return "ps5-bt-capture-stream"
     if args.sbc_continuous:
         return "ps5-bt-sbc-continuous"
     if args.native_l2cap_probe:
@@ -360,6 +374,8 @@ if __name__ == "__main__":
                           help="perform one bounded metadata-only capture cycle")
     variants.add_argument("--capture-observe", action="store_true",
                           help="observe first capture data for at most 20 reads/two seconds")
+    variants.add_argument("--capture-stream", action="store_true",
+                          help="exercise Rust capture owner and experimental ABI with one raw read")
     variants.add_argument("--sbc-continuous", action="store_true",
                           help="run bounded Rust continuous generated-PCM/SBC diagnostic")
     variants.add_argument("--sbc-selftest", action="store_true",

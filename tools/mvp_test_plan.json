@@ -118,6 +118,27 @@
         "clock, budget, bitstream, encode or cleanup failure",
         "no final return within external timeout; preserve incomplete log as an abnormal run"
       ]
+    },
+    {
+      "id": "capture-stream",
+      "order": 6,
+      "artifact": "build/ps5/ps5-bt-capture-stream.elf",
+      "build_manifest": "build/ps5/ps5-bt-capture-stream.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-capture-stream-source.tar.gz",
+      "slot": "ps5-bt-capture-stream",
+      "remote_filename": "ps5-bt-capture-stream.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=capture_stream_begin schema=1 reads_max=1 format=Unknown native_time=Unknown",
+        "event=capture_stream_cleanup_complete",
+        "event=capture_stream_complete",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "clock, ownership, raw read or cleanup fails; Empty and Zero do not count as PCM success",
+        "no final return within external timeout; preserve incomplete log as an abnormal run"
+      ]
     }
   ]
 }

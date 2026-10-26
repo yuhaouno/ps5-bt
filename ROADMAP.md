@@ -19,6 +19,12 @@ Source-backed isolated transport experiments use AGENTS.md's admission rules;
 production ownership/credit guarantees still gate support. No console window
 is currently available from this chat; the 2026-10-25 window below is historical.
 
+The experimental Rust capture owner now has a separate Avcap2 ABI, explicit
+format/time evidence, declared-input normalization and retained block bridge.
+`ps5-capture-stream` exercises one raw read through the new Rust/C seam with
+finite budgets and no format inference. Native units and continuous hardware
+behavior remain Unknown; see [CAPTURE-STREAM.md](docs/CAPTURE-STREAM.md).
+
 The Rust target SBC seam now has a separately selected `target-libsbc` feature
 and `ps5-sbc-continuous` candidate: generated PCM traverses the persistent Rust
 scheduler/codec owner with finite operation/time budgets. Host checks and target

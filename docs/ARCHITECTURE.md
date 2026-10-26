@@ -32,7 +32,7 @@ does not establish this architecture or a controller route.
 ```text
 Original minimal C/assembly entry / existing loader integration
                     |
-Rust runtime -> Rust audio engine (later)
+Rust runtime -> Rust capture/audio candidates (activation gated)
                     |
 Rust Bluetooth Audio: A2DP -> AVDTP/RTP -> SDP/L2CAP -> HCI
                     |
@@ -42,7 +42,7 @@ ps5-platform: safe ownership, checked buffers, error translation
                     |
 ps5-sys: private-to-platform unsafe extern declarations
 ==================== C ABI ====================
-platform/ps5: minimal startup; planned Avcap2 capture, USB/HCI,
+platform/ps5: minimal startup; experimental Avcap2 capture, planned USB/HCI,
              endpoint discovery, controller quirks, cleanup
                     |
              PS5 platform / hardware
