@@ -35,7 +35,9 @@ A separate [read-only namespace probe](docs/NAMESPACE-PROBE.md) now prepares the
 root/data consistency observation. Its PS5 run failed at root-dot fstatat
 (raw -1/errno 1) after successful root open/fstat, with clean close and normal
 reported controller input. No data observation was reached; its separate log
-is retained and store protection remains gated.
+is retained and store protection remains gated. The next independently selected
+[open comparison](docs/OPEN-COMPARE.md) distinguishes relative and absolute
+directory access while preserving that gate.
 
 **HW-1 now executes on the recorded Slim / firmware 13.40 environment.**
 The explicit `make ps5-hw1` build uses the existing loader's kernel-R/W

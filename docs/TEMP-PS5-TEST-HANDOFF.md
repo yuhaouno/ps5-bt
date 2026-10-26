@@ -12,7 +12,8 @@ clean and the operator reported normal controller input before/during/after.
 No `/data` observation was reached. Both immediate and controller-confirmed
 collections are retained; see the [result](NAMESPACE-PROBE.md#observed-root-dot-fstatat-failure-2026-10-26).
 Do not repeat it or reload blocked application profiles. The next proposed
-independent comparison is relative-vs-absolute directory open with separate
+independent [comparison candidate](OPEN-COMPARE.md) is now implemented for
+relative-vs-absolute directory open with separate
 case results and no protection relaxation. Current slot identity is still the
 completed namespace candidate until a later verified replacement is recorded.
 
@@ -33,7 +34,8 @@ implemented. The operator authorized preparation and upload while away, with
 manual launch on return. Use `tools/namespace_test_plan.json`, its own matching
 kit and dedicated `/data/ps5-bt-namespace.log`; do not wait for an intermediate
 reply to finish preparation. That entry has now been run and collected; do not
-repeat it without a new reviewed hypothesis. Do not repeat setup or the application sequence without
+repeat it without a new reviewed hypothesis. Do not repeat setup or the
+application sequence without
 resolving its prerequisite. The final task report records actual upload/hash
 status; a source checkout alone does not establish remote installation.
 

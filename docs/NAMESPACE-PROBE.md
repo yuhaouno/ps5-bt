@@ -3,7 +3,8 @@
 Status: executed on Slim/13.40 on 2026-10-26; root open/fstat succeeded, then
 root-dot `fstatat` returned -1 with errno 1. Cleanup completed and the operator
 reported normal controller input before/during/after. Native layout validity,
-root/data consistency and protected-store acceptance remain **Requires hardware**. The 2026-10-26 operator
+root/data consistency and protected-store acceptance remain **Requires hardware**.
+The 2026-10-26 operator
 asked for autonomous preparation and upload, with manual execution after returning.
 This admission describes the candidate, not a result or authority for a future
 console window. See [HW4-EVIDENCE.md](HW4-EVIDENCE.md) for the preceding failures.
@@ -167,7 +168,8 @@ log selection, pinned SDK dependency closure, final link and structural ELF
 inspection. Collector, window, preparer, handoff and source/kit self-tests cover
 new observations and the fixed path while retaining legacy plans. These are
 local checks, distinct from the subsequent native failure recorded below.
-Full `make check` was not run: the previously recorded ARM-host x86 fixture limitation remains.
+Full `make check` was not run: the previously recorded ARM-host x86 fixture
+limitation remains.
 
 ## Uploaded manual-run checkpoint, 2026-10-26
 
@@ -191,7 +193,8 @@ schema/filename metadata, exact size and the complete ELF hash. The ignored
 record is `build/ps5/namespace-preflight-e219c8d.json`.
 
 At this upload checkpoint the agent had not launched the candidate; manual
-execution/controller observations were pending. The subsequent result is below. Only this candidate is loaded; blocked application tests and
+execution/controller observations were pending. The subsequent result is below.
+Only this candidate was loaded; blocked application tests and
 previously completed codec/capture tests were not reloaded. The operator should
 refresh and launch `ps5-bt-application-namespace` once, observe controller input
 before/during/after, and stop if it does not return within 15 seconds or input
@@ -234,7 +237,8 @@ native ABI validity, protected-store acceptance and audio acceptance remain
 Unknown. Controller normality is an operator report, not general coexistence
 or stability acceptance. No automatic repeat or application launch follows.
 
-The next bounded experiment should compare fixed-target descriptor-relative
+The separately selected [open comparison](OPEN-COMPARE.md) implements the next
+bounded experiment comparing fixed-target descriptor-relative
 `openat(root, "data", directory/no-follow flags)` with absolute `open("/data",
 same flags)`, with successful-descriptor fstats. This would isolate an open-route
 asymmetry relevant to Store traversal without repeating fstatat or relaxing

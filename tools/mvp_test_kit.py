@@ -18,6 +18,8 @@ DEFAULT_PLAN = ROOT / "tools/mvp_test_plan.json"
 DEFAULT_KIT = ROOT / "build/ps5/mvp-test-kit"
 LEGACY_LOG = "/data/ps5-bt-hw1.log"
 NAMESPACE_LOG = "/data/ps5-bt-namespace.log"
+OPEN_COMPARE_LOG = "/data/ps5-bt-open-compare.log"
+READ_ONLY_LOGS = {"application-namespace": NAMESPACE_LOG, "application-open-compare": OPEN_COMPARE_LOG}
 SAFE_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$")
 HANDLED_ERRORS = (OSError, ValueError, subprocess.CalledProcessError, tarfile.TarError) + ftplib.all_errors
 
@@ -52,9 +54,9 @@ def load_plan(path=DEFAULT_PLAN, root=ROOT):
     candidates = plan.get("candidates")
     if not isinstance(candidates, list) or not candidates or any(not isinstance(item, dict) for item in candidates):
         raise ValueError("test plan has no candidates")
-    expected_log = NAMESPACE_LOG if [item.get("id") for item in candidates] == ["application-namespace"] else LEGACY_LOG
-    if plan.get("remote_log") != expected_log or (expected_log == LEGACY_LOG and any(item.get("id") == "application-namespace" for item in candidates)):
-        raise ValueError("unexpected durable log path or mixed namespace plan")
+    expected_log = READ_ONLY_LOGS.get(candidates[0].get("id"), LEGACY_LOG) if len(candidates) == 1 else LEGACY_LOG
+    if plan.get("remote_log") != expected_log or (len(candidates) != 1 and any(item.get("id") in READ_ONLY_LOGS for item in candidates)):
+        raise ValueError("unexpected durable log path or mixed read-only observation plan")
     identifiers = set()
     slots = set()
     orders = []
@@ -124,7 +126,7 @@ def validate_candidate(root, candidate, head):
         "sbc-continuous": "sbc_continuous",
         "capture-stream": "capture_stream",
         "capture-observe": "capture_observe",
-        "application-setup": "application_setup", "application-namespace": "application_namespace",
+        "application-setup": "application_setup", "application-namespace": "application_namespace", "application-open-compare": "application_open_compare",
         "application-control": "application_control",
         "application-generated": "application_generated",
         "application-observe": "application_observe",
@@ -132,14 +134,14 @@ def validate_candidate(root, candidate, head):
     if expected_variant is None:
         raise ValueError("unreviewed candidate id")
     variants = ("native_query", "native_l2cap_probe", "usb_metadata", "capture_preflight", "capture_once",
-                "sbc_selftest", "capture_observe", "sbc_continuous", "capture_stream", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace")
+                "sbc_selftest", "capture_observe", "sbc_continuous", "capture_stream", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare")
     if any(type(manifest.get(key, False)) is not bool for key in variants) or [
         key for key in variants if manifest.get(key, False)
     ] != [expected_variant]:
         raise ValueError(f"wrong diagnostic variant: {candidate['id']}")
     if not manifest.get("loader_kernel_resolver"):
         raise ValueError("candidate lacks reviewed loader kernel resolver")
-    if expected_variant in ("sbc_continuous", "capture_stream", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace"):
+    if expected_variant in ("sbc_continuous", "capture_stream", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare"):
         build_id = manifest.get("diagnostic_build_id")
         if (not isinstance(build_id, str) or not re.fullmatch(r"[0-9a-f]{64}", build_id)
                 or manifest.get("diagnostic_candidate") != artifact.stem):
@@ -174,7 +176,7 @@ def runbook(plan, head, entries):
         "Confirm wireless controller input before, during and after each item.",
         "",
     ]
-    if plan["remote_log"] == NAMESPACE_LOG:
+    if plan["remote_log"] in READ_ONLY_LOGS.values():
         lines += [
             "This independently selected read-only namespace observation uses its own",
             "fixed log; other diagnostic variants do not overwrite it. Run it once,",
@@ -204,7 +206,7 @@ def runbook(plan, head, entries):
             "",
         ]
     lines += [
-        "The read-only application-namespace probe does not require or prepare the store.",
+        "Read-only namespace/open-compare probes do not require or prepare the store.",
         "Application workloads require a private mode-0700 `/data/ps5-bt/control`",
         "owned by the payload identity. Separately selected application-setup",
         "only validates/creates fixed project directory components using native",
@@ -379,7 +381,9 @@ def self_test():
             else:
                 raise AssertionError("unreviewed namespace log accepted")
         # Exercise selected-variant and embedded-identity checks for every item.
-        for candidate in plan["candidates"] + namespace_plan["candidates"]:
+        open_compare_plan = load_plan(ROOT / "tools/open_compare_test_plan.json", root)
+        assert open_compare_plan["remote_log"] == OPEN_COMPARE_LOG
+        for candidate in plan["candidates"] + namespace_plan["candidates"] + open_compare_plan["candidates"]:
             artifact = root / candidate["artifact"]
             artifact.write_bytes(b"synthetic-elf")
             manifest_path = root / candidate["build_manifest"]
@@ -387,12 +391,12 @@ def self_test():
             variant = {"usb-binding": "usb_metadata", "capture-settled": "capture_once",
                        "sbc-selftest": "sbc_selftest", "capture-observe": "capture_observe",
                        "sbc-continuous": "sbc_continuous", "capture-stream": "capture_stream",
-                       "application-setup": "application_setup", "application-namespace": "application_namespace", "application-control": "application_control", "application-generated": "application_generated",
+                       "application-setup": "application_setup", "application-namespace": "application_namespace", "application-open-compare": "application_open_compare", "application-control": "application_control", "application-generated": "application_generated",
                        "application-observe": "application_observe"}[candidate["id"]]
             manifest = {"git_head": "test-head", "git_status": [], "sha256": digest(artifact),
                         "size": artifact.stat().st_size, "loader_kernel_resolver": True,
                         variant: True}
-            if variant in ("sbc_continuous", "capture_stream", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace"):
+            if variant in ("sbc_continuous", "capture_stream", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare"):
                 manifest.update(diagnostic_build_id="b" * 64, diagnostic_candidate=artifact.stem)
             def write_inputs():
                 manifest_path.write_text(json.dumps(manifest))
@@ -432,7 +436,7 @@ def self_test():
         sample = root / "sample"
         sample.write_bytes(b"bounded")
         assert digest(sample) == hashlib.sha256(b"bounded").hexdigest()
-    print("PASS MVP kit plan bounds, target pin, default inventory and separate namespace selection, embedded identity, loader gate, path rejection and hashing")
+    print("PASS MVP kit plan bounds, target pin, default inventory and separate read-only observations, embedded identity, loader gate, path rejection and hashing")
 
 
 def main():

@@ -23,7 +23,7 @@ PORT = 2121
 REMOTE_ROOT = "/data/pldmgr/payloads/local"
 REMOTE_LOG = "/data/ps5-bt-hw1.log"
 CONTROL_DIRECTORY = "/data/ps5-bt/control"
-CANDIDATES = ("application-namespace", "application-setup", "application-control", "application-generated",
+CANDIDATES = ("application-open-compare", "application-namespace", "application-setup", "application-control", "application-generated",
               "application-observe", "sbc-continuous", "capture-stream")
 DEFAULT_KIT = mvp_test_kit.ROOT / "build/ps5/next-window-kit-20261026"
 DEFAULT_OUTPUT = mvp_test_kit.ROOT / "build/ps5/console-window"
@@ -153,7 +153,7 @@ def preflight(kit_dir, identifiers=None, execute=False, verify_hash=False, ftp_f
     _, entries = selected_kit(kit_dir, identifiers)
     result = {"action": "preflight", "mode": "execute-read-only" if execute else "dry-run",
               "target": f"{TARGET}:{PORT}",
-              "prerequisite": prerequisite([entry["candidate"]["id"] for entry in entries] == ["application-namespace"]),
+              "prerequisite": prerequisite(len(entries) == 1 and entries[0]["candidate"]["id"] in mvp_test_kit.READ_ONLY_LOGS),
               "candidates": []}
     for entry in entries:
         candidate = entry["candidate"]

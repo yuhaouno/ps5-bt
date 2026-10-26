@@ -23,12 +23,13 @@ VARIANTS = {
     "capture_stream": "ps5-bt-capture-stream",
     "application_setup": "ps5-bt-application-setup",
     "application_namespace": "ps5-bt-application-namespace",
+    "application_open_compare": "ps5-bt-application-open-compare",
     "application_control": "ps5-bt-application-control",
     "application_generated": "ps5-bt-application-generated",
     "application_observe": "ps5-bt-application-observe",
 }
 ALL_VARIANTS = ("native_query", "native_l2cap_probe", "usb_metadata", "capture_preflight",
-                "capture_once", "capture_observe", "capture_stream", "sbc_selftest", "sbc_continuous", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace")
+                "capture_once", "capture_observe", "capture_stream", "sbc_selftest", "sbc_continuous", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare")
 OBSERVATIONS = {"Unknown", "normal", "changed"}
 SBC_CONFIG = "event=sbc_continuous_begin schema=1 generated=1 nominal_clock=synthetic sink=discard"
 CAPTURE_CONFIG = "event=capture_stream_begin schema=1 reads_max=1 format=Unknown native_time=Unknown"
@@ -40,6 +41,12 @@ CAPTURE_KEYS = {"stage", "status_bits", "raw_status_bits", "lookup_hi", "lookup_
                 "stop_bits", "close_bits"}
 
 
+OPEN_COMPARE_CONFIG = "event=application_open_compare_begin schema=1 namespace=root-data access=read-only cases=relative-absolute radio=Unavailable capture=Unavailable"
+OPEN_COMPARE_KEYS = {"stage", "status_bits", "errno", "raw_bits", "failed_stage", "operations", "attempted_mask",
+                     "opened_mask", "closed_mask", "cleanup_failed_mask", "cleanup_errno", "cleanup_raw_bits", "prior_cleanup_mask",
+                     "observed_mask", "root_reject", "relative_reject", "absolute_reject", "relative_open_raw", "relative_open_errno",
+                     "relative_stat_raw", "relative_stat_errno", "absolute_open_raw", "absolute_open_errno", "absolute_stat_raw", "absolute_stat_errno",
+                     "data_match_mask", "relative_same_device", "absolute_same_device"}
 NAMESPACE_CONFIG = "event=application_namespace_begin schema=1 namespace=root-data access=read-only radio=Unavailable capture=Unavailable"
 NAMESPACE_KEYS = {"stage", "status_bits", "errno", "raw_bits", "operations", "opened_mask", "closed_mask",
                   "cleanup_failed_mask", "cleanup_errno", "cleanup_raw_bits", "prior_cleanup_mask", "observed_mask",
@@ -910,7 +917,245 @@ def namespace_report(body: list[str]) -> dict:
             "cleanup": cleanup, "failure": bool(failure), "issues": sorted(set(issues))}
 
 
+def open_compare_contract(v: dict, outcome: str) -> tuple[bool, bool]:
+    """Replay the finite attempted-call path; do not treat policy bits as approval."""
+    stage, status, attempted = v["stage"], v["status_bits"], v["attempted_mask"]
+    opened, closed, observed = v["opened_mask"], v["closed_mask"], v["observed_mask"]
+    failed, prior = v["cleanup_failed_mask"], v["prior_cleanup_mask"]
+    cleanup_error = any(v[key] for key in ("cleanup_failed_mask", "cleanup_errno", "cleanup_raw_bits", "prior_cleanup_mask"))
+    coherent = (stage in range(1, 9) and status in (0, 1, 0xffffffff, 0xfffffffe, 0xfffffffd)
+                and not attempted & ~127 and v["operations"] == attempted.bit_count()
+                and not (opened | closed | observed | failed | prior) & ~7
+                and closed == opened and not observed & ~opened and not failed & ~closed
+                and bool(failed or prior) == bool(v["cleanup_raw_bits"])
+                and (bool(failed or prior) or v["cleanup_errno"] == 0))
+    if status in (0xfffffffe, 0xfffffffd):
+        zero_keys = OPEN_COMPARE_KEYS - {"stage", "status_bits", "cleanup_errno", "cleanup_raw_bits", "prior_cleanup_mask"}
+        coherent &= stage == 1 and all(v[key] == 0 for key in zero_keys)
+        coherent &= not prior or status == 0xfffffffd
+        return bool(coherent and outcome == "failed"), bool(cleanup_error)
+    coherent &= prior == 0
+    errors = []
+    expected_opened = expected_observed = seen = 0
+    stopped = False
+    relative_open_failed = absolute_open_failed = False
+    for call in range(1, 8):
+        bit = 1 << (call - 1)
+        skip = call == 5 and relative_open_failed or call == 7 and absolute_open_failed
+        if skip:
+            coherent &= not attempted & bit
+            continue
+        if stopped:
+            coherent &= not attempted & bit
+            continue
+        if not attempted & bit:
+            coherent &= stage == call
+            stopped = True
+            continue
+        seen |= bit
+        if call == 1:
+            continue  # geteuid has no error return, and its value is never logged.
+        if call in (2, 3):
+            error = v["failed_stage"] == call
+            if error:
+                coherent &= v["raw_bits"] != 0 and (call != 2 or v["raw_bits"] >= 0x80000000)
+                errors.append((call, v["raw_bits"], v["errno"]))
+                coherent &= stage == call
+                stopped = True
+            elif call == 2:
+                expected_opened |= 1
+            else:
+                expected_observed |= 1
+            continue
+        case = "relative" if call < 6 else "absolute"
+        operation = "open" if call in (4, 6) else "stat"
+        raw, error_number = v[case + "_" + operation + "_raw"], v[case + "_" + operation + "_errno"]
+        error = raw >= 0x80000000 if operation == "open" else raw != 0
+        if error:
+            errors.append((call, raw, error_number))
+        else:
+            coherent &= error_number == 0
+            if operation == "open":
+                expected_opened |= 2 if case == "relative" else 4
+            else:
+                expected_observed |= 2 if case == "relative" else 4
+        if call == 4:
+            relative_open_failed = error
+        elif call == 6:
+            absolute_open_failed = error
+    coherent &= seen == attempted and opened == expected_opened and observed == expected_observed
+    if not stopped:
+        coherent &= stage == 8
+    for call, name in ((4, "relative_open"), (5, "relative_stat"), (6, "absolute_open"), (7, "absolute_stat")):
+        if not attempted & (1 << (call - 1)):
+            coherent &= v[name + "_raw"] == v[name + "_errno"] == 0
+    for bit, key in ((1, "root_reject"), (2, "relative_reject"), (4, "absolute_reject")):
+        coherent &= v[key] <= 7 and (bool(observed & bit) or v[key] == 0)
+    for bit, key in ((2, "relative_same_device"), (4, "absolute_same_device")):
+        coherent &= v[key] in ((1, 2) if observed & (1 | bit) == (1 | bit) else (0,))
+    matches = v["data_match_mask"]
+    coherent &= matches <= 31 and (observed & 6 == 6 or matches == 0)
+    coherent &= not matches & 4 or (v["relative_reject"] & 5) == (v["absolute_reject"] & 5)
+    coherent &= not matches & 8 or (v["relative_reject"] & 2) == (v["absolute_reject"] & 2)
+    if observed == 7:
+        coherent &= not matches & 1 or v["relative_same_device"] == v["absolute_same_device"]
+        coherent &= v["relative_same_device"] != 2 or v["absolute_same_device"] != 2 or bool(matches & 1)
+    if errors:
+        coherent &= (v["failed_stage"], v["raw_bits"], v["errno"]) == errors[0] and status == 0xffffffff
+    else:
+        coherent &= v["failed_stage"] == v["raw_bits"] == 0
+        if status == 0xffffffff:
+            coherent &= bool(failed) and v["errno"] == v["cleanup_errno"]
+        else:
+            coherent &= v["errno"] == 0
+    if status == 0:
+        coherent &= not stopped and attempted == 127 and opened == observed == 7 and not cleanup_error and outcome in ("complete", "failed")
+    elif status == 1:
+        # A later import shutdown failure can turn an otherwise clean procedure
+        # or cancellation into the failed outer event without changing its report.
+        coherent &= not errors and outcome in (("failed",) if cleanup_error else ("cancelled", "failed"))
+    else:
+        coherent &= outcome == "failed"
+    return bool(coherent), bool(cleanup_error)
+
+
+def open_compare_report(body: list[str]) -> dict:
+    """Two bounded independent open cases; error continuation never accepts a store."""
+    numbers, positions, imports, import_positions = {}, {}, [], []
+    issues = []
+    for index, line in enumerate(body):
+        match = re.fullmatch(r"application_(open_compare|import)_([a-z_]+)=0x([0-9a-f]{8})", line)
+        if match and match[2] in (OPEN_COMPARE_KEYS if match[1] == "open_compare" else IMPORT_KEYS):
+            category, key, value = match[1], match[2], int(match[3], 16)
+            if category == "open_compare":
+                numbers.setdefault(key, []).append(value)
+                positions.setdefault(key, []).append(index)
+                if len(numbers[key]) > 8:
+                    raise ValueError("too many open_compare numeric records")
+            else:
+                if key == "stage":
+                    imports.append({})
+                    import_positions.append([])
+                    if len(imports) > 2:
+                        raise ValueError("too many open_compare import reports")
+                if not imports or key in imports[-1]:
+                    issues.append("malformed_import_report")
+                else:
+                    imports[-1][key] = value
+                    import_positions[-1].append(index)
+        else:
+            for prefix, allowed in (("application_open_compare_", OPEN_COMPARE_KEYS), ("application_import_", IMPORT_KEYS)):
+                if line.startswith(prefix) and line.split("=", 1)[0][len(prefix):] in allowed:
+                    issues.append("malformed_numeric_marker")
+    def one(key):
+        values = numbers.get(key, [])
+        return values[0] if len(values) == 1 else None
+
+    starts = [i for i, line in enumerate(body) if line.startswith("event=application_open_compare_begin")]
+    terminal_names = ("event=application_open_compare_complete", "event=application_open_compare_failed", "event=application_open_compare_cancelled")
+    terminals = [(i, name) for i, line in enumerate(body) for name in terminal_names if line == name]
+    closed = [i for i, line in enumerate(body) if line == "event=application_open_compare_imports_closed"]
+    config_ok = len(starts) == 1 and body[starts[0]] == OPEN_COMPARE_CONFIG
+    required_keys = OPEN_COMPARE_KEYS
+    if not config_ok:
+        issues.append("missing_or_duplicate_open_compare_configuration")
+    if len(terminals) != 1:
+        issues.append("missing_or_duplicate_open_compare_outcome")
+    outcome = terminals[0][1].removeprefix("event=application_open_compare_") if len(terminals) == 1 else "Unknown"
+    failure = any(name == "event=application_open_compare_failed" for _, name in terminals)
+    if outcome != "complete":
+        issues.append("open_compare_not_complete")
+    malformed_imports = any(set(group) != set(IMPORT_KEYS) for group in imports)
+    if malformed_imports or not imports:
+        issues.append("malformed_import_report")
+    failure |= any(group.get("status_bits", 0) not in (0, 1)
+                   or group.get("cleanup_flags", 0) or group.get("cleanup_errno", 0) for group in imports)
+    if not malformed_imports and imports:
+        # Init records the native lookup result before checking Stop. A clean
+        # cancellation can retain a nonzero raw result that was never classified
+        # as failure; only completed-success reports require zero raw fields.
+        if any(group["status_bits"] == 0 and any(group[key] for key in
+               ("errno", "lookup_hi", "lookup_lo", "return_hi", "return_lo")) for group in imports):
+            failure = True
+            issues.append("open_compare_import_contract_mismatch")
+        first = imports[0]
+        if first["stage"] not in (1, 2, 3) or first["resolved"] > 23:
+            failure = True
+            issues.append("open_compare_import_contract_mismatch")
+        if len(imports) == 2 and (imports[1]["stage"] != 8 or imports[1]["resolved"] != 0):
+            failure = True
+            issues.append("open_compare_import_contract_mismatch")
+    init_ok = (not malformed_imports and bool(imports) and imports[0] == {
+        "stage": 3, "status_bits": 0, "errno": 0, "lookup_hi": 0, "lookup_lo": 0,
+        "return_hi": 0, "return_lo": 0, "resolved": 23, "cleanup_flags": 0, "cleanup_errno": 0})
+    shutdown_ok = (not malformed_imports and len(imports) == 2 and imports[1] == {
+        "stage": 8, "status_bits": 0, "errno": 0, "lookup_hi": 0, "lookup_lo": 0,
+        "return_hi": 0, "return_lo": 0, "resolved": 0, "cleanup_flags": 0, "cleanup_errno": 0})
+    imports_cleanup = "failed" if any(group.get("cleanup_flags", 0) or group.get("cleanup_errno", 0)
+                                      or group.get("stage") == 8 and group.get("status_bits", 0) for group in imports) else "Unknown"
+    if init_ok and shutdown_ok and len(closed) == 1:
+        imports_cleanup = "reported_complete"
+    if len(closed) > 1 or closed and not (init_ok and shutdown_ok):
+        issues.append("open_compare_import_cleanup_not_confirmed")
+    attempted = bool(numbers)
+    complete_fields = all(one(key) is not None for key in required_keys)
+    descriptor_cleanup = "Unknown"
+    if attempted and not complete_fields:
+        issues.append("missing_or_duplicate_open_compare_numeric_evidence")
+    if complete_fields:
+        values = {key: one(key) for key in required_keys}
+        coherent, cleanup_error = open_compare_contract(values, outcome)
+        if not coherent:
+            failure = True
+            issues.append("open_compare_contract_mismatch")
+        descriptor_cleanup = "failed" if cleanup_error else "reported_complete" if coherent else "Unknown"
+        if cleanup_error or values["status_bits"] not in (0, 1):
+            failure = True
+    if not attempted:
+        issues.append("open_compare_not_entered")
+        if outcome == "complete" or init_ok:
+            issues.append("missing_or_duplicate_open_compare_numeric_evidence")
+        if len(imports) != 1 or imports and imports[0].get("status_bits") == 0:
+            issues.append("open_compare_import_contract_mismatch")
+        if outcome == "cancelled" and imports and imports[0].get("status_bits") != 1:
+            failure = True
+    elif not init_ok:
+        failure = True
+        issues.append("open_compare_import_contract_mismatch")
+    if outcome == "complete" and not (init_ok and shutdown_ok):
+        failure |= not malformed_imports and len(imports) == 2
+        issues.append("open_compare_import_contract_mismatch")
+    # The native order is begin -> init -> open_compare fields -> shutdown -> imports
+    # closed -> outcome. There is no entropy stage or Rust application entry.
+    if config_ok and len(terminals) == 1:
+        start, end = starts[0], terminals[0][0]
+        all_indices = [i for group in import_positions for i in group] + [i for group in positions.values() for i in group] + closed
+        ordered = start < end and all(start < i < end for i in all_indices)
+        if attempted and import_positions:
+            ordered &= all(import_positions[0][-1] < i for group in positions.values() for i in group)
+            if len(import_positions) == 2:
+                ordered &= all(i < import_positions[1][0] for group in positions.values() for i in group)
+                if closed:
+                    ordered &= import_positions[1][-1] < closed[0]
+        if not ordered:
+            issues.append("diagnostic_marker_order_invalid")
+    cleanup = "failed" if "failed" in (descriptor_cleanup, imports_cleanup) else "reported_complete" if descriptor_cleanup == imports_cleanup == "reported_complete" else "Unknown"
+    if cleanup != "reported_complete":
+        issues.append("cleanup_not_confirmed")
+    return {"configuration": {"mode": "read-only-open-comparison", "schema": 1,
+                "namespace": "root-data", "access": "read-only", "cases": "relative-absolute",
+                "transport": "Unavailable", "radio": "Unavailable", "capture": "Unavailable", "codec": "Unavailable",
+                "native_abi": "Unknown", "store_acceptance": "Unknown", "max_operations": 7,
+                "max_cleanup_closes": 3},
+            "configuration_confirmed": config_ok, "numeric": numbers, "imports": imports,
+            "backend_status_bits": [], "open_compare_entered": attempted, "outcome": outcome,
+            "descriptor_cleanup": descriptor_cleanup, "imports_cleanup": imports_cleanup,
+            "cleanup": cleanup, "failure": bool(failure), "issues": sorted(set(issues))}
+
+
 def candidate_report(candidate: str, body: list[str]) -> dict:
+    if candidate == VARIANTS["application_open_compare"]:
+        return open_compare_report(body)
     if candidate == VARIANTS["application_namespace"]:
         return namespace_report(body)
     if candidate == VARIANTS["application_setup"]:

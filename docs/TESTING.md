@@ -4,6 +4,17 @@ Host correctness, hardware behavior, audio quality, performance and headset
 interoperability are separate evidence tracks. Never turn a host mock pass into
 a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
+## Fixed directory open comparison
+
+`make application-open-compare-test` runs strict C11 and ASan/UBSan core/main
+fixtures for the [separate open comparison](OPEN-COMPARE.md). Check root prerequisite
+failures, all combinations of independent case failures, skipped dependent stats,
+continued second-case evidence, retained first error, cancellation even after an
+earlier error, reverse consume-once cleanup and sticky uncertainty. No fixture
+opens host root/data. Collector tests must reject contradictory attempted/case
+masks and cannot report success after any native case error. Actual target behavior
+and controller observations remain hardware requirements.
+
 ## Namespace observation candidate
 
 `make application-namespace-test` checks the separately selected read-only

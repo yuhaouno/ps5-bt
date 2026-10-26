@@ -154,6 +154,73 @@ def namespace_log(fields=None, outcome="complete", init_status=0, status=2):
                        f"event=payload_return status={status}", ""])
 
 
+def open_compare_fields(failures=None, cancel=None):
+    failures = failures or {}
+    values = {key: 0 for key in result.OPEN_COMPARE_KEYS}
+    values["stage"] = 8
+    first = None
+    for step in range(1, 8):
+        if step in (5, 7) and (step - 1) in failures:
+            continue
+        if cancel == step:
+            values["stage"] = step
+            if first is None:
+                values["status_bits"] = 1
+            break
+        values["attempted_mask"] |= 1 << (step - 1)
+        values["operations"] += 1
+        raw = 0xffffffff if step in failures else (40 + step if step in (2, 4, 6) else 0)
+        errno = failures.get(step, 0)
+        if step >= 4:
+            case = "relative" if step < 6 else "absolute"
+            op = "open" if step in (4, 6) else "stat"
+            values[case + "_" + op + "_raw"] = raw
+            values[case + "_" + op + "_errno"] = errno
+        if step in failures:
+            if first is None:
+                first = step
+                values.update(status_bits=0xffffffff, failed_stage=step, raw_bits=raw, errno=errno)
+            if step in (2, 3):
+                values["stage"] = step
+                break
+        elif step in (2, 4, 6):
+            values["opened_mask"] |= 1 << ((step - 2) // 2)
+        elif step in (3, 5, 7):
+            bit = 1 << ((step - 3) // 2)
+            values["observed_mask"] |= bit
+            if bit == 1:
+                values["root_reject"] = 4
+            else:
+                values[("relative" if bit == 2 else "absolute") + "_same_device"] = 2
+    if cancel == 8 and first is None:
+        values["status_bits"] = 1
+    values["closed_mask"] = values["opened_mask"]
+    if values["observed_mask"] & 6 == 6:
+        values["data_match_mask"] = 31
+    return values
+
+
+def open_compare_log(fields=None, outcome=None, init_status=0, status=None):
+    values = open_compare_fields()
+    if fields:
+        values.update(fields)
+    if outcome is None:
+        outcome = "failed" if init_status not in (0, 1) or values["status_bits"] not in (0, 1) or values["cleanup_failed_mask"] or values["prior_cleanup_mask"] else "cancelled" if init_status == 1 or values["status_bits"] == 1 else "complete"
+    if status is None:
+        status = 1 if outcome == "failed" else 2
+    body = [result.OPEN_COMPARE_CONFIG]
+    if init_status:
+        body += imports(2, status=init_status, resolved=3)
+    else:
+        body += imports(3, resolved=23)
+        body += [f"application_open_compare_{key}=0x{value:08x}" for key, value in values.items()]
+        body += imports(8) + ["event=application_open_compare_imports_closed"]
+    body += ["event=application_open_compare_" + outcome]
+    return "\n".join([f"event=run_begin build_id={BUILD} candidate=ps5-bt-application-open-compare", *body,
+                       f"event=run_finish build_id={BUILD}", f"event=payload_exit status={status}",
+                       f"event=payload_return status={status}", ""])
+
+
 class CollectorTest(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
@@ -167,6 +234,95 @@ class CollectorTest(unittest.TestCase):
         self.manifest.write_text(json.dumps(manifest() if source is None else source))
         self.log.write_text(log() if text is None else text)
         return result.collect(self.manifest, self.log, NORMAL if observations is None else observations)
+
+    def test_open_compare_success_observes_predicates_without_acceptance(self):
+        for changed in ({}, {"relative_reject": 7, "absolute_reject": 1, "data_match_mask": 0,
+                             "relative_same_device": 1}):
+            text = open_compare_log(changed).replace("event=application_open_compare_complete",
+                "application_open_compare_uid=0x12345678\napplication_open_compare_path=/private-secret\nevent=application_open_compare_complete")
+            record = self.collect(text, manifest("application-open-compare"))
+            self.assertEqual(record["classification"], "complete_success")
+            self.assertEqual(record["diagnostic"]["configuration"]["store_acceptance"], "Unknown")
+            self.assertEqual(record["diagnostic"]["configuration"]["native_abi"], "Unknown")
+            self.assertNotIn("private-secret", json.dumps(record))
+            self.assertNotIn("12345678", json.dumps(record))
+
+    def test_open_compare_failures_continue_only_independent_case(self):
+        cases = [{step: 1} for step in range(2, 8)] + [{4: 1, 6: 2}, {4: 1, 7: 2}, {5: 1, 6: 2}, {5: 1, 7: 2}]
+        for failures in cases:
+            with self.subTest(failures=failures):
+                fields = open_compare_fields(failures)
+                record = self.collect(open_compare_log(fields), manifest("application-open-compare"))
+                self.assertEqual(record["classification"], "complete_failure")
+                self.assertNotIn("open_compare_contract_mismatch", record["issues"])
+                self.assertEqual(record["diagnostic"]["cleanup"], "reported_complete")
+                self.assertEqual(record["diagnostic"]["numeric"]["failed_stage"], [min(failures)])
+        fields = open_compare_fields({5: 1})
+        fields.update(relative_stat_raw=1, raw_bits=1)
+        record = self.collect(open_compare_log(fields), manifest("application-open-compare"))
+        self.assertNotIn("open_compare_contract_mismatch", record["issues"])
+        self.assertEqual(record["classification"], "complete_failure")
+
+    def test_open_compare_cancellation_preserves_prior_case_error(self):
+        for stage in range(1, 9):
+            record = self.collect(open_compare_log(open_compare_fields(cancel=stage)), manifest("application-open-compare"))
+            self.assertEqual(record["classification"], "incomplete_evidence")
+            self.assertNotIn("open_compare_contract_mismatch", record["issues"])
+        for failures, cancel in (({4: 1}, 6), ({5: 1}, 6), ({5: 1}, 7)):
+            record = self.collect(open_compare_log(open_compare_fields(failures, cancel)), manifest("application-open-compare"))
+            self.assertEqual(record["classification"], "complete_failure")
+            self.assertNotIn("open_compare_contract_mismatch", record["issues"])
+
+    def test_open_compare_cleanup_failure_and_prior_uncertainty(self):
+        full = open_compare_fields()
+        full.update(status_bits=0xffffffff, errno=4, cleanup_failed_mask=4, cleanup_errno=4, cleanup_raw_bits=0xffffffff)
+        guard = {key: 0 for key in result.OPEN_COMPARE_KEYS}
+        guard.update(stage=1, status_bits=0xfffffffd, prior_cleanup_mask=2, cleanup_errno=4, cleanup_raw_bits=0xffffffff)
+        cancel = open_compare_fields(cancel=6)
+        cancel.update(cleanup_failed_mask=2, cleanup_errno=4, cleanup_raw_bits=0xffffffff)
+        for fields in (full, guard, cancel):
+            record = self.collect(open_compare_log(fields), manifest("application-open-compare"))
+            self.assertEqual(record["classification"], "complete_failure")
+            self.assertNotIn("open_compare_contract_mismatch", record["issues"])
+            self.assertEqual(record["diagnostic"]["cleanup"], "failed")
+
+    def test_open_compare_impossible_masks_errors_and_missing_evidence_rejected(self):
+        for fields in ({"attempted_mask": 255}, {"attempted_mask": 111}, {"operations": 6}, {"stage": 7},
+                       {"opened_mask": 6}, {"observed_mask": 3}, {"closed_mask": 3}, {"failed_stage": 4},
+                       {"relative_open_errno": 1}, {"relative_stat_raw": 1}, {"absolute_open_raw": 0xffffffff},
+                       {"relative_reject": 8}, {"data_match_mask": 32}, {"data_match_mask": 30}, {"absolute_reject": 1},
+                       {"relative_same_device": 0}, {"relative_same_device": 1}, {"status_bits": 0xfffffffc}):
+            with self.subTest(fields=fields):
+                record = self.collect(open_compare_log(fields), manifest("application-open-compare"))
+                self.assertNotEqual(record["classification"], "complete_success")
+        failed = open_compare_fields({4: 1})
+        for changed in ({"attempted_mask": 127, "operations": 7}, {"failed_stage": 6},
+                        {"relative_stat_errno": 1}, {"raw_bits": 0}, {"errno": 2}):
+            record = self.collect(open_compare_log(failed | changed), manifest("application-open-compare"))
+            self.assertIn("open_compare_contract_mismatch", record["issues"])
+        text = open_compare_log()
+        line = "application_open_compare_operations=0x00000007\n"
+        for changed in (text.replace(line, ""), text.replace(line, line * 2), text.replace(line, "application_open_compare_operations=7\n"),
+                        text.replace("event=application_open_compare_imports_closed", ""),
+                        text.replace(line, "").replace("event=application_open_compare_imports_closed", line + "event=application_open_compare_imports_closed")):
+            self.assertNotEqual(self.collect(changed, manifest("application-open-compare"))["classification"], "complete_success")
+
+    def test_open_compare_shutdown_failure_preserves_clean_descriptor_result(self):
+        for fields in (open_compare_fields(), open_compare_fields(cancel=4)):
+            text = open_compare_log(fields, outcome="failed", status=1)
+            text = text.replace("\n".join(imports(8)), "\n".join(imports(8, status=0xffffffff)))
+            text = text.replace("event=application_open_compare_imports_closed\n", "")
+            record = self.collect(text, manifest("application-open-compare"))
+            self.assertEqual(record["classification"], "complete_failure")
+            self.assertNotIn("open_compare_contract_mismatch", record["issues"])
+            self.assertEqual(record["diagnostic"]["descriptor_cleanup"], "reported_complete")
+            self.assertEqual(record["diagnostic"]["imports_cleanup"], "failed")
+
+    def test_open_compare_import_failure_or_cancellation_has_no_probe_fields(self):
+        for status in (1, 0xffffffff):
+            record = self.collect(open_compare_log(init_status=status), manifest("application-open-compare"))
+            self.assertFalse(record["diagnostic"]["open_compare_entered"])
+            self.assertNotEqual(record["classification"], "complete_success")
 
     def test_namespace_observation_is_not_store_acceptance_and_redacts_raw_data(self):
         for fields in ({}, {"root_fd_reject": 7, "root_path_reject": 1, "data_path_reject": 2,

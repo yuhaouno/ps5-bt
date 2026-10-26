@@ -279,3 +279,10 @@ application-namespace-test:
 
 ps5-application-namespace:
 	python3 tools/build_ps5.py --application-namespace --loader-kernel-resolver
+
+.PHONY: application-open-compare-test ps5-application-open-compare
+application-open-compare-test:
+	python3 tests/application/run_open_compare.py --cc "$(HOST_CC)"
+
+ps5-application-open-compare:
+	python3 tools/build_ps5.py --application-open-compare --loader-kernel-resolver

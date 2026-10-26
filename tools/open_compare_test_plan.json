@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "target_host": "192.168.1.111",
+  "ftp_port": 2121,
+  "remote_root": "/data/pldmgr/payloads/local",
+  "remote_log": "/data/ps5-bt-open-compare.log",
+  "candidates": [
+    {
+      "id": "application-open-compare",
+      "order": 1,
+      "artifact": "build/ps5/ps5-bt-application-open-compare.elf",
+      "build_manifest": "build/ps5/ps5-bt-application-open-compare.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-application-open-compare-source.tar.gz",
+      "slot": "ps5-bt-application-open-compare",
+      "remote_filename": "ps5-bt-application-open-compare.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=application_open_compare_begin schema=1 namespace=root-data access=read-only cases=relative-absolute radio=Unavailable capture=Unavailable",
+        "application_open_compare_stage=0x00000008",
+        "application_open_compare_status_bits=0x00000000",
+        "application_open_compare_operations=0x00000007",
+        "application_open_compare_attempted_mask=0x0000007f",
+        "application_open_compare_opened_mask=0x00000007",
+        "application_open_compare_closed_mask=0x00000007",
+        "application_open_compare_observed_mask=0x00000007",
+        "application_open_compare_cleanup_failed_mask=0x00000000",
+        "event=application_open_compare_imports_closed",
+        "event=application_open_compare_complete",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "root open/stat failure stops the procedure; each data case failure skips its dependent stat and permits the separately bounded other case; no retries or permission changes",
+        "no final return within external timeout or uncertain cleanup; preserve incomplete log and stop further tests"
+      ]
+    }
+  ]
+}

@@ -65,6 +65,7 @@ def relink_directory(manifest):
     return PurePosixPath("build/ps5/" + VARIANTS[variant][0] + "-relink")
 
 VARIANTS = {
+    "application_open_compare": ("ps5-bt-application-open-compare", APPLICATION_SOURCES | {"platform/ps5/application/open_compare.c", "platform/ps5/application/open_compare.h"}, "--application-open-compare"),
     "application_namespace": ("ps5-bt-application-namespace", APPLICATION_SOURCES | {"platform/ps5/application/namespace_probe.c", "platform/ps5/application/namespace_probe.h"}, "--application-namespace"),
     "application_setup": ("ps5-bt-application-setup", APPLICATION_SOURCES | {"platform/ps5/application/setup_namespace.c", "platform/ps5/application/setup_namespace.h"}, "--application-setup"),
     "application_control": ("ps5-bt-application-control", APPLICATION_SOURCES, "--application-control"),
@@ -876,7 +877,7 @@ def self_test():
         USB_SDK_HEADERS.update(original_headers)
         APPLICATION_SDK_HEADERS.clear()
         APPLICATION_SDK_HEADERS.update(original_application_headers)
-    print("PASS source bundle content/determinism/default/query/USB/capture/SBC/application-control/generated/observe/setup/namespace variants; pinned original SDK headers/notices and codec relink inputs; dirty tree, invalid variant, path escape and manifest/source/ELF/archive/relink/SDK mismatch rejection; no stale output (synthetic fixtures, no hardware)")
+    print("PASS source bundle content/determinism/default/query/USB/capture/SBC/application-control/generated/observe/setup/namespace/open-compare variants; pinned original SDK headers/notices and codec relink inputs; dirty tree, invalid variant, path escape and manifest/source/ELF/archive/relink/SDK mismatch rejection; no stale output (synthetic fixtures, no hardware)")
 
 
 if __name__ == "__main__":

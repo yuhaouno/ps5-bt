@@ -22,8 +22,10 @@ uses `tools/namespace_test_plan.json` and its own fixed log. Its observed run
 failed at root-dot fstatat (raw -1/errno 1) after successful root open/fstat;
 root rejection remained mask 4, cleanup was clean and controller input was
 reported normal. No data observation was reached. Do not repeat this candidate;
-the next proposed experiment compares relative and absolute fixed directory
-opens with separate case accounting and no storage-policy change.
+the next separately selected [comparison](OPEN-COMPARE.md) tests relative and
+absolute fixed directory opens with separate case accounting and no storage-policy
+change. Its single-item plan is `tools/open_compare_test_plan.json`; hardware
+results remain pending.
 A rejection bit does not verify native layout or authorize permission changes;
 legacy schema-1 logs have no predicate detail. Do not repeat the blocked application
 sequence or an Empty read without a new reviewed hypothesis.

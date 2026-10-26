@@ -7,7 +7,9 @@ the project entry/linker and fixed SDK v0.45 revision
 
 The separately selected `PS5_BT_APPLICATION_NAMESPACE` candidate uses the fixed
 log `/data/ps5-bt-namespace.log`; baseline and other existing candidates retain
-`/data/ps5-bt-hw1.log`. No user-defined log path is admitted. Open/write/close and
+`/data/ps5-bt-hw1.log`. The independent
+`PS5_BT_APPLICATION_OPEN_COMPARE` artifact uses `/data/ps5-bt-open-compare.log`.
+No user-defined log path is admitted. Open/write/close and
 failure propagation are unchanged; repeated launches of the same candidate
 still truncate its own log. See [NAMESPACE-PROBE.md](NAMESPACE-PROBE.md).
 

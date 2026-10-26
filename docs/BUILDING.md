@@ -15,6 +15,15 @@ need explicit build variants and reviewed ABI/dependency/state contracts;
 preserve the current baseline and its inspection checks. Candidates may be
 committed with PS5 validation pending; building never authorizes deployment.
 
+## Fixed directory open comparison
+
+`make ps5-application-open-compare` selects the independent relative/absolute
+read-only open diagnostic; `make application-open-compare-test` runs its strict
+and sanitized synthetic tests. Prepare a clean single-item kit with
+`tools/open_compare_test_plan.json`. The fixed log is
+`/data/ps5-bt-open-compare.log`; see [OPEN-COMPARE.md](OPEN-COMPARE.md) for the
+separately admitted case-error continuation, skipped-stat accounting and limits.
+
 ## Read-only namespace candidate
 
 `make ps5-application-namespace` selects the independent root/data observation

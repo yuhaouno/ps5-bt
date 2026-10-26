@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add a separate fixed-directory relative/absolute open comparison with exact
+  per-case failure/skipped-stat accounting, seven-call/three-close bounds,
+  cancellation and sticky cleanup uncertainty. Preserve the earlier fstatat
+  failure and original candidate bounds; use a dedicated log and one-item kit.
+  Native ABI and store acceptance remain Unknown regardless of access results.
+
 - Retain the read-only namespace probe's PS5 result: root open/fstat succeeded,
   root-dot fstatat returned -1/errno 1, root rejection remained mask 4, and owned
   close/import shutdown completed. Record normal operator-reported controller

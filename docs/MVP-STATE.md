@@ -22,8 +22,8 @@ shut down, full lifecycle returned 1, and the operator reported normal controlle
 input before/during/after. No data observation or comparison was reached.
 The exact `e219c8d` kit and both collections are retained. No wrapper defect was
 found; native permission/API cause remains Unknown. Next is an independently
-selected relative-vs-absolute open comparison, without fstatat retries or store
-protection changes. Do not reload blocked application tests.
+selected [relative-vs-absolute open comparison](OPEN-COMPARE.md), now implemented
+without fstatat retries or store protection changes. Do not reload blocked application tests.
 
 ## New-machine test preparation, 2026-10-26
 

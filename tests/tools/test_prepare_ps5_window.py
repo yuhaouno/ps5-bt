@@ -263,6 +263,19 @@ class WindowPreparerTest(unittest.TestCase):
         with patch.dict(preparer.package_source.VARIANTS, application_setup=(stem, set(), "--application-setup")):
             self.assertEqual(preparer.profile(candidate), (stem, "--application-setup"))
 
+    def test_open_compare_plan_build_package_assemble_uses_fixed_log_and_profile(self):
+        self.plan.write_bytes((REPO / "tools/open_compare_test_plan.json").read_bytes())
+        git(self.root, "add", "plan.json")
+        git(self.root, "-c", "user.name=Fixture", "-c", "user.email=fixture@localhost", "commit", "-qm", "test: select open_compare")
+        self.commands = LocalCommands(self.root)
+        report = self.prepare(build=True)
+        self.assertEqual(report["status"], "ready")
+        self.assertEqual(len(self.commands.calls), 3)
+        self.assertIn("--application-open-compare", self.commands.calls[0])
+        plan, _ = preparer.mvp_test_kit.load_kit(self.output / "kit")
+        self.assertEqual(plan["remote_log"], preparer.mvp_test_kit.OPEN_COMPARE_LOG)
+        self.assertEqual([item["id"] for item in plan["candidates"]], ["application-open-compare"])
+
     def test_namespace_plan_build_package_assemble_uses_fixed_log_and_profile(self):
         self.plan.write_bytes((REPO / "tools/namespace_test_plan.json").read_bytes())
         git(self.root, "add", "plan.json")
