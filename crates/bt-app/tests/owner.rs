@@ -950,3 +950,73 @@ fn stalled_whole_or_partial_media_has_a_total_budget_and_never_refunds_credits()
         assert_eq!(a.status().phase, Phase::Failed);
     }
 }
+
+#[test]
+fn externally_spent_reopen_ticket_joins_same_attempt_without_spending_again() {
+    use bt_core::recovery::{AttemptOutcome, Failure};
+    let mut r = retry_ready();
+    let Action::Attempt(first) = r.poll(0).unwrap() else {
+        panic!()
+    };
+    r.accept_attempt(0, first).unwrap();
+    r.finish_attempt(1, first, AttemptOutcome::Failed(Failure::Retryable))
+        .unwrap();
+    let Action::AwaitSafety {
+        ticket,
+        requirement,
+    } = r.poll(1).unwrap()
+    else {
+        panic!()
+    };
+    r.confirm_safety(1, ticket, requirement).unwrap();
+    let Action::Attempt(second) = r.poll(11).unwrap() else {
+        panic!()
+    };
+    r.accept_attempt(11, second).unwrap();
+    let mut b = Buffers::default();
+    let mut a = app(&mut b, &mut r);
+    assert_eq!(
+        a.connect_with_accepted_attempt(Peer::from_hci_bytes(PEER), 10, 11, first),
+        Err(Error::RecoveryBlocked)
+    );
+    assert_eq!(a.status().phase, Phase::Idle);
+    a.connect_with_accepted_attempt(Peer::from_hci_bytes(PEER), 10, 11, second)
+        .unwrap();
+    assert_eq!(a.status().recovery.attempts, 2);
+    assert_eq!(a.status().recovery.action, Action::InFlight(second));
+    assert_eq!(a.status().phase, Phase::Connecting);
+    assert!(a.prepare(11, &mut [0; 700]).unwrap().is_some());
+    assert_eq!(a.tick(1_000_000), Err(Error::RecoveryBlocked));
+    assert!(matches!(a.status().recovery.action, Action::Exhausted(_)));
+    assert_eq!(a.status().recovery.attempts, 2);
+}
+
+#[test]
+fn merely_offered_reopen_ticket_is_rejected_and_failed_start_consumes_no_new_attempt() {
+    let mut r = retry_ready();
+    let Action::Attempt(ticket) = r.poll(0).unwrap() else {
+        panic!()
+    };
+    {
+        let mut b = Buffers::default();
+        let mut a = app(&mut b, &mut r);
+        assert_eq!(
+            a.connect_with_accepted_attempt(Peer::from_hci_bytes(PEER), 10, 0, ticket),
+            Err(Error::RecoveryBlocked)
+        );
+        assert_eq!(a.status().recovery.attempts, 0);
+    }
+    r.accept_attempt(0, ticket).unwrap();
+    let mut b = Buffers::default();
+    let mut a = app(&mut b, &mut r);
+    assert!(
+        a.connect_with_accepted_attempt(Peer::from_hci_bytes(PEER), 0, 0, ticket)
+            .is_err()
+    );
+    assert_eq!(a.status().recovery.attempts, 1);
+    assert_eq!(a.status().phase, Phase::Failed);
+    assert!(matches!(
+        a.status().recovery.action,
+        Action::AwaitSafety { .. }
+    ));
+}

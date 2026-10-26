@@ -3,7 +3,30 @@
 #![no_std]
 #![forbid(unsafe_code)]
 
+mod application_loop;
+mod audio_pipeline;
+mod main_loop;
 mod management;
 mod pump;
+mod rebuild;
 pub use management::{Capabilities, Config, Error, LookupFailure, Route, Runner};
 pub use pump::{AudioStep, CommandSink, InputPump, OutputPump, PumpError, PumpProgress};
+
+pub use main_loop::{
+    Continuity, Lane, LoopConfig, LoopPhase, LoopReport, LoopResources, LoopStatistics, MainLoop,
+    Quantum, Resource, StopReason, Turn,
+};
+
+pub use audio_pipeline::{
+    AudioPipeline, PipelineCleanup, PipelineError, PipelineFailure, PipelineSnapshot, SendBuffers,
+};
+
+pub use rebuild::{
+    CaptureEncoderResources, RebuildError, RebuildFactory, RebuildOwner, RebuildResource,
+    RebuildSnapshot, ReopenFailure, ResourceCleanup,
+};
+
+pub use application_loop::{
+    ApplicationLoop, ApplicationLoopError, ApplicationLoopSnapshot, HttpWork, LoopBuffers, NoHttp,
+    OwnedInput, OwnedPacket, OwnedPacketKind,
+};

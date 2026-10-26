@@ -78,6 +78,9 @@ impl<'a> OutputPump<'a> {
             cancelled: None,
         })
     }
+    pub const fn connection(&self) -> Connection {
+        self.connection
+    }
     pub fn pending_control(&self) -> bool {
         self.fragmenter.is_busy()
     }
@@ -361,6 +364,9 @@ impl<'a> InputPump<'a> {
             last_us: now,
             failed: false,
         })
+    }
+    pub const fn connection(&self) -> Connection {
+        self.connection
     }
     pub fn pending_basic(&self) -> Option<&[u8]> {
         self.pending.map(|len| &self.inbox[..len])

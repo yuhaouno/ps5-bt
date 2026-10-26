@@ -19,6 +19,13 @@ Source-backed isolated transport experiments use AGENTS.md's admission rules;
 production ownership/credit guarantees still gate support. No console window
 is currently available from this chat; the 2026-10-25 window below is historical.
 
+The portable application loop now binds concrete HTTP/control/input/audio/send
+owners under finite quotas and global Stop. Factory-based resource reconstruction
+consumes capture/encoder cleanup, retains failure budgets and uses fresh epochs;
+a rebuilt application accepts an already-spent retry ticket without spending it
+again. Native PS5 factory and readiness wiring stay gated by transport/capture
+evidence. See [APPLICATION-LOOP.md](docs/APPLICATION-LOOP.md).
+
 The experimental Rust capture owner now has a separate Avcap2 ABI, explicit
 format/time evidence, declared-input normalization and retained block bridge.
 `ps5-capture-stream` exercises one raw read through the new Rust/C seam with

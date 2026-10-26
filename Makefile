@@ -30,6 +30,7 @@ check:
 	$(MAKE) capture-probe-test
 	$(MAKE) capture-observe-test
 	$(MAKE) capture-stream-test
+	$(MAKE) audio-pipeline-test
 	$(MAKE) sbc-codec-test
 	$(MAKE) sbc-main-test
 	$(MAKE) continuous-main-test
@@ -211,3 +212,10 @@ capture-stream-test: capture-entry-test
 	cargo check -p bt-capture --features external-avcap2 --target x86_64-unknown-none --locked
 	$(HOST_CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -DPS5_CAPTURE_STREAM_HOST_TEST -fsanitize=address,undefined -fno-omit-frame-pointer -Iplatform/ps5/capture -Itests/platform platform/ps5/capture/capture_stream.c tests/platform/capture_stream_fixture.c tests/platform/capture_stream_test.c -o build/host/capture-stream/test-sanitized
 	build/host/capture-stream/test-sanitized
+
+.PHONY: audio-pipeline-test
+audio-pipeline-test:
+	cargo test -p bt-app -p bt-runner --locked
+	cargo test -p bt-runner --features host-libsbc --locked
+	cargo clippy -p bt-runner --all-targets --features host-libsbc --locked -- -D warnings
+	cargo check -p bt-runner --target x86_64-unknown-none --locked

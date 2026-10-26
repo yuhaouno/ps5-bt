@@ -89,3 +89,16 @@ budgets. These checks establish development behavior only. Live PS5 event
 routing, SSP/headset compatibility, storage, playback, timing and DualSense
 coexistence all remain **Requires hardware**. The established diagnostic and its
 Unsupported backend are unchanged.
+
+## Concrete bounded loop and audio assembly
+
+[APPLICATION-LOOP.md](APPLICATION-LOOP.md) extends this original step-body with
+`MainLoop`, typed `ApplicationLoop`, owned `AudioPipeline` and `RebuildOwner`.
+Actual HTTP, management, owned HCI/ACL/completions, capture, persistent encoding
+and media submission have independent per-turn quanta. Native resource factories
+and verified input routing remain external prerequisites. The versioned capture
+adapter preserves unknown format/time, and attaching a Rust pump never grants
+transport ownership or credits. Global shutdown can cancel discovery or an
+in-flight HTTP request, prevents new capture/encode work, and drains a healthy
+partially sent media PDU before protocol teardown; a terminal abort preserves
+accepted-prefix and reconciliation evidence.

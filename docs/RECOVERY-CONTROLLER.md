@@ -84,7 +84,11 @@ cleanup/reconciliation separation, stale and duplicate results, episode expiry,
 stable-success reset, explicit operator retry, cancellation and clock arithmetic.
 Synthetic microsecond values establish state-machine behavior only.
 
-Future PS5 candidates must integrate these actions with actual owned cleanup,
+`bt-runner::RebuildOwner` now binds these actions to factory-owned resource
+close/reopen, including a concrete capture/encoder pair. New epochs, partial
+open cleanup and same-episode attempt budgets are checked offline; an already
+accepted ticket can be handed to a rebuilt application without spending twice.
+Native PS5 candidates still must establish actual backend cleanup,
 connection epochs and verified transport reconciliation, and record each fault's
 cause, attempt, waiting/exhausted outcome and cleanup. Recovery timing, Bluetooth
 coexistence, audible gaps and improvement over another payload all require PS5

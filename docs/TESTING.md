@@ -274,3 +274,15 @@ cleanup-uncertainty latch cannot be reset. `make capture-entry-test` checks the
 separate main/clock boundary. `make ps5-capture-stream` builds/inspects the actual
 target ELF and does not run it. Native format/time and continuous behavior still
 require PS5 evidence; Empty is no PCM success.
+
+## Bounded loop and actual capture/codec integration
+
+`cargo test -p bt-app -p bt-runner --locked` exercises startup unwind, per-lane
+quotas, urgent Stop, finite protocol teardown and resource reopen across the same
+fault episode. `cargo test -p bt-runner --features host-libsbc --locked` adds the
+actual declared capture → bridge/scheduler → persistent SBC → RTP/L2CAP/ACL
+integration. Four unaligned capture chunk lengths produce four frames compared
+byte-for-byte with an independent persistent encoder, across twelve synthetic
+accepted ACL fragments. Queue Busy, backend Busy, explicit NoCredits/completions
+and healthy partial-PDU Stop retain exact ownership. This exercises a real host
+codec under synthetic transport, not native capture or headset playback.

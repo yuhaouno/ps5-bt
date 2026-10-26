@@ -14,6 +14,13 @@
 
 ## Unreleased
 
+- Assemble actual Rust HTTP, management, owned input, audio and ACL lanes with
+  per-turn budgets, global cancellation and observable reverse-order cleanup.
+  Connect declared capture through real persistent SBC under Busy/credit/partial
+  drain tests. Rebuild capture/encoder resources with newer epochs and the same
+  fault episode; hand accepted retry tickets to the rebuilt application without
+  spending twice. Native acquisition/readiness and PS5 acceptance remain pending.
+
 - Add a separate experimental capture ABI and Rust owner with bounded reads,
   consume-once cleanup, raw-status preservation and sticky native cleanup
   uncertainty. Normalize explicitly declared i16/f32 inputs, preserve independent

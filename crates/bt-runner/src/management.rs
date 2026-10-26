@@ -106,6 +106,7 @@ pub struct Runner<'a, const N: usize> {
     lookup_failure: Option<LookupFailure>,
     cancelled_scan: bool,
     clock_failed: bool,
+    shutting_down: bool,
 }
 impl<'a, const N: usize> Runner<'a, N> {
     pub fn new(
@@ -171,6 +172,7 @@ impl<'a, const N: usize> Runner<'a, N> {
             lookup_failure: None,
             cancelled_scan: false,
             clock_failed: false,
+            shutting_down: false,
         })
     }
     pub fn lookup_failure(&self) -> Option<LookupFailure> {
@@ -197,6 +199,105 @@ impl<'a, const N: usize> Runner<'a, N> {
         self.scanning
     }
 
+    /// Latch global shutdown before another management command can execute.
+    /// This cancels discovery and requests ordered application disconnect; it
+    /// does not claim native cleanup or throw away a healthy partial media PDU.
+    pub fn request_shutdown<S: BondStore>(
+        &mut self,
+        app: &mut Application<'_, S>,
+        now: u64,
+    ) -> Result<(), Error> {
+        self.time(app, now)?;
+        if self.shutting_down {
+            return Ok(());
+        }
+        self.shutting_down = true;
+        self.challenge = None;
+        if self.scanning && !self.inquiry.is_quiescent() {
+            self.inquiry.cancel(now).map_err(Error::Discovery)?;
+            self.cancelled_scan = true;
+        }
+        if !matches!(
+            app.status().phase,
+            Phase::Idle | Phase::Closed | Phase::Failed
+        ) {
+            app.disconnect(now).map_err(Error::Application)?;
+        }
+        self.publish(app, now)
+    }
+    /// Advance only bounded protocol teardown. The owner must continue inbound
+    /// routing/control output and healthy media-prefix drain while this returns
+    /// false. true is protocol quiescence, never native transfer/credit proof.
+    pub fn poll_shutdown<S: BondStore>(
+        &mut self,
+        app: &mut Application<'_, S>,
+        now: u64,
+    ) -> Result<bool, Error> {
+        self.time(app, now)?;
+        if !self.shutting_down {
+            return Err(Error::InvalidState);
+        }
+        if self.scanning && self.inquiry.tick(now).is_err() {
+            self.last_error = Some(-101);
+        }
+        if let Err(error) = app.tick(now) {
+            self.last_error = Some(-102);
+            if app.status().phase != Phase::Failed {
+                return Err(Error::Application(error));
+            }
+        }
+        let quiescent = self.inquiry.is_quiescent()
+            && matches!(app.status().phase, Phase::Idle | Phase::Closed)
+            && !app.status().cleanup_required;
+        if quiescent {
+            self.finish_shutdown_tickets(app, now, CommandOutcome::Cancelled)?;
+            self.scanning = false;
+        }
+        self.publish(app, now)?;
+        Ok(quiescent)
+    }
+    /// Clock-independent terminal cancellation. Native cleanup/reconciliation
+    /// remains required; the caller owns accepted-prefix evidence and resources.
+    pub fn abort_shutdown<S: BondStore>(
+        &mut self,
+        app: &mut Application<'_, S>,
+    ) -> Result<(), Error> {
+        self.shutting_down = true;
+        self.challenge = None;
+        if !matches!(app.status().phase, Phase::Idle | Phase::Closed) {
+            app.cancel();
+        }
+        if !self.inquiry.is_quiescent() {
+            let _ = self.inquiry.fail_transport(bt_core::Error::IntegrityLost);
+        }
+        self.last_error = Some(-107);
+        self.finish_shutdown_tickets(app, self.last_us, CommandOutcome::Failed(-107))?;
+        self.publish(app, self.last_us)
+    }
+    fn finish_shutdown_tickets<S: BondStore>(
+        &mut self,
+        app: &Application<'_, S>,
+        now: u64,
+        outcome: CommandOutcome,
+    ) -> Result<(), Error> {
+        for _ in 0..2 {
+            if let Some(ticket) = self.manager.take_pending() {
+                if self.manager.urgent().is_some_and(|p| p.ticket == ticket) {
+                    self.urgent = Some(ticket);
+                } else {
+                    self.regular = Some(ticket);
+                }
+            }
+        }
+        for ticket in [self.urgent, self.regular].into_iter().flatten() {
+            self.finish(ticket, outcome, app, now)?;
+        }
+        if let Some(ticket) = self.legacy.pending() {
+            self.legacy.finish(ticket, outcome).map_err(Error::Legacy)?;
+        }
+        self.legacy_ticket = None;
+        Ok(())
+    }
     fn time<S: BondStore>(&mut self, app: &mut Application<'_, S>, now: u64) -> Result<(), Error> {
         if self.clock_failed {
             return Err(Error::ClockRegressed);
@@ -243,6 +344,9 @@ impl<'a, const N: usize> Runner<'a, N> {
         now: u64,
     ) -> Result<(), Error> {
         self.time(app, now)?;
+        if self.shutting_down {
+            return self.poll_shutdown(app, now).map(|_| ());
+        }
         if self.scanning && self.inquiry.tick(now).is_err() {
             self.last_error = Some(-101);
         }
@@ -716,7 +820,7 @@ impl<'a, const N: usize> Runner<'a, N> {
         {
             available = available.with(Action::Forget);
         }
-        if self.clock_failed {
+        if self.clock_failed || self.shutting_down {
             available = Actions::none();
         }
         Snapshot {

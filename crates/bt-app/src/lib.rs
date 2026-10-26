@@ -314,6 +314,36 @@ impl<'a, S: BondStore> Application<'a, S> {
                 .map_err(Error::Recovery)?,
             _ => return Err(Error::RecoveryBlocked),
         }
+        self.start_selected(peer, epoch, now_us)
+    }
+
+    /// Resume the same already-spent fault-episode attempt after a bounded
+    /// native resource factory has successfully reopened it. The caller must
+    /// preserve the existing Recovery across owner reconstruction, retire the
+    /// old connection with real cleanup evidence and supply the factory's newer
+    /// epoch. This accepts neither a merely offered nor a completed/stale ticket,
+    /// and never spends another attempt or declares recovered playback.
+    pub fn connect_with_accepted_attempt(
+        &mut self,
+        peer: Peer,
+        epoch: u64,
+        now_us: u64,
+        ticket: bt_core::recovery::AttemptTicket,
+    ) -> Result<(), Error> {
+        self.time(now_us)?;
+        if self.phase != Phase::Idle || self.recovery_attempt.is_some() {
+            return Err(Error::InvalidState);
+        }
+        if self.recovery.poll(now_us).map_err(Error::Recovery)?
+            != bt_core::recovery::Action::InFlight(ticket)
+        {
+            return Err(Error::RecoveryBlocked);
+        }
+        self.recovery_attempt = Some(ticket);
+        self.start_selected(peer, epoch, now_us)
+    }
+
+    fn start_selected(&mut self, peer: Peer, epoch: u64, now_us: u64) -> Result<(), Error> {
         let result = self
             .device
             .select(peer)

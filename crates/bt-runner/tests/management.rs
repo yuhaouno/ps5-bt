@@ -591,3 +591,70 @@ fn selected_unbonded_connection_uses_current_opaque_ssp_approval_without_finishi
     assert!(r.manager().snapshot().cleanup_required);
     assert!(r.manager().snapshot().approval.is_none());
 }
+
+#[test]
+fn global_shutdown_cancels_scan_and_revokes_all_new_management_actions() {
+    let mut b = Buffers::default();
+    let mut recovery = recovery();
+    let mut a = app(&mut b, &mut recovery);
+    let mut slots = [ResultSlot::empty(); 2];
+    let mut r = Runner::<2>::new(config(), caps(), &mut slots, 0).unwrap();
+    r.step(&mut a, 0).unwrap();
+    submit(&mut r, Action::Scan);
+    r.step(&mut a, 0).unwrap();
+    let mut commands = Commands::default();
+    r.pump_discovery(&mut a, 0, &mut commands, &mut [0; 32])
+        .unwrap();
+    let epoch = r.scan_epoch();
+    r.receive_hci(
+        &mut a,
+        Route::Discovery,
+        epoch,
+        1,
+        &event(0x0f, &[0, 1, 1, 4]),
+    )
+    .unwrap();
+    r.request_shutdown(&mut a, 1).unwrap();
+    r.request_shutdown(&mut a, 1).unwrap();
+    assert!(!r.poll_shutdown(&mut a, 1).unwrap());
+    assert!(!r.manager().can_submit(Action::Scan));
+    r.pump_discovery(&mut a, 1, &mut commands, &mut [0; 32])
+        .unwrap();
+    assert_eq!(&commands.sent.last().unwrap().1[..3], &[2, 4, 0]);
+    r.receive_hci(
+        &mut a,
+        Route::Discovery,
+        epoch,
+        2,
+        &event(0x0e, &[1, 2, 4, 0]),
+    )
+    .unwrap();
+    assert!(r.poll_shutdown(&mut a, 2).unwrap());
+    assert!(r.manager().pending().is_none());
+    assert_eq!(
+        r.manager().completion().unwrap().outcome,
+        CommandOutcome::Cancelled
+    );
+    assert!(!r.manager().can_submit(Action::Scan));
+    r.step(&mut a, 3).unwrap();
+    assert!(!r.manager().can_submit(Action::Scan));
+}
+
+#[test]
+fn terminal_shutdown_is_clock_independent_and_finishes_unstarted_http_command() {
+    let mut b = Buffers::default();
+    let mut recovery = recovery();
+    let mut a = app(&mut b, &mut recovery);
+    let mut slots = [ResultSlot::empty(); 2];
+    let mut r = Runner::<2>::new(config(), caps(), &mut slots, 0).unwrap();
+    r.step(&mut a, 10).unwrap();
+    submit(&mut r, Action::Scan);
+    r.abort_shutdown(&mut a).unwrap();
+    assert!(r.manager().pending().is_none());
+    assert_eq!(
+        r.manager().completion().unwrap().outcome,
+        CommandOutcome::Failed(-107)
+    );
+    assert!(!r.manager().can_submit(Action::Scan));
+    r.abort_shutdown(&mut a).unwrap();
+}

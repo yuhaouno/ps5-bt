@@ -101,7 +101,9 @@ attested with `confirm_recovered_working`. Streaming and at least one complete
 accepted media PDU are necessary conditions, not headset/audibility evidence.
 Only this explicit attestation starts stable-success observation; an open call
 or Start acknowledgement does not reset budgets. A later fault keeps the same
-episode bounds. Automatic reconnect/native reopen is not implemented here.
+episode bounds. Resource reconstruction is implemented by the external `bt-runner::RebuildOwner`
+candidate described in APPLICATION-LOOP.md; this protocol owner does not itself
+open native resources.
 
 After fault, the outer owner must finish actual cleanup and reconcile native
 routing/credits before satisfying the exact recovery safety ticket, advancing
@@ -112,7 +114,7 @@ Recovery across this operation. User retry after exhaustion is explicit.
 
 ## Checks and pending platform work
 
-Nineteen application checks cover the full selected-peer stored-key handshake,
+Twenty-one application checks cover the full selected-peer stored-key handshake,
 SDP/channel progression, explicit Start, SBC negotiation/media binding, PCM block
 handoff, Busy/zero-credit behavior, healthy partial drain, clean Stop/Start,
 disconnect order/deadlines, foreign/stale packets, security revocation, invalid
@@ -120,8 +122,20 @@ nested initialization, forget, clock failure and recovery acceptance/stability.
 They use synthetic identities, protected-memory fixtures, clocks and SBC framing;
 the separate audio feature checks exercise real host encoding.
 
-There is no listener/page or `bt-control` owner integration yet, no concrete
-PS5 protected filesystem store, inquiry, live backend or continuous capture.
-Target encoder adaptation and native PCM format/timestamp evidence remain
-pending. PS5 pairing, test tone, captured audio, latency, long playback and
+The separate runner now binds listener/HTTP, management, discovery and declared
+capture/continuous SBC candidates. A protected POSIX store, experimental Avcap2
+owner and target SBC link exist, but native PS5 acquisition/routing and capture
+format/timestamp evidence remain pending. PS5 pairing, test tone, captured audio, latency, long playback and
 wireless DualSense coexistence require fresh hardware tests.
+
+### Accepted resource-reopen attempt handoff
+
+`connect_with_accepted_attempt(peer, epoch, now_us, ticket)` joins only the exact
+`InFlight(ticket)` in the same caller-owned Recovery after resource reopening.
+It requires an idle application and no attached attempt, rejects merely offered
+or stale tickets, retains the episode deadline/attempt count, and assigns failure
+to that existing attempt if device setup fails. It does not infer successful
+playback, clear cleanup requirements or prove that an epoch is native-authorized.
+The reconstruction factory supplies the newer epoch after actual cleanup.
+`confirm_recovered_working` remains gated on Streaming, accepted media and an
+explicit external working-playback observation.
