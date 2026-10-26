@@ -68,3 +68,58 @@ If capture fails, retain the first native failure and stop; do not return to
 directory probes. After game audio is established, prioritize bounded shutdown
 acknowledgment and reducing reliance on timed credits. No comparative advantage
 over HearBridge is established by this reference result.
+
+## Captured game or menu audio — second run
+
+The user separately authorized one capture-first run, confirmed audible PS5
+content and XM4 pairing readiness, and then confirmed hearing the corresponding
+game/menu audio with normal controller operation. The same ELF was read back
+and hash-verified again; no code rebuild or upload was needed.
+
+The previous remote state was renamed intact to
+`/data/ps5-bt-hb-reference-tone-20261027`. No bond file was downloaded or erased.
+No reference process was running before launch. The agent launched once,
+set `/api/tone?on=0` and verified tone=0 before requesting discovery, then
+selected the unique WH-1000XM4. This completed the functional reference chain:
+PS5 capture → SBC → Bluetooth → headset, with actual corresponding sound.
+
+- Capture Initialize/Open/Start returned 0 with auth mode 0 (no capture
+  credential-elevation fallback). The upstream heuristic selected float32;
+  successful reads reported 8,192 bytes / 1,024 stereo frames and nonfinite=0.
+  This supports the observed configuration, not a universal native-format ABI.
+- The 30-second media deadline ended streaming: **1,163 media packets, 11,246
+  SBC frames, 1,405 successful capture reads and 13,259 Empty/over reads**.
+  Sender accounting recorded **two media drops**; do not call this lossless.
+- Last ACL counters: 1,218 submitted, 1,173 event credits, **44 timed fallbacks**,
+  one outstanding in the upstream six-slot accounting, max local queue eight,
+  23 stalls. Real shared-controller allowance remains unproven.
+- Capture Stop/Close/Terminate each returned 0; USB cleanup calls were
+  acknowledged. AVDTP/L2CAP close responses and HCI Disconnection Complete were
+  again not confirmed. Final status was `stopped`; the manager's process list
+  showed no reference process. Endpoint return values and process exit do not
+  establish shared-controller cleanup or long-term coexistence.
+
+Immediate evidence: `build/reference/first-audio-candidate/capture-run/`, including
+preflight, run/status history, final process list and collected logs. Final
+`hearbridge.log`: 37,875 bytes; SHA-256
+`ab0b15f4f40855caae8eb3835a3c1d0f78116dcc964bf5a5a4698e46c4bc10d5`.
+The operator confirmed normal headset disconnection and normal wireless
+controller input afterward, and reported approximately **two very brief audible
+dropouts** during the 30 seconds. This is a subjective count, not an instrumented
+duration or proof of one-to-one correspondence with the two sender drops.
+
+The first sender drop coincided with queue eight, then backlog seven/eight;
+upstream logged an estimated 33 credits/s against 38 packets/s and reduced
+bitpool 41 → 37 → 22. This identifies queue pressure and a late rate reduction
+as a concrete next investigation, not proof of actual controller capacity or
+of the audible-dropout cause. Inspect adjustment before the queue fills rather
+than treating all Empty capture reads as lost audio.
+
+There is now a functional reference baseline. Preserve it for comparison and
+retain working C. The next scoped development should examine queue pressure
+before media drops, then carry the minimum needed C chain into PS5-BT. Other
+candidates are excessive Empty polling, timed-credit dependence and shutdown
+acknowledgment. Their causes and
+improvements need measurement; no superiority, latency or stability claim follows
+from two short runs. No further hardware launch is queued or authorized by this
+evidence record.

@@ -14,28 +14,29 @@ Do not require our current FileStore, management page or general recovery loop
 for a reference experiment. Keep any necessary bond state private; do not weaken
 the production store to bypass its current failure.
 
-1. The pinned reference has produced a real XM4 tone: see the
+1. The pinned reference has produced both tone and captured game/menu audio: see the
    [hardware result](REFERENCE-FIRST-AUDIO.md) and
    [recipe and concrete run scope](../experiments/hearbridge-reference/README.md).
    It retains competing system USB reads, timed credit fallback, event-mask/SSP
    and conditional scan-setting writes, plus SDK stock own-process permissions.
-   The user explicitly admitted one run; it completed. A further run needs its
-   own decision. Do not claim established ownership or safe coexistence.
-2. Next: capture-first with the SAME ELF. Preserve completed state privately,
-   launch into a fresh directory, disable tone before discovery/connection, and
-   observe known audible PS5 game/menu content for at most 30 seconds. This
-   avoids the chat-response race that prevented capture in the first run.
-   Retain missing disconnect acknowledgment as an explicit limitation. Record
-   the first failed stage or audible result and collect immediately.
-3. After reference success, integrate the minimum required C chain into PS5-BT,
-   retaining working interfaces until an actual playback comparison justifies
-   Rust substitution or an optimization. Assess latency/stability afterward.
+   The user separately admitted two runs; both completed. A further run needs
+   its own decision. Do not claim established ownership or safe coexistence.
+2. The user heard corresponding game/menu audio with about two very brief
+   dropouts; controller input was normal and the headset disconnected afterward.
+   Sender accounting also reported two drops, but correlation is unproven.
+   First inspect queue pressure before dropping: queue reached eight, then
+   upstream reduced bitpool 41 → 37 → 22. Do not treat Empty reads as audio loss
+   or timed event-credit estimates as actual controller capacity.
+3. Preserve this working reference for comparison. Develop the smallest scoped
+   change addressing short dropouts and integrate only the required C chain;
+   keep working interfaces until measurements justify replacement. Do not
+   rewrite for Rust purity or restart the directory-probe sequence.
 
 The strict ownership path remains a research/development blocker if the reference
 mechanisms are not admitted; no fast-completion promise is justified in that case.
 Initial reference sound and production safety/stability are separate outcomes.
 
-## Reference artifact and first run — 2026-10-27
+## Reference artifact and two runs — 2026-10-27
 
 - HearBridge pin `cd5b7fce1b8226d8850cdd306437550098c6a62b`; SDK v0.43 pin
   `d9c9519116944a7f1c22d262012c53b80b3520b7`; LLVM 18.1.8, built from source.
@@ -52,10 +53,12 @@ Initial reference sound and production safety/stability are separate outcomes.
 - Cooperative ceiling 180 s after stop initialization; immutable media ceiling
   30 s. Stop on failure; no outer reconnect. Blocking native calls/joins can
   overrun. Cleanup uncertainty is reported, not called a clean exit.
-- Primary log: `/data/ps5-bt-hb-reference/hearbridge.log`; diag.txt/status.txt
-  and all immediate collections are in the kit's `remote/` directory. Audible
-  tone and normal controller before/during/after are operator-confirmed;
-  capture-format acceptance and comparative performance remain unverified.
+- Primary log: `/data/ps5-bt-hb-reference/hearbridge.log`; immediate tone evidence
+  is in the kit's `remote/`, capture evidence in `capture-run/`. The latter
+  reported 1,405 successful reads, 13,259 Empty/over reads, 1,163 media packets,
+  two media drops and 44 timed credit fallbacks. Capture cleanup returned all 0;
+  HCI disconnect completion was not observed. Full format/ownership/quality
+  acceptance and comparative performance remain unverified.
 
 ## Current console and retained evidence
 
@@ -65,9 +68,10 @@ Initial reference sound and production safety/stability are separate outcomes.
   Its diagnostic remains **on hold**. Do not ask the user to run it by default.
   Its immutable kit is `build/ps5/raw-openat-window-kit-e328d85`; no run is known.
 - Latest verified inventory has only `local/ps5-bt-hearbridge-reference` among
-  PS5-BT slots; unrelated entries are unchanged. This reference was launched once
-  and exited; its private state is preserved. Do not blindly relaunch: fresh
-  mkdir would fail, and the first run's single-experiment permission is consumed.
+  PS5-BT slots; unrelated entries are unchanged. Both authorized runs exited.
+  First-run private state is preserved at `/data/ps5-bt-hb-reference-tone-20261027`;
+  the second remains at `/data/ps5-bt-hb-reference`. No bond file was downloaded.
+  Do not blindly relaunch: fresh mkdir would fail and both run permissions are consumed.
 - Standalone SBC passed 750 blocks. Capture-stream returned Empty. Application
   startup failed store prerequisites. Directory comparisons found relative-open
   EPERM and absolute-open success; none established Bluetooth transport.

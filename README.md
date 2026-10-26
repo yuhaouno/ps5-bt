@@ -1,13 +1,14 @@
 # PS5-BT — working title
 
-The current priority is a first real headset connection and audible audio,
-followed by optimization. Start with the concise
+The reference now reproduces audible game/menu audio. The current priority is
+reducing short dropouts and integrating the minimum working chain. Start with the concise
 [current handoff](docs/TEMP-PS5-TEST-HANDOFF.md). Directory diagnostics are on hold.
 Evaluate a pinned HearBridge reference before porting its C connection/audio
 chain; its competing-read/credit behavior requires a separate execution-scope
 decision. PS5-BT production playback remains unverified. The isolated reference
-has now produced a [30-second audible XM4 test tone](docs/REFERENCE-FIRST-AUDIO.md)
-with operator-reported normal controller operation; game capture is untested.
+has now produced both a test tone and
+[30 seconds of captured game/menu audio on XM4](docs/REFERENCE-FIRST-AUDIO.md#captured-game-or-menu-audio--second-run),
+with operator-reported normal controller operation during playback.
 The isolated [reference build recipe](experiments/hearbridge-reference/README.md)
 keeps the upstream connection/audio chain separate from the product and records
 the retained transport mechanisms and execution decision.
@@ -20,8 +21,8 @@ console's built-in Bluetooth hardware, while DualSense stays wireless. PS5 is
 the first-class initial platform; the Bluetooth/audio core should also work
 with future Linux and FreeBSD backends.
 
-**Status: diagnostic ELF bring-up. No playable audio or
-verified PS5 support yet.** The workspace contains portable contracts and packet
+**Status: audible isolated reference on Slim/13.40; production playback remains
+unverified.** The workspace contains portable contracts and packet
 parsers, Rust/C capture and codec candidates, and a separately selected
 native application assembly with separate control, generated-SBC and raw-observation modes. The production Bluetooth adapter
 explicitly returns `Unsupported`. It is an independent project, not a translation or fork of an

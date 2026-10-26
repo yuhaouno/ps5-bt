@@ -14,6 +14,13 @@
 
 ## Unreleased
 
+- Reproduce captured game/menu audio on WH-1000XM4 using the same isolated
+  reference ELF with tone disabled before connection. Record 30-second playback,
+  operator-confirmed corresponding sound and normal controller input, 1,405
+  successful capture reads and successful capture cleanup calls. Retain two
+  media drops, 44 timed credit fallbacks and missing disconnect completion;
+  this is reference functional evidence, not production or quality acceptance.
+
 - Record the first audible reference result on Slim/13.40 and WH-1000XM4:
   successful pairing/streaming, operator-confirmed tone and normal controller
   operation, 30-second bounded media and process exit. Retain 37 timed credit
