@@ -21,6 +21,78 @@ transport experiments have separate admission from production support; no
 competing-reader, timer-credit or system-driver exception is implied. Existing
 tests, implementations and hardware facts below are unchanged by this policy.
 
+## Native startup integration continuation, 2026-10-26
+
+This supersedes the software omissions in the older dated snapshots below.
+Three disjoint workers implemented/reviewed factory, listener, startup and result
+work; root remained the only integration/commit owner. Workers are finished.
+No deployment, console connection/run, push, native audio activation or new
+hardware/coexistence evidence was authorized or performed.
+
+- `f0854d8`: persistent bounded sequential-client HTTP service using actual
+  listener ownership, fixed buffers and retained client-close uncertainty.
+- `09a4b1c`: concrete Rust `ps5-app` factory for reviewed native clock, protected
+  store, listener, capture and target SBC owners, with explicit modes and reverse
+  consume-once cleanup. Unknown PCM cannot enter NativeAudio; no transport or
+  credit constructor exists.
+- `fa938b8`: independent selected-export POSIX bridge, exact 43-header SDK
+  closure/notices and bounded cancel-aware entropy acquisition. Missing exports,
+  unsafe device/format or uncertain close fail explicitly; no guessed syscall,
+  predictable authorization token or privilege/driver changes.
+- `0409478`: per-turn application state/store lending and finite startup drive.
+  Initial Stop preempts normal clock/startup work; committed teardown advances
+  bounded clock/wait operations so a sticky latch cannot freeze StopTimeout.
+  Clock/wait/budget faults abort then consume at most six cleanup steps.
+- `a01cd04`: separately selected control-only target application ELF, real
+  store/listener/clock startup, Rust Application/Runner, Stop entry points and
+  numeric outcomes. Earlier HTTP close uncertainty remains sticky through final
+  cleanup and poisons reuse; the atomic guard rechecks poison after acquisition.
+  Build/source/kit/local-result tools recognize this independent identity.
+
+The candidate requires an already existing private mode-0700 directory at
+`/data/ps5-bt/control` owned by the payload identity. It does not create/relax that
+directory. It uses ephemeral loopback with fresh unlogged authorization, at most
+5,000,000 observed microseconds, 20,000 turns, 10,000 waits, 64 clients and
+100,000 us request/Stop budgets. It invokes no Bluetooth, capture or codec
+operation. Its native imports, entropy, filesystem protections/durability,
+scheduling and controller behavior remain Requires hardware. This is a startup
+candidate, not LAN deployment, playback or measured timing.
+
+Offline verification: workspace formatting/check/tests/strict Clippy pass, with
+409 ordinary Rust outcomes and one compile-fail outcome. Feature-enabled actual
+POSIX factory fixtures, five native-runtime host tests, seven driver startup
+regressions, capture/clock fixtures and target feature checks pass. Actual two
+successive authenticated TCP clients cross per-turn lending without native
+radio/audio calls. C import/entropy and main orchestration ASan/UBSan tests,
+protected-store/listener fault suites, page checks, codec reference/decoder and
+replacement archive checks, Rust archive inspection and 26 local-result tests
+pass. Implementation commits were checked from independent staged snapshots;
+the full staged native application was linked/inspected as an x86-64 ET_DYN ELF
+with only relative relocations, no imports/TLS/constructors and reviewed segment
+permissions. These checks prove neither native API behavior nor headset support.
+
+Full `make check` stops at the unchanged x86 syscall execution fixture on this
+ARM macOS host: errno 86, Bad CPU type in executable. Earlier suites pass;
+build/source/kit tests and archive/C-sanitizer checks were run separately. The
+unavailable execution check was not weakened or reported as passing.
+
+After this documentation commit, final clean-HEAD builds and corresponding
+source bundles are generated for the seven independently selected kit candidates
+and the baseline. The local kit is `build/ps5/mvp-startup-kit-20261026`; its own
+manifest/runbook records exact source revision and hashes rather than a
+self-referential tracked artifact hash. Building/assembling it performs no network
+connection to a console and creates no remote slot. Keep earlier kits historical.
+See APPLICATION-STARTUP.md, PS5-RESOURCE-FACTORY.md, LISTENER-SERVICE.md,
+PS5-POSIX-IMPORTS.md and DIAGNOSTIC-RESULTS.md.
+
+Next offline integration can expand the actual factory's gated capture/generated
+codec modes into separately selected bounded application experiments, or wire
+resource rebuild to an admitted owned backend. Actual native format/time units,
+owned Bluetooth route/command allowance/ACL reservation (or proven system-owned
+channel ABI), native cleanup/reopen, usable authorized LAN configuration and PS5
+headset acceptance remain open. Preserve unknown evidence and admission gates.
+No current console window or execution authority may be inferred from this work.
+
 ## Capture/audio integration continuation, 2026-10-26
 
 This supersedes software omissions in older snapshots below. The three disjoint
