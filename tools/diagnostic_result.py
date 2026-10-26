@@ -21,12 +21,13 @@ HEX64 = re.compile(r"[0-9a-f]{64}\Z")
 VARIANTS = {
     "sbc_continuous": "ps5-bt-sbc-continuous",
     "capture_stream": "ps5-bt-capture-stream",
+    "application_setup": "ps5-bt-application-setup",
     "application_control": "ps5-bt-application-control",
     "application_generated": "ps5-bt-application-generated",
     "application_observe": "ps5-bt-application-observe",
 }
 ALL_VARIANTS = ("native_query", "native_l2cap_probe", "usb_metadata", "capture_preflight",
-                "capture_once", "capture_observe", "capture_stream", "sbc_selftest", "sbc_continuous", "application_control", "application_generated", "application_observe")
+                "capture_once", "capture_observe", "capture_stream", "sbc_selftest", "sbc_continuous", "application_control", "application_generated", "application_observe", "application_setup")
 OBSERVATIONS = {"Unknown", "normal", "changed"}
 SBC_CONFIG = "event=sbc_continuous_begin schema=1 generated=1 nominal_clock=synthetic sink=discard"
 CAPTURE_CONFIG = "event=capture_stream_begin schema=1 reads_max=1 format=Unknown native_time=Unknown"
@@ -38,6 +39,10 @@ CAPTURE_KEYS = {"stage", "status_bits", "raw_status_bits", "lookup_hi", "lookup_
                 "stop_bits", "close_bits"}
 
 
+SETUP_CONFIG = "event=application_setup_begin schema=1 namespace=fixed private_mode=0700 radio=Unavailable capture=Unavailable"
+SETUP_KEYS = {"stage", "status_bits", "errno", "lookup_hi", "lookup_lo", "created_mask", "verified_mask",
+              "opened_mask", "closed_mask", "cleanup_failed_mask", "cleanup_errno", "cleanup_raw_bits",
+              "prior_cleanup_mask", "operations", "raw_bits"}
 APPLICATION_CONFIG = "event=application_begin schema=1 mode=control-only transport=Unavailable capture=Unavailable native_format=Unknown codec=Unavailable"
 GENERATED_CONFIG = "event=application_begin schema=1 mode=generated-sbc transport=Unavailable capture=Unavailable native_format=Unknown codec=diagnostic"
 OBSERVE_CONFIG = "event=application_begin schema=1 mode=capture-observe transport=Unavailable capture=raw-observe native_format=Unknown codec=Unavailable"
@@ -518,7 +523,161 @@ def application_report(body: list[str], candidate: str = VARIANTS["application_c
             "issues": sorted(set(issues))}
 
 
+def setup_report(body: list[str]) -> dict:
+    """C-only fixed namespace evidence, separate from Rust application/entropy."""
+    numbers, positions, imports, import_positions = {}, {}, [], []
+    issues = []
+    for index, line in enumerate(body):
+        match = re.fullmatch(r"application_(setup|import)_([a-z_]+)=0x([0-9a-f]{8})", line)
+        if match and match[2] in (SETUP_KEYS if match[1] == "setup" else IMPORT_KEYS):
+            category, key, value = match[1], match[2], int(match[3], 16)
+            if category == "setup":
+                numbers.setdefault(key, []).append(value)
+                positions.setdefault(key, []).append(index)
+                if len(numbers[key]) > 8:
+                    raise ValueError("too many setup numeric records")
+            else:
+                if key == "stage":
+                    imports.append({})
+                    import_positions.append([])
+                    if len(imports) > 2:
+                        raise ValueError("too many setup import reports")
+                if not imports or key in imports[-1]:
+                    issues.append("malformed_import_report")
+                else:
+                    imports[-1][key] = value
+                    import_positions[-1].append(index)
+        else:
+            for prefix, allowed in (("application_setup_", SETUP_KEYS), ("application_import_", IMPORT_KEYS)):
+                if line.startswith(prefix) and line.split("=", 1)[0][len(prefix):] in allowed:
+                    issues.append("malformed_numeric_marker")
+    def one(key):
+        values = numbers.get(key, [])
+        return values[0] if len(values) == 1 else None
+
+    starts = [i for i, line in enumerate(body) if line.startswith("event=application_setup_begin")]
+    terminal_names = ("event=application_setup_complete", "event=application_setup_failed", "event=application_setup_cancelled")
+    terminals = [(i, name) for i, line in enumerate(body) for name in terminal_names if line == name]
+    closed = [i for i, line in enumerate(body) if line == "event=application_setup_imports_closed"]
+    config_ok = len(starts) == 1 and body[starts[0]] == SETUP_CONFIG
+    if not config_ok:
+        issues.append("missing_or_duplicate_setup_configuration")
+    if len(terminals) != 1:
+        issues.append("missing_or_duplicate_setup_outcome")
+    outcome = terminals[0][1].removeprefix("event=application_setup_") if len(terminals) == 1 else "Unknown"
+    failure = any(name == "event=application_setup_failed" for _, name in terminals)
+    if outcome != "complete":
+        issues.append("setup_not_complete")
+    malformed_imports = any(set(group) != set(IMPORT_KEYS) for group in imports)
+    if malformed_imports or not imports:
+        issues.append("malformed_import_report")
+    failure |= any(group.get("status_bits", 0) not in (0, 1)
+                   or group.get("cleanup_flags", 0) or group.get("cleanup_errno", 0) for group in imports)
+    if not malformed_imports and imports:
+        # Init records the native lookup result before checking Stop. A clean
+        # cancellation can retain a nonzero raw result that was never classified
+        # as failure; only completed-success reports require zero raw fields.
+        if any(group["status_bits"] == 0 and any(group[key] for key in
+               ("errno", "lookup_hi", "lookup_lo", "return_hi", "return_lo")) for group in imports):
+            failure = True
+            issues.append("setup_import_contract_mismatch")
+        first = imports[0]
+        if first["stage"] not in (1, 2, 3) or first["resolved"] > 23:
+            failure = True
+            issues.append("setup_import_contract_mismatch")
+        if len(imports) == 2 and (imports[1]["stage"] != 8 or imports[1]["resolved"] != 0):
+            failure = True
+            issues.append("setup_import_contract_mismatch")
+    init_ok = (not malformed_imports and bool(imports) and imports[0] == {
+        "stage": 3, "status_bits": 0, "errno": 0, "lookup_hi": 0, "lookup_lo": 0,
+        "return_hi": 0, "return_lo": 0, "resolved": 23, "cleanup_flags": 0, "cleanup_errno": 0})
+    shutdown_ok = (not malformed_imports and len(imports) == 2 and imports[1] == {
+        "stage": 8, "status_bits": 0, "errno": 0, "lookup_hi": 0, "lookup_lo": 0,
+        "return_hi": 0, "return_lo": 0, "resolved": 0, "cleanup_flags": 0, "cleanup_errno": 0})
+    imports_cleanup = "failed" if any(group.get("cleanup_flags", 0) or group.get("cleanup_errno", 0)
+                                      or group.get("stage") == 8 and group.get("status_bits", 0) for group in imports) else "Unknown"
+    if init_ok and shutdown_ok and len(closed) == 1:
+        imports_cleanup = "reported_complete"
+    if len(closed) > 1 or closed and not (init_ok and shutdown_ok):
+        issues.append("setup_import_cleanup_not_confirmed")
+    attempted = bool(numbers)
+    complete_fields = all(one(key) is not None for key in SETUP_KEYS)
+    descriptor_cleanup = "Unknown"
+    if attempted and not complete_fields:
+        issues.append("missing_or_duplicate_setup_numeric_evidence")
+    if complete_fields:
+        values = {key: one(key) for key in SETUP_KEYS}
+        opened, closed_mask, verified = (values[key] for key in ("opened_mask", "closed_mask", "verified_mask"))
+        failed_mask, prior = values["cleanup_failed_mask"], values["prior_cleanup_mask"]
+        coherent = (values["stage"] in range(1, 7) and values["operations"] <= 32
+                    and values["status_bits"] in (0, 1, 0xffffffff, 0xfffffffe, 0xfffffffd, 0xfffffffc)
+                    and values["created_mask"] <= 3 and not ((opened | verified | closed_mask | failed_mask | prior) & ~15)
+                    and not (verified & ~opened or failed_mask & ~closed_mask)
+                    and closed_mask == opened)
+        if not coherent:
+            failure = True
+            issues.append("setup_contract_mismatch")
+        cleanup_error = any(values[key] for key in ("cleanup_failed_mask", "cleanup_errno", "cleanup_raw_bits", "prior_cleanup_mask"))
+        descriptor_cleanup = "failed" if cleanup_error else "reported_complete" if coherent else "Unknown"
+        if cleanup_error or values["status_bits"] not in (0, 1):
+            failure = True
+        if values["status_bits"] == 1:
+            if outcome != "cancelled" or any(values[key] for key in ("errno", "lookup_hi", "lookup_lo")):
+                failure = True
+                issues.append("setup_contract_mismatch")
+        elif outcome == "cancelled":
+            failure = True
+            issues.append("setup_contract_mismatch")
+        if outcome == "complete":
+            expected = {"stage": 6, "status_bits": 0, "errno": 0, "lookup_hi": 0, "lookup_lo": 0,
+                        "verified_mask": 15, "opened_mask": 15, "closed_mask": 15, "cleanup_failed_mask": 0,
+                        "cleanup_errno": 0, "cleanup_raw_bits": 0, "prior_cleanup_mask": 0, "raw_bits": 0}
+            if any(values[key] != value for key, value in expected.items()) or not 1 <= values["operations"] <= 32:
+                failure = True
+                issues.append("setup_contract_mismatch")
+    if not attempted:
+        issues.append("setup_not_entered")
+        if outcome == "complete" or init_ok:
+            issues.append("missing_or_duplicate_setup_numeric_evidence")
+        if len(imports) != 1 or imports and imports[0].get("status_bits") == 0:
+            issues.append("setup_import_contract_mismatch")
+        if outcome == "cancelled" and imports and imports[0].get("status_bits") != 1:
+            failure = True
+    elif not init_ok:
+        failure = True
+        issues.append("setup_import_contract_mismatch")
+    if outcome == "complete" and not (init_ok and shutdown_ok):
+        failure |= not malformed_imports and len(imports) == 2
+        issues.append("setup_import_contract_mismatch")
+    # The native order is begin -> init -> setup fields -> shutdown -> imports
+    # closed -> outcome. There is no entropy stage or Rust application entry.
+    if config_ok and len(terminals) == 1:
+        start, end = starts[0], terminals[0][0]
+        all_indices = [i for group in import_positions for i in group] + [i for group in positions.values() for i in group] + closed
+        ordered = start < end and all(start < i < end for i in all_indices)
+        if attempted and import_positions:
+            ordered &= all(import_positions[0][-1] < i for group in positions.values() for i in group)
+            if len(import_positions) == 2:
+                ordered &= all(i < import_positions[1][0] for group in positions.values() for i in group)
+                if closed:
+                    ordered &= import_positions[1][-1] < closed[0]
+        if not ordered:
+            issues.append("diagnostic_marker_order_invalid")
+    cleanup = "failed" if "failed" in (descriptor_cleanup, imports_cleanup) else "reported_complete" if descriptor_cleanup == imports_cleanup == "reported_complete" else "Unknown"
+    if cleanup != "reported_complete":
+        issues.append("cleanup_not_confirmed")
+    return {"configuration": {"mode": "fixed-namespace-setup", "namespace": "fixed", "private_mode": "0700",
+                "transport": "Unavailable", "radio": "Unavailable", "capture": "Unavailable", "codec": "Unavailable",
+                "native_format": "Unknown", "max_operations": 32, "ps5_directory_durability": "Unknown"},
+            "configuration_confirmed": config_ok, "numeric": numbers, "imports": imports,
+            "backend_status_bits": [], "setup_entered": attempted, "outcome": outcome,
+            "descriptor_cleanup": descriptor_cleanup, "imports_cleanup": imports_cleanup,
+            "cleanup": cleanup, "failure": bool(failure), "issues": sorted(set(issues))}
+
+
 def candidate_report(candidate: str, body: list[str]) -> dict:
+    if candidate == VARIANTS["application_setup"]:
+        return setup_report(body)
     if candidate in APPLICATION_PROFILES:
         return application_report(body, candidate)
     prefix = "sbc_continuous_" if candidate == VARIANTS["sbc_continuous"] else "capture_stream_"

@@ -111,6 +111,26 @@ def application_mode_log(mode, fields=None, workload=None, preflight=None, statu
     return text
 
 
+def setup_log(fields=None, outcome="complete", init_status=0, status=2):
+    values = {"stage": 6, "status_bits": 0, "errno": 0, "lookup_hi": 0, "lookup_lo": 0,
+              "created_mask": 0, "verified_mask": 15, "opened_mask": 15, "closed_mask": 15,
+              "cleanup_failed_mask": 0, "cleanup_errno": 0, "cleanup_raw_bits": 0,
+              "prior_cleanup_mask": 0, "operations": 13, "raw_bits": 0}
+    if fields:
+        values.update(fields)
+    body = [result.SETUP_CONFIG]
+    if init_status:
+        body += imports(2, status=init_status, resolved=3)
+    else:
+        body += imports(3, resolved=23)
+        body += [f"application_setup_{key}=0x{value:08x}" for key, value in values.items()]
+        body += imports(8) + ["event=application_setup_imports_closed"]
+    body += ["event=application_setup_" + outcome]
+    return "\n".join([f"event=run_begin build_id={BUILD} candidate=ps5-bt-application-setup", *body,
+                      f"event=run_finish build_id={BUILD}", f"event=payload_exit status={status}",
+                      f"event=payload_return status={status}", ""])
+
+
 class CollectorTest(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
@@ -124,6 +144,126 @@ class CollectorTest(unittest.TestCase):
         self.manifest.write_text(json.dumps(manifest() if source is None else source))
         self.log.write_text(log() if text is None else text)
         return result.collect(self.manifest, self.log, NORMAL if observations is None else observations)
+
+    def test_setup_existing_or_created_fixed_namespace_success_and_redaction(self):
+        for created, operations in [(0, 13), (1, 17), (2, 17), (3, 21)]:
+            text = setup_log({"created_mask": created, "operations": operations})
+            text = text.replace("event=application_setup_complete", "application_setup_private_path=/private-secret\napplication_setup_address=0xdeadbeef\napplication_setup_token=do-not-copy\nevent=application_setup_complete")
+            record = self.collect(text, manifest("application-setup"))
+            self.assertEqual(record["classification"], "complete_success")
+            report = record["diagnostic"]
+            self.assertEqual(report["cleanup"], "reported_complete")
+            self.assertEqual(report["numeric"]["created_mask"], [created])
+            self.assertEqual([group["stage"] for group in report["imports"]], [3, 8])
+            self.assertEqual(report["configuration"]["native_format"], "Unknown")
+            for private in ("private-secret", "deadbeef", "do-not-copy"):
+                self.assertNotIn(private, json.dumps(record))
+            self.assertEqual(record["ps5_persistence"], "Unknown")
+
+    def test_setup_bad_masks_operations_status_lookup_raw_or_cleanup_fail(self):
+        for fields in [{"stage": 5}, {"status_bits": 1}, {"status_bits": 0xffffffff},
+                       {"errno": 5}, {"lookup_lo": 1}, {"lookup_hi": 0xffffffff},
+                       {"created_mask": 4}, {"verified_mask": 7}, {"opened_mask": 31},
+                       {"closed_mask": 7}, {"cleanup_failed_mask": 1}, {"cleanup_failed_mask": 16},
+                       {"cleanup_errno": 4}, {"cleanup_raw_bits": 0xffffffff},
+                       {"prior_cleanup_mask": 1}, {"operations": 0}, {"operations": 33},
+                       {"raw_bits": 0xffffffff}, {"raw_bits": 4}]:
+            with self.subTest(fields=fields):
+                self.assertEqual(self.collect(setup_log(fields), manifest("application-setup"))["classification"], "complete_failure")
+
+    def test_setup_raw_failure_retains_signed_native_patterns_and_creation(self):
+        record = self.collect(setup_log({"stage": 4, "status_bits": 0xffffffff, "errno": 5,
+            "raw_bits": 0xffffffff, "created_mask": 1, "opened_mask": 7,
+            "verified_mask": 3, "closed_mask": 7, "operations": 9}, outcome="failed", status=1), manifest("application-setup"))
+        self.assertEqual(record["classification"], "complete_failure")
+        self.assertEqual(record["diagnostic"]["numeric"]["raw_bits"], [0xffffffff])
+        self.assertEqual(record["diagnostic"]["numeric"]["created_mask"], [1])
+        self.assertEqual(record["diagnostic"]["descriptor_cleanup"], "reported_complete")
+
+    def test_setup_partial_clean_cancel_or_init_cancel_never_pass(self):
+        for text in [setup_log({"stage": 3, "status_bits": 1, "verified_mask": 1,
+                               "opened_mask": 3, "closed_mask": 3, "operations": 5}, outcome="cancelled"),
+                     setup_log({"status_bits": 1}, outcome="cancelled"),
+                     setup_log(outcome="cancelled", init_status=1)]:
+            record = self.collect(text, manifest("application-setup"))
+            self.assertEqual(record["classification"], "incomplete_evidence")
+            self.assertFalse(record["diagnostic"]["failure"])
+        record = self.collect(setup_log(outcome="failed", init_status=0xffffffff, status=1), manifest("application-setup"))
+        self.assertEqual(record["classification"], "complete_failure")
+        self.assertFalse(record["diagnostic"]["setup_entered"])
+        self.assertEqual(record["diagnostic"]["imports_cleanup"], "Unknown")
+
+    def test_setup_init_cancel_preserves_unclassified_nonzero_lookup_as_incomplete(self):
+        text = setup_log(outcome="cancelled", init_status=1)
+        text = text.replace("application_import_resolved=0x00000003", "application_import_resolved=0x00000004")
+        text = text.replace("application_import_lookup_hi=0x00000000", "application_import_lookup_hi=0x00000001")
+        text = text.replace("application_import_lookup_lo=0x00000000", "application_import_lookup_lo=0x00000007")
+        record = self.collect(text, manifest("application-setup"))
+        self.assertEqual(record["classification"], "incomplete_evidence")
+        report = record["diagnostic"]
+        self.assertFalse(report["failure"])
+        self.assertFalse(report["setup_entered"])
+        self.assertEqual(report["imports_cleanup"], "Unknown")
+        self.assertEqual(report["imports"][0]["stage"], 2)
+        self.assertEqual(report["imports"][0]["status_bits"], 1)
+        self.assertEqual(report["imports"][0]["resolved"], 4)
+        self.assertEqual((report["imports"][0]["lookup_hi"] << 32) | report["imports"][0]["lookup_lo"], 0x100000007)
+        # Native observation survives cancellation; independent cleanup/explicit
+        # failure evidence still makes the completed outer lifecycle a failure.
+        for changed in [text.replace("application_import_cleanup_flags=0x00000000", "application_import_cleanup_flags=0x00000001"),
+                        text.replace("event=application_setup_cancelled", "event=application_setup_failed")]:
+            self.assertEqual(self.collect(changed, manifest("application-setup"))["classification"], "complete_failure")
+
+    def test_setup_required_fields_and_cleanup_marker_must_occur_once(self):
+        text = setup_log()
+        for key in result.SETUP_KEYS:
+            line = next(line for line in text.splitlines(keepends=True) if line.startswith("application_setup_" + key + "="))
+            for changed in [text.replace(line, ""), text.replace(line, line + line)]:
+                with self.subTest(key=key):
+                    self.assertNotEqual(self.collect(changed, manifest("application-setup"))["classification"], "complete_success")
+        for event in [result.SETUP_CONFIG, "event=application_setup_imports_closed", "event=application_setup_complete"]:
+            for changed in [text.replace(event + "\n", ""), text.replace(event + "\n", event + "\n" + event + "\n")]:
+                self.assertNotEqual(self.collect(changed, manifest("application-setup"))["classification"], "complete_success")
+        malformed = text.replace("application_setup_operations=0x0000000d", "application_setup_operations=13")
+        self.assertNotEqual(self.collect(malformed, manifest("application-setup"))["classification"], "complete_success")
+
+    def test_setup_import_groups_no_entropy_and_close_uncertainty(self):
+        text = setup_log()
+        for before, after in [("application_import_resolved=0x00000017", "application_import_resolved=0x00000016"),
+                              ("application_import_stage=0x00000008", "application_import_stage=0x00000006"),
+                              ("application_import_lookup_lo=0x00000000", "application_import_lookup_lo=0x00000001"),
+                              ("application_import_return_lo=0x00000000", "application_import_return_lo=0xffffffff"),
+                              ("application_import_errno=0x00000000", "application_import_errno=0x00000005"),
+                              ("application_import_cleanup_flags=0x00000000", "application_import_cleanup_flags=0x00000001")]:
+            with self.subTest(after=after):
+                self.assertEqual(self.collect(text.replace(before, after, 1), manifest("application-setup"))["classification"], "complete_failure")
+        shutdown = "\n".join(imports(8)) + "\n"
+        partial = text.replace(shutdown, "").replace("event=application_setup_imports_closed\n", "")
+        self.assertEqual(self.collect(partial, manifest("application-setup"))["classification"], "incomplete_evidence")
+        badclose = setup_log({"status_bits": 0xffffffff, "cleanup_failed_mask": 8,
+                             "cleanup_errno": 4, "cleanup_raw_bits": 0xffffffff}, outcome="failed")
+        record = self.collect(badclose, manifest("application-setup"))
+        self.assertEqual(record["classification"], "complete_failure")
+        self.assertEqual(record["diagnostic"]["cleanup"], "failed")
+        with self.assertRaises(ValueError):
+            self.collect(text.replace("event=application_setup_imports_closed", "\n".join(imports(6)) + "\nevent=application_setup_imports_closed"), manifest("application-setup"))
+
+    def test_setup_marker_order_configuration_and_interrupted_lifecycle(self):
+        text = setup_log()
+        line = "application_setup_operations=0x0000000d\n"
+        reordered = [text.replace(line, "").replace(result.SETUP_CONFIG, line.rstrip() + "\n" + result.SETUP_CONFIG),
+                     text.replace(line, "").replace("event=application_setup_imports_closed", "event=application_setup_imports_closed\n" + line.rstrip()),
+                     text.replace("event=application_setup_imports_closed\n", "").replace("event=application_setup_complete", "event=application_setup_complete\nevent=application_setup_imports_closed"),
+                     text.replace(result.SETUP_CONFIG, result.SETUP_CONFIG.replace("0700", "0755"))]
+        for changed in reordered:
+            self.assertNotEqual(self.collect(changed, manifest("application-setup"))["classification"], "complete_success")
+        for changed in [text.rstrip("\n"), text[:text.index("event=run_finish")],
+                        text.replace("event=payload_return status=2\n", "")]:
+            self.assertEqual(self.collect(changed, manifest("application-setup"))["classification"], "interrupted")
+        mixed = manifest("application-setup")
+        mixed["application_control"] = True
+        with self.assertRaises(ValueError):
+            self.collect(text, mixed)
 
     def test_complete_numeric_evidence_preserves_hashes_and_redacts_arbitrary_input(self):
         secret = "00001111222233334444555566667777"

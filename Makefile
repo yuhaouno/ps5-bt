@@ -263,3 +263,10 @@ ps5-application-generated:
 
 ps5-application-observe:
 	python3 tools/build_ps5.py --application-observe --loader-kernel-resolver
+
+.PHONY: application-setup-test ps5-application-setup
+application-setup-test:
+	python3 tests/application/run_setup.py --cc "$(HOST_CC)"
+
+ps5-application-setup:
+	python3 tools/build_ps5.py --application-setup --loader-kernel-resolver

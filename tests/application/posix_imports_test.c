@@ -191,6 +191,20 @@ int main(void) {
   cancel_after = 5;
   assert(ps5_app_posix_init_cancel(lookup, cancelled, &report) == 1 &&
          lookup_count == 2 && !ready && opens == 0);
+  /* Stop observed immediately after a dirty failed lookup takes precedence,
+   * preserving raw evidence without publishing imports or acquiring resources.
+   */
+  for (int symbol = 1; symbol <= 23; ++symbol) {
+    reset();
+    fail_lookup = symbol;
+    dirty_lookup = 1;
+    cancel_after = symbol * 2;
+    assert(ps5_app_posix_init_cancel(lookup, cancelled, &report) == 1);
+    assert(report.stage == 2 && report.status == 1 && report.raw_errno == 0);
+    assert(report.raw_lookup == INT64_C(0x100000007));
+    assert(report.resolved == (uint32_t)symbol - 1 && lookup_count == symbol);
+    assert(!ready && !opening && !ever_ready && !opens && !reads && !closes);
+  }
   for (int point = 1; point <= 4; ++point) {
     reset();
     assert(ps5_app_posix_init(lookup, &report) == 0);

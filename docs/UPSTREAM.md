@@ -314,3 +314,17 @@ the link. The same document records reference-only two-clause FreeBSD randomdev
 source at `d106002967eff712894ab8b5337bbbff106ce5e0`; no RNG code is copied and PS5
 entropy remains Unknown. Source packages must retain all selected header notices,
 including advertising-clause variants, alongside existing obligations.
+
+## Fixed application namespace selection, 2026-10-26
+
+The original `setup_namespace.c` adds no copied upstream implementation. Its
+`__typeof__(&mkdirat)` pointer type is taken directly from `include/freebsd/sys/stat.h`
+at the same SDK v0.45 revision
+`a7685ce8e97ce1f8a4f38253a41d54241c9124f1`, line 352; existing declarations for
+openat/fstatat/fstat/geteuid/fsync/close, flags and layouts retain the exact
+43-header `tools/application_sdk_headers.json` closure. No header changes or new
+SDK library/syscall fallback are introduced. Preserve all selected original
+notices in corresponding-source packages. The candidate resolves `mkdirat`
+separately, only prepares fixed project-owned local directories, never changes
+existing modes/owners, and leaves native compatibility Requires hardware.
+See [APPLICATION-SETUP.md](APPLICATION-SETUP.md).

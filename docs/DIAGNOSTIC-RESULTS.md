@@ -9,7 +9,8 @@ an operator-held input; the JSON never embeds arbitrary log text or file paths.
 ## Artifact and run correlation
 
 The independently selected Rust `sbc-continuous`, `capture-stream`,
-`application-control`, `application-generated` and `application-observe` artifacts
+`application-control`, `application-generated`, `application-observe` and
+`application-setup` artifacts
 embed the build identity recorded by their manifest:
 
 ```text
@@ -187,6 +188,73 @@ Unknown; this profile establishes no Bluetooth/audio activation. All headset
 audio acceptance and PS5 log persistence remain Unknown even after a complete
 control-only result.
 
+## Fixed namespace setup profile
+
+The `application_setup` manifest flag selects only `ps5-bt-application-setup`.
+This C-only candidate has a separate contract from Rust application startup. It
+uses the same outer embedded build identity, clean-source requirement, final
+exit/return status 2, controller observations and interrupted-run handling. Its
+exact begin marker is:
+
+```text
+event=application_setup_begin schema=1 namespace=fixed private_mode=0700 radio=Unavailable capture=Unavailable
+```
+
+A full result has exactly two complete `application_import_*` groups: init stage
+3 with 23 resolved exports, then shutdown stage 8 with zero resolved exports.
+Status, errno, lookup/return words and cleanup flags/errno must all be zero. There
+is no entropy group, Rust application entry, listener, codec or capture operation.
+The order is begin, init group, setup numeric fields, shutdown group,
+`event=application_setup_imports_closed`, then exactly one setup outcome marker.
+A missing or duplicated group/field/marker, malformed numeric value or wrong
+ordering cannot pass. Existing application-control and audio-workload profiles
+retain their original three-group entropy and runtime requirements.
+
+The whitelisted `application_setup_*` keys are `stage`, `status_bits`, `errno`,
+`lookup_hi`, `lookup_lo`, `created_mask`, `verified_mask`, `opened_mask`,
+`closed_mask`, `cleanup_failed_mask`, `cleanup_errno`, `cleanup_raw_bits`,
+`prior_cleanup_mask`, `operations` and `raw_bits`. Every key occurs exactly once
+when setup was entered. Native signed i32 status/return and signed i64 lookup
+results retain their complete raw u32 bit patterns/word pairs, including negative
+error values; the collector does not turn those values into unsigned success.
+Only these numeric fields are retained: paths, addresses, credentials and arbitrary
+setup-prefixed text never enter the JSON.
+
+Success requires setup stage 6, status/errno/lookup/raw return zero, verified,
+opened and closed masks all 15, created mask in 0..3, zero cleanup/prior-uncertainty
+fields and 1..32 reported operations. The current full sequences use 13, 17 or 21
+operations depending on creation; the versioned bound is 32. Descriptor bits
+0..3 identify the four fixed ancestor/directory checks. The two created bits
+identify the candidate's two permitted private components. No descriptor mask may
+contain a bit outside 15, verification must be a subset of opened descriptors,
+closed must equal opened, and cleanup failures must be a subset of attempted
+closes. Close-attempt masks are not proof that a failed native close released a
+descriptor. `descriptor_cleanup` and `imports_cleanup` are reported separately;
+any uncertain/failed close prevents full success.
+
+Exactly one of `event=application_setup_complete`,
+`event=application_setup_failed` or `event=application_setup_cancelled` ends the
+procedure. An init failure may have only its partial import report, followed by
+Failed and no setup fields or imports-closed marker; that complete outer lifecycle
+is a failure with setup not entered and cleanup Unknown. A clean init cancellation
+or bounded partial setup cancellation remains `incomplete_evidence`, even with
+final status 2 and clean descriptor/import reports. Init saves its raw lookup
+result before checking Stop, so a status-1 cancellation can retain a nonzero
+lookup that was not classified as a native failure. The collector preserves those
+words and keeps that run incomplete unless independent failure/cleanup evidence
+exists; the zero-raw-field requirement applies to status-0 success reports. A native failure, invalid
+mask/counter, nonzero success lookup/raw value, previous close uncertainty or
+reported cleanup error is a failure. Missing evidence remains incomplete rather
+than supplying inferred cleanup or setup completion.
+
+Created directories may persist after failure or cancellation; the actual
+`created_mask` remains visible in those results. A successful bounded procedure
+reports verification and close outcomes for the fixed namespace only. It does
+not prove PS5 power-loss durability, native permissions across future boots,
+Bluetooth transport ownership/credits, native audio format or playable audio.
+Transport/radio/capture/codec stay Unavailable and native format/persistence/audio
+acceptance stay Unknown.
+
 ## Generated and raw-observation application profiles
 
 The additional manifest flags `application_generated` and `application_observe`
@@ -352,5 +420,7 @@ bounds and faults. Observation tests cover exact counters/raw statuses, zero/dat
 overrun outcomes without PCM claims, actual counts below the 190-read cadence
 ceiling, forged excess polls/old profile configuration, exclusive cadence, explicit native-time
 absence, duration/overshoot, early Ended/Cancel and every missing/duplicate numeric
-field. These
-are collection tests against synthetic logs, not hardware evidence.
+field. Setup tests separately cover existing/created directories, operation and
+mask bounds, signed native error patterns, partial/init cancellation, missing
+imports/fields, uncertain close, marker order, interrupted lifecycle and redaction.
+These are collection tests against synthetic logs, not hardware evidence.

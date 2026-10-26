@@ -207,3 +207,9 @@ syscall execution check is unavailable on this ARM host; the full Make target
 is therefore not a pass. The minimal PS5 ELF
 links and passes structural/failure-path checks; the explicit HW-1 variant
 records Rust entry and final return 2 on one environment. This is not audio support.
+
+The next-window application-setup candidate now covers fixed private namespace
+creation/validation before the Rust resource-factory tests, with host fault
+coverage and a separately identified ELF. Native export/protection/durability
+acceptance remains pending; this does not change the unresolved M2 transport or
+capture-format evidence. See docs/APPLICATION-SETUP.md.

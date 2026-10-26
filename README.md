@@ -281,3 +281,11 @@ English remains authoritative if a translation is outdated.
 [日本語](docs/i18n/README.ja.md) · [Español](docs/i18n/README.es.md) ·
 [Português brasileiro](docs/i18n/README.pt-BR.md) · [Français](docs/i18n/README.fr.md) ·
 [Deutsch](docs/i18n/README.de.md) · [한국어](docs/i18n/README.ko.md)
+
+The separately selected [application-setup candidate](docs/APPLICATION-SETUP.md)
+can prepare the fixed private store namespace before native application tests.
+It validates native ownership/protected parents, creates only missing project
+components and consumes owned descriptors once; it never changes existing
+permissions. `make application-setup-test` exercises strict/sanitized host faults;
+`make ps5-application-setup` builds its independent target candidate. Native
+permissions, export availability and durability still require PS5 acceptance.

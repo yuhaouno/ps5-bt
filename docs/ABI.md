@@ -161,3 +161,13 @@ This entry binds only an ephemeral loopback listener and uses the existing priva
 creates no credit owner and performs no capture or codec call. It changes no
 transport ABI version or existing diagnostic's bounds. Native imports, entropy,
 protection and timing remain Requires hardware; see APPLICATION-STARTUP.md.
+
+## Fixed namespace preparation boundary
+
+The separately selected application-setup candidate has its own 64-byte
+`PS5_APP_SETUP_ABI=0x00010000` report, declared in
+`platform/ps5/application/setup_namespace.h`. It uses the already initialized
+POSIX import bridge and a separately typed `mkdirat` lookup; no transport, capture
+or codec ABI changes. Stages, raw errors, owned/closed masks, cancellation and
+sticky unknown cleanup are specified in [APPLICATION-SETUP.md](APPLICATION-SETUP.md).
+Native owner/permission/sync behavior remains Requires hardware.

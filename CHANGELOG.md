@@ -385,3 +385,12 @@
 - Add contribution, conduct and issue/PR reporting guidance.
 - Add eight concise translated status guides with English as the authority.
 - No PS5 hardware, audio, headset or latency compatibility is claimed.
+
+### Offline fixed namespace preparation, 2026-10-26
+
+- Add a separate source-backed application-setup candidate for the project's
+  fixed private store namespace, with native UID/mode/inode checks, bounded
+  creation/sync, raw reports and exactly-once cleanup. Existing permissions are
+  never changed; unknown cleanup blocks reuse. Add strict/sanitized fault and
+  actual entry orchestration checks, matching source packaging and result
+  collection. Native behavior remains Requires hardware.

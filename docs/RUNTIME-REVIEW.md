@@ -180,3 +180,18 @@ candidate only. No application-control execution, native persistence, timing or
 controller coexistence result follows from earlier HW-1/capture/codec runs. A fresh
 explicit hardware window, artifact identity, durable entered/final outcomes and
 controller checks before/during/after remain mandatory; no deployment occurs here.
+
+## Separate fixed namespace preparation candidate, 2026-10-26
+
+`PS5_BT_APPLICATION_SETUP` is independently selected with the same bootstrap,
+existing-loader resolver and generic Rust Unsupported seam. It resolves the
+existing POSIX table, then the pinned SDK-declared `mkdirat` export. It does not
+call entropy, the Rust application workload, capture, codec or Bluetooth. No
+new kernel structure, offset, credential setter, driver mutation or import
+library is used. The actual held-descriptor no-follow traversal, owner/mode and
+inode checks, finite creation/fsync steps, uncancellable consume-once closes and
+sticky refusal after ambiguous close are in APPLICATION-SETUP.md. Created project
+directories persist on error/cancellation; existing paths are never chmodded,
+chowned or removed. Native permission, export, durability and cleanup acceptance
+require the independently identified hardware run. The old application modes
+still only open an already protected namespace and retain their original bounds.

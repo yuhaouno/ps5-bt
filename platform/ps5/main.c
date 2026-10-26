@@ -2,6 +2,9 @@
 #include "ps5_bt.h"
 #ifdef PS5_BT_APPLICATION_CONTROL
 #include "application/posix_bridge.h"
+#ifdef PS5_BT_APPLICATION_SETUP
+#include "application/setup_namespace.h"
+#endif
 #include "bootstrap/bootstrap.h"
 static void application_field(const char *name, uint64_t value,
                               unsigned digits) {
@@ -32,6 +35,61 @@ static void application_import_report(const struct ps5_app_posix_report *r) {
   application_field("application_import_cleanup_errno=0x",
                     (uint32_t)r->cleanup_errno, 8);
 }
+#ifdef PS5_BT_APPLICATION_SETUP
+static int application_setup(void) {
+  const uint8_t begin[] =
+      "event=application_setup_begin schema=1 namespace=fixed "
+      "private_mode=0700 radio=Unavailable capture=Unavailable\n";
+  const uint8_t complete[] = "event=application_setup_complete\n";
+  const uint8_t failed[] = "event=application_setup_failed\n";
+  const uint8_t cancelled[] = "event=application_setup_cancelled\n";
+  struct ps5_app_posix_report imports;
+  struct ps5_app_setup_report setup = {0};
+  ps5_platform_log(begin, sizeof begin - 1);
+  int32_t status = ps5_app_posix_init_cancel(
+      ps5_bootstrap_lookup, ps5_rust_application_stop_requested, &imports);
+  application_import_report(&imports);
+  if (!status) {
+    status = ps5_app_setup_namespace(
+        ps5_bootstrap_lookup, ps5_rust_application_stop_requested, &setup);
+#define FIELD(name, value)                                                     \
+  application_field("application_setup_" name "=0x", (uint32_t)(value), 8)
+    FIELD("stage", setup.stage);
+    FIELD("status_bits", setup.status);
+    FIELD("errno", setup.raw_errno);
+    FIELD("lookup_hi", (uint64_t)setup.raw_lookup >> 32);
+    FIELD("lookup_lo", setup.raw_lookup);
+    FIELD("created_mask", setup.created_mask);
+    FIELD("verified_mask", setup.verified_mask);
+    FIELD("opened_mask", setup.opened_mask);
+    FIELD("closed_mask", setup.closed_mask);
+    FIELD("cleanup_failed_mask", setup.cleanup_failed_mask);
+    FIELD("cleanup_errno", setup.cleanup_errno);
+    FIELD("cleanup_raw_bits", setup.cleanup_raw_return);
+    FIELD("prior_cleanup_mask", setup.prior_cleanup_mask);
+    FIELD("operations", setup.operations);
+    FIELD("raw_bits", setup.raw_return);
+#undef FIELD
+    int32_t shutdown = ps5_app_posix_shutdown(&imports);
+    application_import_report(&imports);
+    if (shutdown)
+      status = -1;
+    const uint8_t cleaned[] = "event=application_setup_imports_closed\n";
+    if (!shutdown)
+      ps5_platform_log(cleaned, sizeof cleaned - 1);
+  }
+  int clean_cancel =
+      status == 1 && !setup.cleanup_failed_mask && !setup.prior_cleanup_mask;
+  const uint8_t *event = status == 0    ? complete
+                         : clean_cancel ? cancelled
+                                        : failed;
+  uint32_t length = status == 0    ? sizeof complete - 1
+                    : clean_cancel ? sizeof cancelled - 1
+                                   : sizeof failed - 1;
+  ps5_platform_log(event, length);
+  return status == 0 || clean_cancel ? 0 : 1;
+}
+#else
 static int application_control(void) {
   const uint8_t begin[] = "event=application_preflight_begin schema=1 "
                           "radio=Unavailable capture=Unavailable\n";
@@ -68,6 +126,7 @@ static int application_control(void) {
   ps5_platform_log(complete, sizeof complete - 1);
   return result;
 }
+#endif /* separate setup versus application workload */
 #endif
 #ifdef PS5_BT_NATIVE_L2CAP_PROBE
 #include "bootstrap/bootstrap.h"
@@ -221,7 +280,11 @@ int main(void) {
 #endif
   int result = (int)ps5_rust_probe();
 #ifdef PS5_BT_APPLICATION_CONTROL
+#ifdef PS5_BT_APPLICATION_SETUP
+  if (application_setup() != 0)
+#else
   if (application_control() != 0)
+#endif
     result = 1;
 #endif
 #ifdef PS5_BT_CAPTURE_STREAM

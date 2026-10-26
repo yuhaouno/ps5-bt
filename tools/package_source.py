@@ -65,6 +65,7 @@ def relink_directory(manifest):
     return PurePosixPath("build/ps5/" + VARIANTS[variant][0] + "-relink")
 
 VARIANTS = {
+    "application_setup": ("ps5-bt-application-setup", APPLICATION_SOURCES | {"platform/ps5/application/setup_namespace.c", "platform/ps5/application/setup_namespace.h"}, "--application-setup"),
     "application_control": ("ps5-bt-application-control", APPLICATION_SOURCES, "--application-control"),
     "application_generated": ("ps5-bt-application-generated", APPLICATION_SOURCES, "--application-generated"),
     "application_observe": ("ps5-bt-application-observe", APPLICATION_SOURCES, "--application-observe"),
@@ -551,7 +552,7 @@ def self_test():
             root.mkdir()
             git(root, "init", "-q")
             fixture_files = (REQUIRED_FILES | NATIVE_SOURCES | NATIVE_L2CAP_SOURCES | USB_SOURCES |
-                             CAPTURE_SOURCES | SBC_SELFTEST_SOURCES | SBC_CONTINUOUS_SOURCES | CAPTURE_STREAM_SOURCES | APPLICATION_SOURCES)
+                             CAPTURE_SOURCES | SBC_SELFTEST_SOURCES | SBC_CONTINUOUS_SOURCES | CAPTURE_STREAM_SOURCES | APPLICATION_SOURCES | {"platform/ps5/application/setup_namespace.c", "platform/ps5/application/setup_namespace.h"})
             for name in fixture_files:
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
