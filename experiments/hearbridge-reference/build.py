@@ -41,6 +41,8 @@ def main():
     parser.add_argument("--sdk-source", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path, help="New private build directory")
     parser.add_argument("--llvm-config", default="llvm-config")
+    parser.add_argument("--queue-pressure", action="store_true",
+                        help="Include the separately tested PS5-BT queue-pressure policy")
     args = parser.parse_args()
     llvm = shutil.which(args.llvm_config)
     if not llvm:
@@ -62,6 +64,15 @@ def main():
     # The extracted tree deliberately has no .git; do not let Git discover the
     # enclosing PS5-BT repository and reinterpret paths relative to that root.
     subprocess.run(["patch", "-p1", "-t", "-i", str(patch)], cwd=hb, check=True)
+    policy_hashes = {}
+    pressure_patch = HERE / "queue-pressure.patch"
+    if args.queue_pressure:
+        policy_dir = HERE.parent / "queue-pressure"
+        for name in ("ps5bt_queue_pressure.c", "ps5bt_queue_pressure.h"):
+            source = policy_dir / name
+            shutil.copyfile(source, hb / "src/a2dp" / name)
+            policy_hashes[name] = sha256(source)
+        subprocess.run(["patch", "-p1", "-t", "-i", str(pressure_patch)], cwd=hb, check=True)
 
     # Archive corresponding sources before generating a private credential or
     # build output. Recipients generate their own password using this script.
@@ -69,6 +80,8 @@ def main():
         archive.add(hb, arcname="hearbridge")
         archive.add(sdk_source, arcname="sdk-source")
         archive.add(HERE, arcname="recipe")
+        if args.queue_pressure:
+            archive.add(policy_dir, arcname="queue-pressure")
     password = secrets.token_urlsafe(24)
     authorization = base64.b64encode(f"ps5bt:{password}".encode()).decode()
     private_write(hb / "src/reference_secret.h", f'#define HB_REF_BASIC_AUTH "Basic {authorization}"\n')
@@ -99,6 +112,10 @@ def main():
         "elf_sha256": sha256(artifact), "elf_bytes": artifact.stat().st_size,
         "source_sha256": sha256(output / "corresponding-source.tar.gz"),
     }
+    if args.queue_pressure:
+        manifest["kind"] = "ps5-bt-queue-pressure-experiment"
+        manifest["pressure_patch_sha256"] = sha256(pressure_patch)
+        manifest["policy_sources_sha256"] = policy_hashes
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(json.dumps(manifest, indent=2))
     print(f"Private access credential: {output / 'access.json'} (never upload or commit)")

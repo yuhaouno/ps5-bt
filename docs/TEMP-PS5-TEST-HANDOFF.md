@@ -4,6 +4,21 @@ Updated 2026-10-27 after the user's priority correction. This is the current
 execution queue; it supersedes earlier diagnostic sequences and pending-run
 instructions. Read `AGENTS.md`, then only the sources needed for the next change.
 
+## Active optimization round
+
+The user has now authorized proceeding with the planned comparison and said
+devices are available. This supersedes the earlier two-run permission checkpoint
+below for the current optimization round, not for unrelated transport changes.
+The [original queue-pressure policy](../experiments/queue-pressure/README.md) and
+five-file upstream adapter are built as
+`build/reference/queue-pressure-candidate/hearbridge/dist/PS5-BT-HearBridge-pressure-1.3.6.elf`.
+SHA-256 `de6e2da952d52b933c5070a6bb25fd708a2f0bab03bf3a9ab7feffa3bdd26054`,
+727,144 bytes. Six pure-policy groups (strict C11 and sanitizers), adapter checks,
+unchanged upstream rate tests, fresh-source target link and 71-import check pass.
+The original baseline remains intact. Use capture-first and the same 30-second
+media / 180-second cooperative overall bounds. Preserve old private state and
+confirm physical headset/content readiness before launch. No runtime result yet.
+
 ## Objective and next decision
 
 Fastest useful result: reproduce headset pairing/connection and audible sound

@@ -1,0 +1,172 @@
+--- a/ps5.mk
++++ b/ps5.mk
+@@ -3,7 +3,7 @@
+ include $(PS5_PAYLOAD_SDK)/toolchain/prospero.mk
+ 
+ VERSION := $(shell sed -n 's/^\#define HEARBRIDGE_VERSION "\(.*\)"/\1/p' src/version.h)
+-ELF   := dist/PS5-BT-HearBridge-reference-$(VERSION).elf
++ELF   := dist/PS5-BT-HearBridge-pressure-$(VERSION).elf
+ BUILD ?= build/ps5
+ 
+ CFLAGS  := -std=c11 -Wall -Wextra -O2 -Isrc -Isrc/bt -Isrc/a2dp
+@@ -24,7 +24,7 @@
+ 	src/bt/hci_usb.c src/bt/txpath.c src/bt/acl_track.c src/bt/usb_hci_desc.c src/bt/hci_evasm.c src/bt/hci_cmd.c src/bt/hcidbg.c src/bt/btchip.c \
+ 	src/a2dp/a2dp.c src/a2dp/btlink.c src/a2dp/acl_pool.c src/a2dp/sdp_a2dp.c src/a2dp/avdtp.c src/a2dp/avdtp_media.c src/a2dp/cswitch.c src/rejoin.c src/forgot.c src/bt/connreq.c src/bt/blocklist.c \
+ 	src/a2dp/avrcp.c src/a2dp/hfp.c src/a2dp/sdp_server.c src/ctl.c src/gain.c src/http.c \
+-	src/a2dp/headset_ini.c src/a2dp/sbc_enc.c src/a2dp/rate.c src/a2dp/linktune.c src/a2dp/eq.c src/tile.c src/tile_sys.c src/utf8.c src/linkq.c src/gameprof.c src/game_sys.c src/backup.c src/alerts.c src/rest_sys.c src/dynmod.c src/a2dp/night.c src/a2dp/devclass.c src/a2dp/paired.c src/takeover.c \
++	src/a2dp/headset_ini.c src/a2dp/sbc_enc.c src/a2dp/rate.c src/a2dp/ps5bt_queue_pressure.c src/a2dp/linktune.c src/a2dp/eq.c src/tile.c src/tile_sys.c src/utf8.c src/linkq.c src/gameprof.c src/game_sys.c src/backup.c src/alerts.c src/rest_sys.c src/dynmod.c src/a2dp/night.c src/a2dp/devclass.c src/a2dp/paired.c src/takeover.c \
+ 	src/main.c
+ 
+ OBJS := $(patsubst src/%.c,$(BUILD)/%.o,$(SRCS))
+--- a/Makefile
++++ b/Makefile
+@@ -60,7 +60,7 @@
+ 	cmp -s $(BUILD)/host/webpage.h src/webpage.h || (echo "src/webpage.h is stale: make webpage"; false)
+ 	python3 scripts/gen_font.py assets/fonts/inter-latin.woff2 $(BUILD)/host/font_woff2.h
+ 	cmp -s $(BUILD)/host/font_woff2.h src/font_woff2.h || (echo "src/font_woff2.h is stale: make webpage"; false)
+-	cc -std=c11 -Wall -Wextra -O2 -D_DEFAULT_SOURCE -DHB_HTTP_HOST_TEST -Isrc -Isrc/a2dp -Isrc/bt tests/test_control.c src/bt/blocklist.c src/http.c src/gameprof.c src/bt/btchip.c src/diag.c src/ctl.c src/gain.c src/a2dp/eq.c src/a2dp/rate.c src/a2dp/avrcp.c src/a2dp/sdp_server.c src/backup.c -lpthread -lm -o $(BUILD)/host/test_control
++	cc -std=c11 -Wall -Wextra -O2 -D_DEFAULT_SOURCE -DHB_HTTP_HOST_TEST -Isrc -Isrc/a2dp -Isrc/bt tests/test_control.c src/bt/blocklist.c src/http.c src/gameprof.c src/bt/btchip.c src/diag.c src/ctl.c src/gain.c src/a2dp/eq.c src/a2dp/rate.c src/a2dp/ps5bt_queue_pressure.c src/a2dp/avrcp.c src/a2dp/sdp_server.c src/backup.c -lpthread -lm -o $(BUILD)/host/test_control
+ 	$(BUILD)/host/test_control $(BUILD)/host/status.json
+ 	python3 -c "import json;d=json.load(open('$(BUILD)/host/status.json'));print('ok   status JSON parses,', len(d), 'keys')"
+ 
+@@ -79,7 +79,7 @@
+ 
+ test-rate:
+ 	@mkdir -p $(BUILD)/host
+-	cc -std=c11 -Wall -Wextra -O2 -D_DEFAULT_SOURCE -Isrc -Isrc/a2dp tests/test_rate.c src/a2dp/rate.c src/a2dp/sbc_enc.c -lm -o $(BUILD)/host/test_rate
++	cc -std=c11 -Wall -Wextra -O2 -D_DEFAULT_SOURCE -Isrc -Isrc/a2dp tests/test_rate.c src/a2dp/rate.c src/a2dp/ps5bt_queue_pressure.c src/a2dp/sbc_enc.c -lm -o $(BUILD)/host/test_rate
+ 	$(BUILD)/host/test_rate $(BUILD)/host/bp.sbc $(BUILD)/host/bp_ref.s16
+ 	ffmpeg -v error -y -f sbc -i $(BUILD)/host/bp.sbc -f s16le -ac 2 $(BUILD)/host/bp_dec.s16
+ 	python3 tests/sbc_snr.py $(BUILD)/host/bp_ref.s16 $(BUILD)/host/bp_dec.s16
+@@ -108,7 +108,7 @@
+ 
+ test-mtu:
+ 	@mkdir -p $(BUILD)/host
+-	cc -std=c11 -Wall -Wextra -O2 -D_DEFAULT_SOURCE -Isrc -Isrc/a2dp tests/test_mtu.c src/a2dp/rate.c src/a2dp/sbc_enc.c -lm -o $(BUILD)/host/test_mtu
++	cc -std=c11 -Wall -Wextra -O2 -D_DEFAULT_SOURCE -Isrc -Isrc/a2dp tests/test_mtu.c src/a2dp/rate.c src/a2dp/ps5bt_queue_pressure.c src/a2dp/sbc_enc.c -lm -o $(BUILD)/host/test_mtu
+ 	$(BUILD)/host/test_mtu
+ 
+ test-track:
+@@ -120,12 +120,12 @@
+ # queue cap and adaptive controller over a bursty-credit link model.
+ test-link:
+ 	@mkdir -p $(BUILD)/host
+-	cc -std=c11 -Wall -Wextra -O2 -Isrc -Isrc/a2dp tests/test_link_bitpool.c src/a2dp/acl_pool.c src/a2dp/rate.c -o $(BUILD)/host/test_link_bitpool
++	cc -std=c11 -Wall -Wextra -O2 -Isrc -Isrc/a2dp tests/test_link_bitpool.c src/a2dp/acl_pool.c src/a2dp/rate.c src/a2dp/ps5bt_queue_pressure.c -o $(BUILD)/host/test_link_bitpool
+ 	$(BUILD)/host/test_link_bitpool
+ 
+ test-pace:
+ 	@mkdir -p $(BUILD)/host
+-	cc -std=c11 -Wall -Wextra -O2 -Isrc -Isrc/a2dp tests/test_pace.c src/a2dp/acl_pool.c src/a2dp/rate.c -o $(BUILD)/host/test_pace
++	cc -std=c11 -Wall -Wextra -O2 -Isrc -Isrc/a2dp tests/test_pace.c src/a2dp/acl_pool.c src/a2dp/rate.c src/a2dp/ps5bt_queue_pressure.c -o $(BUILD)/host/test_pace
+ 	$(BUILD)/host/test_pace
+ 
+ # Equalizer: flat = bit-exact, band gains, headroom/limiter, cost.
+@@ -229,5 +229,5 @@
+ # a dip freezes the size with the bitpool at its floor, recovery after 10 s.
+ test-linktune:
+ 	@mkdir -p $(BUILD)/host
+-	cc -std=c11 -Wall -Wextra -O2 -Isrc -Isrc/a2dp tests/test_linktune.c src/a2dp/linktune.c src/a2dp/rate.c -o $(BUILD)/host/test_linktune
++	cc -std=c11 -Wall -Wextra -O2 -Isrc -Isrc/a2dp tests/test_linktune.c src/a2dp/linktune.c src/a2dp/rate.c src/a2dp/ps5bt_queue_pressure.c -o $(BUILD)/host/test_linktune
+ 	$(BUILD)/host/test_linktune
+--- a/src/a2dp/rate.h
++++ b/src/a2dp/rate.h
+@@ -4,6 +4,8 @@
+  * period. Pure logic, no I/O, so the host test can simulate a slow link. */
+ #ifndef HB_RATE_H
+ #define HB_RATE_H
++
++#include "ps5bt_queue_pressure.h"
+ 
+ #define HB_RATE_FLOOR 22   /* lowest bitpool we step down to (if the range allows) */
+ /* Highest bitpool we step up to: the A2DP high-quality value for 48 kHz
+@@ -19,6 +21,7 @@
+ #define HB_RATE_SLACK 4
+ 
+ typedef struct {
++    ps5bt_queue_pressure pressure; /* PS5-BT policy ABI v1, single stream owner */
+     int lo, hi;            /* allowed range (configured range ∩ floor/ceiling) */
+     int cur;
+     long t_down, t_up, t_calm;  /* ms: last decrease, last increase, start of calm */
+--- a/src/a2dp/rate.c
++++ b/src/a2dp/rate.c
+@@ -31,6 +31,7 @@
+ 
+ void hb_rate_init(hb_rate *r, int lo, int hi, int start, long now_ms)
+ {
++    ps5bt_queue_pressure_init(&r->pressure, now_ms);
+     r->lo = lo > HB_RATE_FLOOR ? lo : HB_RATE_FLOOR;
+     r->hi = hi < HB_RATE_CEIL ? hi : HB_RATE_CEIL;
+     if (r->lo > hi) r->lo = hi;           /* range above the floor: stay inside it */
+@@ -76,6 +77,7 @@
+     int dropped = drops > r->last_drops, step = 0;
+     int late = queue - HB_RATE_SLACK, room = qmax - HB_RATE_SLACK;
+     long late_ms = 0;
++    ps5bt_queue_pressure_result pressure;
+ 
+     r->last_drops = drops;
+     if (now < r->hold_until) {            /* a dip: floor, nothing else */
+@@ -84,6 +86,11 @@
+         r->t_late = -1;
+         return r->cur;
+     }
++    /* Own policy advises only quality changes; it never grants transport credits. */
++    pressure = ps5bt_queue_pressure_step(&r->pressure, now, (unsigned)queue,
++        (unsigned)qmax, HB_RATE_SLACK, r->cur, r->lo,
++        !dropped && now >= r->t_down && now - r->t_down >= DOWN_GAP_MS);
++    if (pressure.suppress_up) r->t_calm = now;
+     if (room < 2) room = 2;
+     /* Late packets only count once they persist: bursty completion events
+      * (e.g. a 96 ms gap) fill the queue for a moment and it drains again
+@@ -95,6 +102,7 @@
+         r->t_late = -1;
+     }
+     if (dropped) step = -4;                                          /* lost audio */
++    else if (pressure.reduce_by) step = -pressure.reduce_by;
+     else if (late > 0 && late * 2 >= room && late_ms >= LATE_BIG_MS) step = -3;
+     else if (late > 0 && late_ms >= LATE_MS) step = -1;              /* stays behind */
+ 
+@@ -102,7 +110,7 @@
+         r->t_calm = now;
+         if (now - r->t_down >= DOWN_GAP_MS && r->cur > r->lo) {
+             if (step <= -3) {             /* this bitpool is too much for the link */
+-                r->cap = r->cur - 1;
++                r->cap = pressure.reduce_by && !dropped ? r->cur + step : r->cur - 1;
+                 r->t_cap = now;
+             }
+             r->cur += step;
+--- a/src/main.c
++++ b/src/main.c
+@@ -2199,6 +2199,7 @@
+ static void packer_flush(packer *p)
+ {
+     int bp;
++    uint32_t pressure_before;
+     if (p->nframes <= 0) return;
+     if (avdtp_send_media(p->av, p->buf, p->nbytes, p->samples_per * p->nframes,
+                          p->nframes)) {
+@@ -2209,8 +2210,14 @@
+     p->bl_sum += btlink_tx_backlog(p->link);
+     p->bl_n++;
+     /* Between packets: adapt the bitpool to what the radio delivers. */
++    pressure_before = p->rate.pressure.trigger_count;
+     bp = hb_rate_update(&p->rate, now_ms(), btlink_tx_backlog(p->link),
+                         btlink_media_cap(p->link), btlink_tx_dropped(p->link));
++    if (p->rate.pressure.trigger_count != pressure_before)
++        log_line("ps5-bt pressure: intervention=%u queue=%d/%d bitpool=%d->%d dropped=%ld",
++                 (unsigned)p->rate.pressure.trigger_count, btlink_tx_backlog(p->link),
++                 btlink_media_cap(p->link), sbc_encoder_bitpool(p->enc), bp,
++                 btlink_tx_dropped(p->link));
+     if (bp != sbc_encoder_bitpool(p->enc)) {
+         int old = sbc_encoder_bitpool(p->enc), old_pp = p->per_pkt;
+         sbc_encoder_set_bitpool(p->enc, bp);
+@@ -2573,6 +2580,9 @@
+     /* SBC HQ may climb above 53 (to the sink's maximum); SBC-XQ (dual
+      * channel) stops at its own ceiling. */
+     hb_rate_set_ceiling(&pk.rate, av.bitpool_hi ? av.bitpool_hi : av.bitpool, av.codec.ceil);
++    log_line("ps5-bt pressure: policy v%u, persistence=%d ms, cooldown=%d ms, step=%d; buffer target unchanged",
++             PS5BT_QUEUE_PRESSURE_ABI_VERSION, PS5BT_QUEUE_PRESSURE_PERSIST_MS,
++             PS5BT_QUEUE_PRESSURE_COOLDOWN_MS, PS5BT_QUEUE_PRESSURE_STEP);
+     log_line("stream: media MTU %u, SBC frame %d bytes, %d frames/packet, bitpool %d "
+              "(adapts %d-%d)", mtu, pk.fsz, pk.per_pkt, sbc_encoder_bitpool(enc),
+              pk.rate.lo, pk.rate.hi);

@@ -12,6 +12,9 @@ with operator-reported normal controller operation during playback.
 The isolated [reference build recipe](experiments/hearbridge-reference/README.md)
 keeps the upstream connection/audio chain separate from the product and records
 the retained transport mechanisms and execution decision.
+The first original [PS5-BT queue-pressure policy](experiments/queue-pressure/README.md)
+now has an opt-in target candidate: it reacts before sustained queues fill,
+without increasing the buffer target. Hardware benefit remains to be measured.
 
 A Rust-first Bluetooth Audio stack for PlayStation 5 homebrew — built for low
 latency, high quality, and portability.

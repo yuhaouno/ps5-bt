@@ -2,6 +2,11 @@
 
 Status: accepted bootstrap decisions; development policy aligned 2026-10-26;
 hardware design remains experimental.
+The separate [audible reference](REFERENCE-FIRST-AUDIO.md) and original
+[queue-pressure policy](../experiments/queue-pressure/README.md) now provide
+an experimental comparison path; they are not the Rust production backend
+described below. Policy state is single-owner C data with a versioned header,
+applied between complete media packets, and has no transport-credit authority.
 Research snapshot: 2026-10-23. See [RESEARCH.md](RESEARCH.md) for evidence and
 [UPSTREAM.md](UPSTREAM.md) for immutable source revisions.
 

@@ -14,6 +14,13 @@
 
 ## Unreleased
 
+- Add an original, allocation-free queue-pressure policy and opt-in reference
+  adapter. Suppress upward bitrate probing under pressure, request bounded
+  early reductions after 40 ms near capacity, and hold the resulting bitrate
+  ceiling through the existing recovery interval. Keep transport/credits and
+  buffer target unchanged; focused boundary/sanitizer, adapter and unchanged
+  upstream rate tests pass. PS5 comparison remains pending.
+
 - Reproduce captured game/menu audio on WH-1000XM4 using the same isolated
   reference ELF with tone disabled before connection. Record 30-second playback,
   operator-confirmed corresponding sound and normal controller input, 1,405
