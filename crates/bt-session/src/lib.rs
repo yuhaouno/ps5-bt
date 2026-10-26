@@ -90,6 +90,7 @@ pub enum Error {
     OutputTooSmall,
     PduStorageTooSmall,
     InvalidAclLimit,
+    InvalidSamplePosition,
     Avdtp(bt_avdtp::Error),
     Receive(bt_avdtp::ReceiveError),
     Packet(PacketError),
@@ -167,6 +168,7 @@ pub struct SourceSession<'storage> {
     media: Option<MediaSession<'storage>>,
     media_channel: Option<Channel>,
     cancellation: Option<DroppedPacket>,
+    next_media_sample: u64,
 }
 
 impl<'storage> SourceSession<'storage> {
@@ -247,6 +249,7 @@ impl<'storage> SourceSession<'storage> {
             media: None,
             media_channel: None,
             cancellation: None,
+            next_media_sample: 0,
         };
         session.emit(SignalId::Discover, now_us)?;
         Ok(session)
@@ -497,20 +500,36 @@ impl<'storage> SourceSession<'storage> {
         .map_err(Error::Packet)?;
         let minimum =
             configuration.parameters().frame_length_bytes() + bt_a2dp::PACKET_OVERHEAD_BYTES + 4;
-        if self.pdu_storage.as_ref().is_none_or(|s| s.len() < minimum) {
-            return Err(Error::PduStorageTooSmall);
+        if let Some(media) = self.media.as_mut() {
+            if self
+                .media_channel
+                .is_some_and(|old| old.local_cid == channel.local_cid)
+                || media.accepted_fragments() > 0 && media.queued().is_some()
+            {
+                return Err(Error::ForeignContext);
+            }
+            if usize::from(media.acl_data_max()) != acl_data_max {
+                return Err(Error::InvalidAclLimit);
+            }
+            media
+                .rebind_closed(packetizer, channel.connection, channel.remote_cid)
+                .map_err(Error::Media)?;
+        } else {
+            if self.pdu_storage.as_ref().is_none_or(|s| s.len() < minimum) {
+                return Err(Error::PduStorageTooSmall);
+            }
+            let storage = self.pdu_storage.take().ok_or(Error::InvalidState)?;
+            self.media = Some(
+                MediaSession::new(
+                    packetizer,
+                    self.connection(),
+                    channel.remote_cid,
+                    acl_data_max,
+                    storage,
+                )
+                .map_err(Error::Media)?,
+            );
         }
-        let storage = self.pdu_storage.take().ok_or(Error::InvalidState)?;
-        self.media = Some(
-            MediaSession::new(
-                packetizer,
-                self.connection(),
-                channel.remote_cid,
-                acl_data_max,
-                storage,
-            )
-            .map_err(Error::Media)?,
-        );
         self.media_channel = Some(channel);
         self.initiator.transport_opened(self.connection().epoch)?;
         self.phase = Phase::Starting;
@@ -523,16 +542,77 @@ impl<'storage> SourceSession<'storage> {
         rtp_scratch: &mut [u8],
         l2cap_scratch: &mut [u8],
     ) -> Result<QueuedPacket, Error> {
+        self.queue_sbc_frames_at(self.next_media_sample, frames, rtp_scratch, l2cap_scratch)
+    }
+
+    /// Start a new negotiation after accepted Close AND confirmed real media
+    /// cleanup. Submission identities and AVDTP generations continue; the old
+    /// media CIDs must not be reused. The signaling channel remains established.
+    /// Create a fresh audio scheduler for sample zero of this new stream.
+    pub fn restart(&mut self, now_us: u64) -> Result<(), Error> {
+        self.check_time(now_us)?;
+        if self.phase != Phase::Stopped
+            || self.media_channel.is_none()
+            || self
+                .media
+                .as_ref()
+                .is_none_or(|m| m.state() != bt_media_session::SessionState::Stopped)
+        {
+            return Err(Error::InvalidState);
+        }
+        self.stop_deadline = None;
+        self.next_media_sample = 0;
+        self.remote_endpoint = None;
+        self.phase = Phase::Discovering;
+        self.emit(SignalId::Discover, now_us)
+    }
+
+    /// Queue complete frames at a full-width PCM sample position relative to
+    /// this stream's origin. Gaps represent explicitly expired, wholly unsent
+    /// audio; overlapping/overflowing positions fail without advancing state.
+    /// RTP wraps independently from this monotonic position. Busy never replaces
+    /// the retained PDU, including one with no accepted fragments yet.
+    pub fn queue_sbc_frames_at(
+        &mut self,
+        first_sample: u64,
+        frames: &[&[u8]],
+        rtp_scratch: &mut [u8],
+        l2cap_scratch: &mut [u8],
+    ) -> Result<QueuedPacket, Error> {
         self.active()?;
         if self.phase != Phase::Streaming {
             return Err(Error::InvalidState);
         }
+        if first_sample < self.next_media_sample {
+            return Err(Error::InvalidSamplePosition);
+        }
+        let samples = self
+            .configuration()
+            .ok_or(Error::InvalidState)?
+            .parameters()
+            .pcm_frames();
+        let count = u64::try_from(frames.len())
+            .ok()
+            .and_then(|count| count.checked_mul(samples as u64))
+            .and_then(|count| first_sample.checked_add(count))
+            .ok_or(Error::InvalidSamplePosition)?;
         let connection = self.connection();
-        self.media
+        let queued = self
+            .media
             .as_mut()
             .ok_or(Error::InvalidState)?
-            .queue_sbc_frames(connection, frames, rtp_scratch, l2cap_scratch)
-            .map_err(Error::Media)
+            .queue_sbc_frames_at(
+                connection,
+                self.config
+                    .first_timestamp
+                    .wrapping_add(first_sample as u32),
+                frames,
+                rtp_scratch,
+                l2cap_scratch,
+            )
+            .map_err(Error::Media)?;
+        self.next_media_sample = count;
+        Ok(queued)
     }
 
     /// At most one whole ACL submission. Backpressure preserves the PDU, and

@@ -583,3 +583,144 @@ fn clock_failure_cancels_prefix_once_and_does_not_accept_late_signaling() {
     assert!(source.receive_signal(signaling(), 3, &[0x42, 7]).is_err());
     assert_eq!(owner.snapshot().outstanding, 1);
 }
+
+#[test]
+fn paced_sample_gaps_survive_rtp_wrap_and_contiguous_followup() {
+    let mut storage = [0; 128];
+    let mut source = new_source(&mut storage);
+    streaming(&mut source);
+    let mut frame = [0; 77];
+    frame[0] = 0x9c;
+    let sample = u64::from(u32::MAX) - 64;
+    let first = source
+        .queue_sbc_frames_at(sample, &[&frame], &mut [0; 90], &mut [0; 94])
+        .unwrap();
+    assert_eq!((first.rtp.sequence, first.rtp.timestamp), (20, 63));
+    let mut owner = credits(3);
+    let mut transport = Transport::default();
+    for _ in 0..3 {
+        source
+            .transmit_next(2, &mut owner, &mut transport, &mut [0; 44])
+            .unwrap();
+    }
+    let next = source
+        .queue_sbc_frames(&[&frame], &mut [0; 90], &mut [0; 94])
+        .unwrap();
+    assert_eq!((next.rtp.sequence, next.rtp.timestamp), (21, 191));
+}
+
+#[test]
+fn invalid_future_audio_offer_does_not_commit_sample_position_or_output() {
+    let mut storage = [0; 128];
+    let mut source = new_source(&mut storage);
+    streaming(&mut source);
+    let mut rtp = [0xa5; 90];
+    let mut pdu = [0x5a; 94];
+    assert!(
+        source
+            .queue_sbc_frames_at(1024, &[&[0; 77]], &mut rtp, &mut pdu)
+            .is_err()
+    );
+    assert_eq!(rtp, [0xa5; 90]);
+    assert_eq!(pdu, [0x5a; 94]);
+    let mut frame = [0; 77];
+    frame[0] = 0x9c;
+    assert_eq!(
+        source.queue_sbc_frames_at(u64::MAX - 64, &[&frame], &mut rtp, &mut pdu),
+        Err(Error::InvalidSamplePosition)
+    );
+    let next = source
+        .queue_sbc_frames(&[&frame], &mut rtp, &mut pdu)
+        .unwrap();
+    assert_eq!((next.rtp.sequence, next.rtp.timestamp), (20, 128));
+}
+
+#[test]
+fn audio_catchup_never_replaces_partial_media_and_rejects_overlap() {
+    let mut storage = [0; 128];
+    let mut source = new_source(&mut storage);
+    streaming(&mut source);
+    let mut frame = [0; 77];
+    frame[0] = 0x9c;
+    source
+        .queue_sbc_frames_at(256, &[&frame], &mut [0; 90], &mut [0; 94])
+        .unwrap();
+    let mut owner = credits(3);
+    let mut transport = Transport::default();
+    source
+        .transmit_next(2, &mut owner, &mut transport, &mut [0; 44])
+        .unwrap();
+    let mut rtp = [0xa5; 90];
+    let mut pdu = [0x5a; 94];
+    assert_eq!(
+        source.queue_sbc_frames_at(2048, &[&frame], &mut rtp, &mut pdu),
+        Err(Error::Media(bt_media_session::Error::Busy))
+    );
+    assert_eq!(rtp, [0xa5; 90]);
+    assert_eq!(pdu, [0x5a; 94]);
+    for _ in 0..2 {
+        source
+            .transmit_next(2, &mut owner, &mut transport, &mut [0; 44])
+            .unwrap();
+    }
+    assert_eq!(
+        source.queue_sbc_frames_at(383, &[&frame], &mut rtp, &mut pdu),
+        Err(Error::InvalidSamplePosition)
+    );
+    let next = source
+        .queue_sbc_frames(&[&frame], &mut rtp, &mut pdu)
+        .unwrap();
+    assert_eq!((next.rtp.sequence, next.rtp.timestamp), (21, 512));
+}
+
+fn clean_stop(source: &mut SourceSession<'_>) {
+    source.stop(2).unwrap();
+    reply(source, SignalId::Suspend, &[], 2);
+    reply(source, SignalId::Close, &[], 2);
+    source.media_closed(media(), 2).unwrap();
+}
+#[test]
+fn clean_restart_retains_submission_generation_and_requires_fresh_local_media_channel() {
+    let mut storage = [0; 128];
+    let mut source = new_source(&mut storage);
+    streaming(&mut source);
+    clean_stop(&mut source);
+    source.restart(2).unwrap();
+    reply(&mut source, SignalId::Discover, &[4, 8], 2);
+    reply(
+        &mut source,
+        SignalId::GetCapabilities,
+        &[1, 0, 7, 6, 0, 0, 0x13, 0x15, 2, 53],
+        2,
+    );
+    reply(&mut source, SignalId::SetConfiguration, &[], 2);
+    reply(&mut source, SignalId::Open, &[], 2);
+    assert_eq!(
+        source.bind_media(media(), 40, 2),
+        Err(Error::ForeignContext)
+    );
+    let mut fresh = media();
+    fresh.local_cid = 0x44; // remote CID reuse after clean close is legal.
+    assert_eq!(source.bind_media(fresh, 41, 2), Err(Error::InvalidAclLimit));
+    source.bind_media(fresh, 40, 2).unwrap();
+    reply(&mut source, SignalId::Start, &[], 2);
+    let mut frame = [0; 77];
+    frame[0] = 0x9c;
+    let packet = source
+        .queue_sbc_frames(&[&frame], &mut [0; 90], &mut [0; 94])
+        .unwrap();
+    assert_eq!(packet.rtp.timestamp, 128);
+}
+#[test]
+fn restart_requires_actual_media_cleanup_and_cannot_revive_failure() {
+    let mut storage = [0; 128];
+    let mut source = new_source(&mut storage);
+    streaming(&mut source);
+    source.stop(2).unwrap();
+    reply(&mut source, SignalId::Suspend, &[], 2);
+    reply(&mut source, SignalId::Close, &[], 2);
+    assert_eq!(source.restart(2), Err(Error::InvalidState));
+    source.media_closed(media(), 2).unwrap();
+    source.cancel();
+    assert!(source.restart(2).is_err());
+}

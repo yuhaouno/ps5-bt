@@ -59,6 +59,21 @@ an active fragmented message. Context/transaction/malformed errors are surfaced;
 the owner must handle them, not silently discard control traffic. Reassembly
 timeout or clock failure invalidates this application session.
 
+`queue_sbc_frames_at(first_sample, ...)` carries the scheduler's full-width PCM
+sample position relative to stream sample zero. It rejects overlap and overflow;
+RTP wraps at u32 independently. Explicit gaps from expired wholly unsent audio
+advance the timestamp without inventing packets or markers. Rejected frames,
+capacity errors and Busy leave both sample positions and output unchanged. A
+retained PDU cannot be replaced, even before any fragment has been accepted.
+
+After accepted Close and `media_closed`, `restart(now)` negotiates again over
+the existing signaling channel. It preserves submission/transaction generations,
+requires a fresh local media CID and the same established ACL data limit, and
+reuses caller storage only after confirmed real cleanup. A peer may reuse its
+remote CID. Construct a fresh scheduler for sample zero; old controller
+completions remain with the external credit owner, without refunds. Restart
+cannot revive a failed or cleanup-pending session.
+
 ## Stop, terminal failure and recovery
 
 Stop immediately prevents new media. An entirely unaccepted PDU may be cancelled
@@ -88,7 +103,7 @@ may also contain that same evidence, not a second cancellation to count.
 
 ## Checks and limits
 
-Seventeen development checks cover negotiation/channel binding, the Classic
+Twenty-two development checks cover negotiation/channel binding, the Classic
 Ready boundary, fragmented responses and assembly expiry, Busy/no-credit stops,
 partial-PDU drain, stop deadlines, terminal prefixes, stale acceptance, expired
 offers, clock failure and recovery classification. Payloads/identities/keys in

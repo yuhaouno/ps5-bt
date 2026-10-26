@@ -125,6 +125,10 @@ impl<'storage> MediaSession<'storage> {
         self.media_channel_id
     }
 
+    pub const fn acl_data_max(&self) -> u16 {
+        self.fragmenter.acl_data_max()
+    }
+
     pub const fn queued(&self) -> Option<QueuedPacket> {
         self.queued
     }
@@ -158,6 +162,33 @@ impl<'storage> MediaSession<'storage> {
         Ok(())
     }
 
+    /// Reuse caller storage only after the enclosing owner confirmed the old
+    /// media channel's real cleanup. Stopped/idle is necessary but is not that
+    /// proof. A fresh channel is required; outstanding old controller completions
+    /// remain with the same external credit ledger and are never refunded here.
+    pub fn rebind_closed(
+        &mut self,
+        packetizer: SbcRtpPacketizer,
+        connection: Connection,
+        media_channel_id: u16,
+    ) -> Result<(), Error> {
+        if self.state != SessionState::Stopped || self.fragmenter.is_busy() || self.queued.is_some()
+        {
+            return Err(Error::InvalidState);
+        }
+        self.check_connection(connection)?;
+        BasicFrame::new(media_channel_id, &[])?;
+        if self.fragmenter.pdu_storage().len()
+            < packetizer.frame_bytes() + PACKET_OVERHEAD_BYTES + 4
+        {
+            return Err(FragmentError::PduTooLarge.into());
+        }
+        self.media_channel_id = media_channel_id;
+        self.packetizer = packetizer;
+        self.state = SessionState::Active;
+        Ok(())
+    }
+
     /// Build one complete RTP/A2DP packet and one complete L2CAP Basic PDU.
     ///
     /// `rtp_scratch` and `l2cap_scratch` are caller-owned temporary buffers.
@@ -167,6 +198,26 @@ impl<'storage> MediaSession<'storage> {
     pub fn queue_sbc_frames(
         &mut self,
         connection: Connection,
+        frames: &[&[u8]],
+        rtp_scratch: &mut [u8],
+        l2cap_scratch: &mut [u8],
+    ) -> Result<QueuedPacket, Error> {
+        self.queue_sbc_frames_at(
+            connection,
+            self.packetizer.next_timestamp(),
+            frames,
+            rtp_scratch,
+            l2cap_scratch,
+        )
+    }
+
+    /// Queue at the caller's established RTP sample timestamp only while idle.
+    /// This cannot relabel or discard a retained PDU. The application owner must
+    /// enforce its full-width sample timeline across RTP's u32 wrap.
+    pub fn queue_sbc_frames_at(
+        &mut self,
+        connection: Connection,
+        timestamp: u32,
         frames: &[&[u8]],
         rtp_scratch: &mut [u8],
         l2cap_scratch: &mut [u8],
@@ -201,7 +252,9 @@ impl<'storage> MediaSession<'storage> {
             return Err(FragmentError::PduTooLarge.into());
         }
 
-        let rtp = self.packetizer.packetize(frames, rtp_scratch)?;
+        let rtp = self
+            .packetizer
+            .packetize_at(timestamp, frames, rtp_scratch)?;
         let basic = BasicFrame::new(self.media_channel_id, &rtp_scratch[..rtp.bytes])?;
         let encoded = basic.encode(l2cap_scratch)?;
         debug_assert_eq!(encoded, pdu_bytes);

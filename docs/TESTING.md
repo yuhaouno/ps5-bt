@@ -6,10 +6,11 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
 ## Current automated checks
 
-- Source-session binding: 17 checks join Classic Ready/context, SBC negotiation,
+- Source-session binding: 22 checks join Classic Ready/context, SBC negotiation,
   media binding and the existing media sender, including fragmented responses,
   Start acceptance, Busy/credit stops, healthy partial-PDU drain, total stop
-  deadlines, cleanup confirmation, stale/expired offers, clock failure and sticky
+  deadlines, cleanup confirmation, full-width sample gaps/RTP wrap, clean restart,
+  stale/expired offers, clock failure and sticky
   integrity escalation into the recovery controller. No live channels, capture,
   encoder scheduling, real credits or PS5 audio result are established.
 

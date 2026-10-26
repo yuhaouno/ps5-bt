@@ -127,6 +127,20 @@ impl SbcRtpPacketizer {
         frames: &[&[u8]],
         output: &mut [u8],
     ) -> Result<PacketReport, PacketError> {
+        self.packetize_at(self.next_timestamp, frames, output)
+    }
+
+    /// Packetize at an explicitly established sample timestamp, for example
+    /// after dropping expired wholly unsent audio. Sequence is still contiguous.
+    /// The enclosing session must enforce monotonic sample positions and must
+    /// never replace an already queued/partially submitted PDU. Errors preserve
+    /// timestamp, marker, sequence and output. No marker is inferred from a gap.
+    pub fn packetize_at(
+        &mut self,
+        timestamp: u32,
+        frames: &[&[u8]],
+        output: &mut [u8],
+    ) -> Result<PacketReport, PacketError> {
         if frames.is_empty() || frames.len() > MAX_SBC_FRAMES_PER_PACKET {
             return Err(PacketError::InvalidFrameCount);
         }
@@ -149,7 +163,6 @@ impl SbcRtpPacketizer {
             return Err(PacketError::BufferTooSmall);
         }
         let sequence = self.next_sequence;
-        let timestamp = self.next_timestamp;
         let marker = self.marker_pending;
 
         output[0] = 0x80;

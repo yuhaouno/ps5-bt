@@ -14,6 +14,10 @@
 
 ## Unreleased
 
+- Preserve explicit PCM sample gaps through RTP wrapping and atomic media
+  queuing; support clean stream restart after actual media-channel cleanup with
+  a fresh local CID, retained transaction identities and unchanged credit ownership.
+
 - Bind the selected-peer Classic Ready boundary, AVDTP SBC negotiation, explicit
   signaling/media channels and existing credit-aware media sender in a bounded
   source session. Require full signaling acceptance and Start acknowledgement;
