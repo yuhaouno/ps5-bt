@@ -1,5 +1,12 @@
 # PS5-BT — working title
 
+For the next PS5 window on a new testing machine, start with the temporary
+[operator handoff](docs/TEMP-PS5-TEST-HANDOFF.md) and
+[decision matrix](docs/PS5-WINDOW-DECISION-MATRIX.md). The six-item plan has a
+one-command local preparer and verified portable transfer; native tests still
+require the actual console window. No usable Bluetooth connection backend or
+headphone playback is claimed.
+
 A Rust-first Bluetooth Audio stack for PlayStation 5 homebrew — built for low
 latency, high quality, and portability.
 

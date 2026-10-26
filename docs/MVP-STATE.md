@@ -1,5 +1,41 @@
 # MVP orchestration state
 
+## New-machine test preparation, 2026-10-26
+
+Start with [TEMP-PS5-TEST-HANDOFF.md](TEMP-PS5-TEST-HANDOFF.md) and
+[PS5-WINDOW-DECISION-MATRIX.md](PS5-WINDOW-DECISION-MATRIX.md). The current default
+`tools/window_test_plan.json` contains application-setup, application-control,
+application-generated, application-observe, then conditional standalone
+sbc-continuous/capture-stream. The full inventory now contains ten candidates;
+the older three-item startup plan and previous kit paths below describe earlier
+artifacts, not the new default kit identity.
+
+The user authorized completing/committing/pushing this offline preparation and
+plans to enter the same Slim/13.40, PayloadManager 0.6.3 and XM4 environment after
+this conversation. No current console connection, upload or launch follows from
+that plan. The final response and generated kit/preparation/transfer manifests
+record the actual completed source identity; do not infer one from a path.
+Existing commits through `9234a70` were pushed and remotely verified before this
+preparation. Historical statements about earlier local-only commits below are
+superseded by that push, not new hardware evidence.
+
+The new separately selected setup artifact only validates/creates the fixed
+private namespace using pinned SDK declarations and payload native identity.
+It never changes existing permissions or radio/system state. The application
+still requires its protected directory and independently verified imports,
+entropy, store/listener, clock and cleanup. Python-only portable transfer or a
+fresh clone with pinned build tools supplies all six matching ELF/source pairs.
+Keep payloads, transfer archives, raw logs and private state ignored, outside Git.
+
+Native directory/export behavior, durability, capture format/native time,
+Bluetooth routing/allowance and controller coexistence remain Requires hardware.
+There is no usable connection backend or safe active-HCI artifact; local tests
+cannot pair the XM4 or demonstrate playback. Stop on uncertain cleanup. The
+unchanged x86 syscall fixture remains unavailable on the ARM development host;
+full `make check` must not be reported as passing. No native test is executed by
+these preparation tools.
+
+
 Last updated: 2026-10-26. The explicit HW-1 diagnostic now executes on the
 recorded Slim/13.40 environment. MVP audio is not operational.
 

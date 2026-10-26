@@ -192,15 +192,21 @@ def runbook(plan, head, entries):
             "",
         ]
     lines += [
-        "Application items require an already prepared directory with mode 0700 at",
-        "`/data/ps5-bt/control`, owned by the payload identity. The kit",
-        "does not create it. Missing/unsafe permissions are a startup failure.",
-        "Application items bind ephemeral loopback and never reveal their token.",
-        "Only application-generated encodes explicit generated PCM to discard;",
-        "only application-observe performs bounded repeated raw capture reads.",
-        "Neither provides a LAN deployment, PCM format proof or Bluetooth route.",
+        "Application workloads require a private mode-0700 `/data/ps5-bt/control`",
+        "owned by the payload identity. Separately selected application-setup",
+        "only validates/creates fixed project directory components using native",
+        "UID/protection checks; it never chmods/chowns existing paths. Building",
+        "or assembling this kit does not execute setup or create console slots.",
+        "Application workloads bind ephemeral loopback without revealing tokens.",
+        "Application-generated and standalone SBC encode generated PCM to discard.",
+        "Application-observe performs bounded repeated raw capture; capture-stream",
+        "makes one immediate read. Neither verifies the native PCM format.",
+        "Standalone SBC/capture are conditional isolation tests after a clean",
+        "reviewed failure; do not continue after unknown cleanup or controller changes.",
+        "Read docs/TEMP-PS5-TEST-HANDOFF.md and docs/PAYLOADMANAGER-SLOTS.md before use.",
+        "No candidate supplies a LAN deployment or usable Bluetooth connection route.",
         "",
-        "For identity-bearing Rust candidates, save the local log and use",
+        "For identity-bearing candidates, save the local log and use",
         "`tools/diagnostic_result.py` with its matching manifest and explicit",
         "before/during/after controller observations. Never infer Unknown as normal.",
         "A missing matching finish/return remains an interrupted result.",
@@ -397,7 +403,9 @@ def self_test():
                 manifest["diagnostic_build_id"] = "b" * 64
                 manifest["diagnostic_candidate"] = "other"
                 reject()
-        assert "already prepared directory with mode 0700 at" in runbook(plan, "test-head", [])
+        assert "private mode-0700" in runbook(plan, "test-head", [])
+        assert "never chmods/chowns existing paths" in runbook(plan, "test-head", [])
+        assert "conditional isolation tests" in runbook(plan, "test-head", [])
         sample = root / "sample"
         sample.write_bytes(b"bounded")
         assert digest(sample) == hashlib.sha256(b"bounded").hexdigest()

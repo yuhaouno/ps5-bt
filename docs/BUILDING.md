@@ -211,10 +211,30 @@ sound. `host-libsbc` intentionally refuses cross-compilation before invoking
 the host C compiler. Feature-off `bt-codec` remains portable `no_std`.
 See SBC-IMPLEMENTATION.md for exact commands and remaining PS5 ABI/link gates.
 
+`make check-build-tools` runs the builder/source-package/kit self-tests and the
+Python diagnostic-result, console-window, window-preparer and portable-handoff
+suites. The two new suites may also run directly:
+
+```sh
+python3 tests/tools/test_prepare_ps5_window.py
+python3 tests/tools/test_window_handoff.py
+```
+
+These use synthetic local fixtures, not SDK downloads or console execution.
+On the recorded ARM macOS host, the unchanged first check,
+`tools/test_syscall_checked.py`, cannot execute its x86 host binary (errno 86,
+Bad CPU type). Consequently the full Make target stops there; run the remaining
+independent commands explicitly and report that syscall check as unavailable.
+See [TESTING.md](TESTING.md); a passing Python suite does not make the full target
+or hardware checks pass.
+
 ### Bounded hardware-test kit
 
 After the intended changes are committed and the worktree is clean, rebuild the
-nine independently selected kit candidates and their corresponding source packages:
+ten independently selected full-inventory candidates and their corresponding
+source packages.
+The six-item default window can instead be prepared with one command below; the
+full inventory remains an explicit choice:
 
 ```sh
 LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-usb-metadata
@@ -244,7 +264,10 @@ python3 tools/package_source.py \
 LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-application-observe
 python3 tools/package_source.py \
   --manifest build/ps5/ps5-bt-application-observe.manifest.json
-python3 tools/mvp_test_kit.py --assemble
+LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-application-setup
+python3 tools/package_source.py \
+  --manifest build/ps5/ps5-bt-application-setup.manifest.json
+python3 tools/mvp_test_kit.py --plan tools/mvp_test_plan.json --assemble
 ```
 
 The assembler rejects dirty/stale manifests, wrong diagnostic variants,
@@ -265,16 +288,16 @@ The execute mode connects only to `192.168.1.111:2121`, validates each existing
 PayloadManager local slot's bounded `meta.json`, uploads to a unique temporary
 name, checks remote size, then renames to the exact slot filename. It never
 creates a slot, launches a payload, deletes a durable log or touches another
-payload. Create/confirm the exact `ps5-bt-usb-binding` and
-`ps5-bt-capture-settled` slots manually in PayloadManager first. A slot metadata
-mismatch aborts before upload. Retrieve `/data/ps5-bt-hw1.log` before every
+payload. Create/confirm every selected plan's exact existing slot manually in
+PayloadManager first, including `ps5-bt-usb-binding` and `ps5-bt-capture-settled`
+when using the full inventory. The native setup candidate creates no
+PayloadManager slot. A slot metadata mismatch aborts before upload. Retrieve `/data/ps5-bt-hw1.log` before every
 manual launch because the next run overwrites it.
 
-These checks and the PS5 builder read Rust archives from Cargo's default
-`target/` directory. An inherited non-default `CARGO_TARGET_DIR` puts the
-archive somewhere else, and the current host check fails when
-`target/<host>/debug/libps5_runtime.a` is absent. The documented environment
-leaves `CARGO_TARGET_DIR` unset, and that default works.
+The PS5 builder explicitly selects the project `target/` directory with
+`--target-dir`, independent of an inherited `CARGO_TARGET_DIR`. Some unchanged
+host checks still expect `target/<host>/debug/libps5_runtime.a`; for those host
+checks, leave `CARGO_TARGET_DIR` unset to avoid a missing-archive failure.
 
 ## Reproducibility and distribution
 
@@ -308,9 +331,10 @@ After a clean commit and rebuild, package this candidate with:
 python3 tools/package_source.py --manifest build/ps5/ps5-bt-sbc-continuous.manifest.json
 ```
 
-The nine-item test-kit plan includes this independent candidate; build/package
-all selected manifests and corresponding sources before assembly. No new slot is created by the
-uploader. A new hardware window and execution authorization remain required.
+The six-item default window and ten-item full-inventory plans both include this
+independent candidate; build/package all selected manifests and corresponding
+sources before assembly. No new slot is created by the uploader. A new hardware
+window and execution authorization remain required.
 
 ## Experimental Rust capture entry
 
@@ -321,9 +345,10 @@ lints, freestanding external-ABI checks and the C ASan/UBSan lifecycle harness.
 same reviewed module lookup as the older capture diagnostic. Format/time remain
 unknown; raw bytes and native metadata are never logged or encoded.
 Package the clean build with `tools/package_source.py --manifest
-build/ps5/ps5-bt-capture-stream.manifest.json`. The kit has nine independent
-candidates including application-control; build/package all nine before assembly. This creates no new hardware
-window or deployment authority. See CAPTURE-STREAM.md for exact admission.
+build/ps5/ps5-bt-capture-stream.manifest.json`. The six-item default window and
+ten-item full inventory include this candidate; build/package every item
+selected by the plan before assembly. This creates no new hardware window or
+deployment authority. See CAPTURE-STREAM.md for exact admission.
 
 ## Native clock/wait adapter candidate
 
@@ -337,7 +362,8 @@ diagnostic. See PLATFORM-CLOCK.md.
 
 ## Correlated local experiment results
 
-The Rust capture, continuous SBC and three application candidates embed an input-build identity
+The Rust capture, continuous SBC, three application workloads and separate
+application-setup candidate embed an input-build identity
 matching `diagnostic_build_id` / `diagnostic_candidate` in their manifest. Their
 unique begin/finish markers precede the runtime's existing termination report.
 After an authorized hardware run and local log collection,
@@ -347,6 +373,36 @@ be entered explicitly; Unknown remains Unknown. This collector never connects
 to a console. See DIAGNOSTIC-RESULTS.md; `python3 tests/tools/test_diagnostic_result.py`
 checks parser and persistence failure paths.
 
+
+## Fixed native namespace setup candidate
+
+The separate setup artifact prepares only permitted missing components of
+`/data/ps5-bt/control`, validates native owner/mode and reports bounded cleanup.
+Existing paths are never chmodded/chowned, and root plus `/data` must already
+exist. It reads no entropy and starts no listener, capture, encoder or radio.
+Its matching application import/header closure remains source-reviewed; native
+exports, permissions and persistence require hardware evidence.
+
+```sh
+make application-setup-test
+LLVM_CONFIG=/absolute/path/to/LLVM-18.1.8/bin/llvm-config make ps5-application-setup
+# Equivalent explicit build selection:
+python3 tools/build_ps5.py --application-setup --loader-kernel-resolver \
+  --llvm-config /absolute/path/to/LLVM-18.1.8/bin/llvm-config
+# After a clean committed rebuild, package before building another variant:
+python3 tools/package_source.py \
+  --manifest build/ps5/ps5-bt-application-setup.manifest.json
+```
+
+The host test target uses the actual setup/main code with fault stubs and
+ASan/UBSan; it never changes the host's `/data`. The artifact is
+`build/ps5/ps5-bt-application-setup.elf`, with its matching manifest and original
+43 SDK headers/notices in the source bundle. Selection is mutually exclusive
+with every other diagnostic flag. Building or adding setup to a kit never runs
+it or removes the subsequent workload's own private-directory validation.
+Follow [APPLICATION-SETUP.md](APPLICATION-SETUP.md) for its finite operation and
+external observation budgets, cancellation, persistent created components and
+sticky cleanup uncertainty. A current authorized window is required for launch.
 
 ## Control-only native application candidate
 
@@ -373,8 +429,11 @@ It performs no Bluetooth, capture or codec operation. The chosen listener is an
 ephemeral port on `127.0.0.1`; this is not a LAN control deployment. Fresh native
 entropy supplies the bearer token; token/port/address/path are never logged.
 The caller must already have a private `/data/ps5-bt/control` directory with exact
-mode 0700 and appropriate native protections. The candidate does not create or
-relax that directory, and a missing/unsafe path fails with observable cleanup.
+mode 0700 and appropriate native protections. A separately selected
+[application-setup candidate](APPLICATION-SETUP.md) may establish its permitted
+missing components and verify the native owner/mode before this workload. The
+control workload does not create or relax that directory, and a missing/unsafe
+path fails with observable cleanup.
 PS5 import availability, entropy, filesystem protection/durability, scheduling
 and wireless-controller behavior remain Requires hardware.
 
@@ -395,11 +454,12 @@ python3 tools/package_source.py --manifest build/ps5/ps5-bt-application-control.
 The package includes the exact original target headers/notices and preserves
 `--application-control --loader-kernel-resolver` in its rebuild command. This
 candidate does not execute the SBC archive or need codec replacement materials.
-It is one of nine independently packaged kit candidates; full-inventory assembly
-requires all nine matching clean-commit builds/source bundles. No final kit identity exists
-until assembly succeeds. The uploader does not create the application-control
-console slot. Building and packaging never deploy or authorize a hardware run. A new current authorized window and
-explicit controller observations are required before execution.
+It is included in the six-item default window and ten-item full inventory;
+assembly requires every selected matching clean-commit build/source bundle. No
+final kit identity exists until assembly succeeds. The uploader does not create
+the application-control console slot. Building and packaging never deploy or authorize a hardware run.
+A new current authorized window and explicit controller observations are required
+before execution.
 
 
 ## Integrated generated and observation application candidates
@@ -417,8 +477,12 @@ python3 tools/build_ps5.py --application-observe --loader-kernel-resolver
 Both acquire the actual protected store, persistent loopback listener and reviewed
 clock, then run bounded Rust work inside the platform owner loop. The same
 private 0700 directory `/data/ps5-bt/control`, matching native owner and import/
-entropy prerequisites apply. Preparation remains manual; no build or helper
-creates/chmods the directory or assumes native permissions were established.
+entropy prerequisites apply. Builds, source packaging and preflight never create
+the native directory. Only a separately selected, authorized application-setup
+execution may create its fixed missing components with mode 0700 and verify
+ownership/protection; it never chmods/chowns an existing path. Setup is not
+automatically run by another workload, and preparation alone proves no native
+permissions.
 
 Generated mode uses observed clock pacing for 750 blocks/96,000 generated stereo
 frames across two seconds of nominal sample positions. Real persistent target
@@ -435,29 +499,81 @@ bursts. No samples, PCM format or lost-sample count are inferred and raw bytes a
 scrubbed. Existing one-read and first-data diagnostics keep their original bounds.
 See APPLICATION-GENERATED.md and APPLICATION-OBSERVE.md for outcome details.
 
-## Three-item next-window kit and read-only collection
+## Default six-item window, portable handoff and read-only collection
 
-The full `tools/mvp_test_plan.json` inventory has nine candidates. The new
-`tools/startup_test_plan.json` selects only application-control,
-application-generated and application-observe, in that order. Once committed
-sources have been rebuilt and packaged cleanly, assemble that selected plan:
+The default `tools/prepare_ps5_window.py` plan is `tools/window_test_plan.json`:
+application-setup, application-control, application-generated,
+application-observe, sbc-continuous and capture-stream, in that order. The full
+`tools/mvp_test_plan.json` inventory now contains ten independent candidates.
+The earlier `tools/startup_test_plan.json` remains a three-workload subset
+(control, generated, observe); it omits setup and requires an independently
+established safe private namespace.
+
+From a clean committed clone with the installed pinned tools, inspect then
+prepare the default six candidates locally:
+
+```sh
+python3 tools/prepare_ps5_window.py --doctor \
+  --llvm-config /absolute/path/to/LLVM-18.1.8/bin/llvm-config
+python3 tools/prepare_ps5_window.py --build \
+  --llvm-config /absolute/path/to/LLVM-18.1.8/bin/llvm-config \
+  --kit-dir build/ps5/next-window-kit-20261026
+```
+
+Doctor/default dry-run creates no output and performs no builds, SDK downloads
+or console operations. Explicit `--build` invokes the existing builders and
+packages each candidate immediately before the next build overwrites Cargo's
+shared Rust archive. It uses a fresh namespace, validates clean HEAD and the
+unchanged plan throughout, then assembles/revalidates the kit and writes an
+atomic identity summary. Only explicit build may provision missing pinned SDK
+source through the existing builder; `--sdk-source DIR` selects a locally
+verified source override. For the full inventory, pass
+`--plan tools/mvp_test_plan.json`; every selected item must build/package.
+See [WINDOW-PREPARER.md](WINDOW-PREPARER.md) for installed-tool checks, lock,
+failure handling, output namespaces and exact options.
+
+For already built and immediately packaged matching candidates, assembly alone
+is also available. The following preserves the historical three-workload subset:
 
 ```sh
 python3 tools/mvp_test_kit.py --plan tools/startup_test_plan.json \
-  --kit-dir build/ps5/next-window-kit-20261026 --assemble
-python3 tools/console_window.py --kit build/ps5/next-window-kit-20261026 --preflight
+  --kit-dir build/ps5/startup-subset-kit --assemble
+python3 tools/console_window.py --kit build/ps5/startup-subset-kit --preflight
 ```
 
 The preflight command above defaults to dry-run. With a separately authorized
 console window, adding `--execute` performs read-only FTP slot metadata and
 artifact-size checks; optional `--verify-hash` reads back bounded ELF contents.
-No helper creates a PayloadManager slot, directory, permission, deployment or
-launch. The selected plan requires manually prepared existing slots named
-`ps5-bt-application-control`, `ps5-bt-application-generated` and
-`ps5-bt-application-observe`, with matching metadata. Existing private 0700 namespace protection and the expected native owner
-remain prerequisites until the payload actually verifies them. Planned environment
+Neither preflight nor the local preparer creates a PayloadManager slot, native
+directory or permission, deploys, or launches. Every selected slot must already
+exist with matching metadata. The three-workload subset needs its three
+`ps5-bt-application-*` slots; the default six-item plan additionally needs
+`ps5-bt-application-setup`, `ps5-bt-sbc-continuous` and `ps5-bt-capture-stream`.
+The separate application-setup artifact is the only selected candidate allowed
+to create its fixed missing native namespace components; building or preflight
+does not execute it. Private 0700 protection and the expected native owner
+remain Unknown until the native payload verifies them. Planned environment
 is the reported Slim/13.40, PayloadManager 0.6.3 and XM4; this is no compatibility
 or present execution authorization.
+
+For a different testing machine, export the validated clean-HEAD kit and its
+complete matching committed project tree/source bundles:
+
+```sh
+python3 tools/window_handoff.py export \
+  --kit-dir build/ps5/next-window-kit-20261026 \
+  --output build/ps5/ps5-bt-window-transfer.tar.gz
+```
+
+The exporter creates the archive, standalone bootstrap script and SHA-256
+sidecar without console access. The receiver needs only Python 3.11+ for trusted
+hash inspection, safe extraction and already-built kit preflight/collection;
+rebuilding still needs the external pinned tools and original Git provenance.
+It never manufactures Git history or installs a toolchain. See
+[WINDOW-HANDOFF.md](WINDOW-HANDOFF.md) for exact receiving commands and bounds,
+and [TEMP-PS5-TEST-HANDOFF.md](TEMP-PS5-TEST-HANDOFF.md) plus the kit runbook for
+operator sequence. Preparation/export success is no native setup or PS5 test
+acceptance. Preserve the transfer hash through a trusted channel.
 
 After a separately authorized manual launch, collect the fixed diagnostic log:
 
@@ -477,7 +593,7 @@ launch overwrites it. Root's final handoff records actual assembled kit identity
 an intended path alone is not a completed artifact or deployment.
 
 There is still no usable Bluetooth connection backend or ready safe active-HCI
-artifact. The recorded native L2CAP errno 47 result remains a blocker. These three
-local startup tests cannot connect the XM4 or validate audible playback. Scoped
-native resource rebuilding is host-tested library work, not automatic reconnect
-in these application ELFs and not an additional console artifact.
+artifact. The recorded native L2CAP errno 47 result remains a blocker. None of
+these local setup/startup/audio diagnostics connects the XM4 or validates
+audible playback. Scoped native resource rebuilding is host-tested library work,
+not automatic reconnect in these application ELFs and not an additional console artifact.

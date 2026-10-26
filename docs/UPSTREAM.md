@@ -328,3 +328,14 @@ notices in corresponding-source packages. The candidate resolves `mkdirat`
 separately, only prepares fixed project-owned local directories, never changes
 existing modes/owners, and leaves native compatibility Requires hardware.
 See [APPLICATION-SETUP.md](APPLICATION-SETUP.md).
+
+## PayloadManager slot procedure audit, 2026-10-26
+
+Reference-only inspection of itsPLK/ps5-payload-manager v0.6.3, commit
+`3f881e8e569eba3054d1784a1962439b2eee92c2`, establishes the documented supported
+local-slot web upload, origin checks, conflict modes and metadata writer.
+No GPL-3.0 upstream code, binary, exploit or loader is imported. Exact selected
+file hashes, immutable links and native execution limits are in
+[PAYLOADMANAGER-SLOTS.md](PAYLOADMANAGER-SLOTS.md). The source's HTTP port is not
+a claim about a presently listening service. This review does not authorize
+console execution or change project transport/permission scope.

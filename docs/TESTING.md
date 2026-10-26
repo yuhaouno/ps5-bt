@@ -395,3 +395,20 @@ The next proposed setup is the reported Slim/13.40, PayloadManager 0.6.3 and XM4
 These offline checks authorize no current deployment or run. Native L2CAP errno 47
 and the absent safe active-HCI route remain critical blockers to pairing/playback
 acceptance; the three application diagnostics test local integration only.
+
+## Next-window preparation tooling
+
+`make application-setup-test` runs strict C11 and ASan/UBSan namespace and actual
+main orchestration fault tests, all using injected operations.
+`make check-build-tools` includes build/source/kit checks, diagnostic-result and
+fake-FTP collection tests, fresh-machine preparer faults and standalone portable
+transfer validation/extraction. Tests never contact a console. The overall
+check target's unchanged x86 syscall execution fixture remains unavailable on
+ARM macOS; that overall target is not a pass.
+
+For native testing use the six-item `tools/window_test_plan.json`, temporary
+[TEMP-PS5-TEST-HANDOFF.md](TEMP-PS5-TEST-HANDOFF.md) and
+[PS5-WINDOW-DECISION-MATRIX.md](PS5-WINDOW-DECISION-MATRIX.md). Build/inspect each
+clean-source artifact, retain corresponding sources and collect one bounded log
+before launching the next. Native correctness, cleanup, controller coexistence
+and audio/transport acceptance require actual separately observed PS5 results.

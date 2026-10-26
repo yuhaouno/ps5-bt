@@ -23,7 +23,8 @@ PORT = 2121
 REMOTE_ROOT = "/data/pldmgr/payloads/local"
 REMOTE_LOG = "/data/ps5-bt-hw1.log"
 CONTROL_DIRECTORY = "/data/ps5-bt/control"
-CANDIDATES = ("application-control", "application-generated", "application-observe")
+CANDIDATES = ("application-setup", "application-control", "application-generated",
+              "application-observe", "sbc-continuous", "capture-stream")
 DEFAULT_KIT = mvp_test_kit.ROOT / "build/ps5/next-window-kit-20261026"
 DEFAULT_OUTPUT = mvp_test_kit.ROOT / "build/ps5/console-window"
 MAX_META_BYTES = 16_384
@@ -41,17 +42,25 @@ class WindowError(Exception):
         super().__init__(code)
 
 
-def selected_kit(kit_dir, identifiers):
-    identifiers = tuple(identifiers)
-    if not identifiers or len(identifiers) > 3 or len(set(identifiers)) != len(identifiers) or any(value not in CANDIDATES for value in identifiers):
-        raise WindowError("candidate-selection")
+def selected_kit(kit_dir, identifiers=None):
     try:
+        # Load/validate the actual kit first. A default selection must never
+        # require profiles absent from an older, otherwise valid three-item kit.
         plan, manifest = mvp_test_kit.load_kit(Path(kit_dir))
         if (plan["target_host"], plan["ftp_port"], plan["remote_root"], plan["remote_log"]) != (TARGET, PORT, REMOTE_ROOT, REMOTE_LOG):
             raise WindowError("kit-target")
+        if identifiers is None:
+            identifiers = tuple(item["id"] for item in plan["candidates"] if item["id"] in CANDIDATES)
+        else:
+            identifiers = tuple(identifiers)
+        if not identifiers or len(identifiers) > 6 or len(set(identifiers)) != len(identifiers) or any(value not in CANDIDATES for value in identifiers):
+            raise WindowError("candidate-selection")
         entries = []
+        available = {item["candidate"]["id"]: item for item in manifest["entries"]}
         for identifier in identifiers:
-            entry = next(item for item in manifest["entries"] if item["candidate"]["id"] == identifier)
+            if identifier not in available:
+                raise WindowError("candidate-not-in-kit")
+            entry = available[identifier]
             candidate = entry["candidate"]
             expected = "ps5-bt-" + identifier
             if candidate["slot"] != expected or candidate["remote_filename"] != expected + ".elf":
@@ -136,7 +145,7 @@ def prerequisite():
             "native_owner_and_mode": "Unknown", "validation": "native payload required"}
 
 
-def preflight(kit_dir, identifiers=CANDIDATES, execute=False, verify_hash=False, ftp_factory=None, clock=None):
+def preflight(kit_dir, identifiers=None, execute=False, verify_hash=False, ftp_factory=None, clock=None):
     _, entries = selected_kit(kit_dir, identifiers)
     result = {"action": "preflight", "mode": "execute-read-only" if execute else "dry-run",
               "target": f"{TARGET}:{PORT}", "prerequisite": prerequisite(), "candidates": []}
@@ -320,7 +329,7 @@ def main(argv=None):
         parser.error("--verify-hash applies only to --preflight")
     try:
         if args.preflight:
-            report = preflight(args.kit, args.candidate or CANDIDATES, args.execute, args.verify_hash)
+            report = preflight(args.kit, args.candidate, args.execute, args.verify_hash)
         else:
             report = collect_window(args.kit, args.candidate[0], args.execute, args.output_dir,
                 {phase: getattr(args, "controller_" + phase) for phase in ("before", "during", "after")}, args.run_observation)

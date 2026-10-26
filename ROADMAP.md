@@ -213,3 +213,10 @@ creation/validation before the Rust resource-factory tests, with host fault
 coverage and a separately identified ELF. Native export/protection/durability
 acceptance remains pending; this does not change the unresolved M2 transport or
 capture-format evidence. See docs/APPLICATION-SETUP.md.
+
+Next-window readiness now includes a six-item default plan (fixed namespace,
+three application workloads and two conditional isolation candidates), a
+one-command local preparer and verified portable transfer for a new testing
+machine. The full inventory has ten candidates; the older startup-only subset
+remains available. Read docs/TEMP-PS5-TEST-HANDOFF.md before any current window.
+Packaging/readiness does not close M2's native route or capture-format gates.

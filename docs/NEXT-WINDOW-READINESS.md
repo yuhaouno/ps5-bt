@@ -1,5 +1,12 @@
 # Next PS5 window: readiness and remaining gates
 
+The newer [temporary new-machine handoff](TEMP-PS5-TEST-HANDOFF.md) and
+[six-item default plan](../tools/window_test_plan.json) supersede the three-item
+preparation sequence below. Existing artifact records remain historical; use
+the final freshly assembled kit's source identity and hashes. See
+[WINDOW-PREPARER.md](WINDOW-PREPARER.md), [WINDOW-HANDOFF.md](WINDOW-HANDOFF.md) and
+[APPLICATION-SETUP.md](APPLICATION-SETUP.md) for the added offline preparations.
+
 Updated 2026-10-26. Planned environment confirmed by the user: PS5 Slim/13.40,
 PayloadManager 0.6.3, WH-1000XM4. There is no currently confirmed online window.
 This document prepares execution; it does not authorize deployment or launch.

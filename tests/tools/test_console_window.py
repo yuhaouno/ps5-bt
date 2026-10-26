@@ -16,7 +16,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import console_window as window
-from test_diagnostic_result import application_log, manifest, BUILD
+from test_diagnostic_result import application_log, application_mode_log, setup_log, log, manifest, BUILD
 
 SECRET = "server-reply-secret-never-print"
 
@@ -25,12 +25,15 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def make_kit(root):
+LEGACY_CANDIDATES = ("application-control", "application-generated", "application-observe")
+
+
+def make_kit(root, identifiers=LEGACY_CANDIDATES):
     root.mkdir()
     plan = {"schema": 1, "target_host": window.TARGET, "ftp_port": window.PORT,
             "remote_root": window.REMOTE_ROOT, "remote_log": window.REMOTE_LOG, "candidates": []}
     entries, remote = [], {}
-    for order, identifier in enumerate(window.CANDIDATES, 1):
+    for order, identifier in enumerate(identifiers, 1):
         stem = "ps5-bt-" + identifier
         candidate = {"id": identifier, "order": order, "artifact": f"build/ps5/{stem}.elf",
                      "build_manifest": f"build/ps5/{stem}.manifest.json", "source_bundle": f"build/ps5/{stem}-source.tar.gz",
@@ -149,6 +152,81 @@ class ConsoleWindowTest(unittest.TestCase):
             self.assertEqual(set(report["controller"].values()), {"Unknown"})
             self.assertEqual(report["operator_run_observation"], "Unknown")
         self.assertFalse(self.output.exists())
+
+    def test_auto_selection_retains_legacy_three_and_six_profile_plan_order(self):
+        with patch.object(window.ftplib, "FTP", side_effect=AssertionError("no FTP")):
+            legacy = window.preflight(self.kit)
+            self.assertEqual([item["id"] for item in legacy["candidates"]], list(LEGACY_CANDIDATES))
+            identifiers = ("application-setup", "sbc-continuous", "capture-stream",
+                           "application-control", "application-generated", "application-observe")
+            six = self.root / "six-kit"
+            remote = make_kit(six, identifiers)
+            report = window.preflight(six)
+            self.assertEqual([item["id"] for item in report["candidates"]], list(identifiers))
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(window.main(["--kit", str(six), "--preflight"]), 0)
+            self.assertEqual([item["id"] for item in json.loads(output.getvalue())["candidates"]], list(identifiers))
+        ftp = FakeFTP(remote)
+        report = window.preflight(six, execute=True, verify_hash=True, ftp_factory=lambda: ftp)
+        self.assertEqual(len(report["candidates"]), 6)
+        self.assertTrue(all(item["remote_hash_match"] for item in report["candidates"]))
+        self.assertEqual(ftp.closes, 1)
+        self.assertEqual([call[1].rsplit("/", 1)[-1] for call in ftp.calls if call[0] == "cwd"],
+                         ["ps5-bt-" + identifier for identifier in identifiers])
+
+    def test_explicit_selection_is_bounded_available_and_keeps_requested_order(self):
+        six = self.root / "six-kit"
+        make_kit(six, window.CANDIDATES)
+        with patch.object(window.ftplib, "FTP", side_effect=AssertionError("no FTP")):
+            report = window.preflight(six, ["capture-stream", "application-setup"])
+            self.assertEqual([item["id"] for item in report["candidates"]], ["capture-stream", "application-setup"])
+            for identifiers, code in [([], "candidate-selection"), (["not-reviewed"], "candidate-selection"),
+                    (["application-control", "application-control"], "candidate-selection"),
+                    (list(window.CANDIDATES) + ["application-setup"], "candidate-selection"),
+                    (["application-setup"], "candidate-not-in-kit"),
+                    (["sbc-continuous"], "candidate-not-in-kit")]:
+                with self.subTest(identifiers=identifiers):
+                    with self.assertRaises(window.WindowError) as caught:
+                        window.preflight(self.kit, identifiers, execute=True)
+                    self.assertEqual(caught.exception.code, code)
+        # Loading the kit is always first, even for an invalid explicit subset.
+        with patch.object(window.mvp_test_kit, "load_kit", side_effect=ValueError("invalid")) as load:
+            with self.assertRaises(window.WindowError) as caught:
+                window.preflight(self.kit, [])
+            self.assertEqual(caught.exception.code, "kit-invalid")
+            load.assert_called_once()
+
+    def test_auto_selection_skips_unsupported_legacy_items_and_rejects_empty_match(self):
+        mixed = self.root / "mixed-kit"
+        make_kit(mixed, ("usb-binding", "application-observe", "sbc-continuous"))
+        only_legacy = self.root / "unsupported-kit"
+        make_kit(only_legacy, ("usb-binding",))
+        with patch.object(window.ftplib, "FTP", side_effect=AssertionError("no FTP")):
+            report = window.preflight(mixed)
+            self.assertEqual([item["id"] for item in report["candidates"]], ["application-observe", "sbc-continuous"])
+            with self.assertRaises(window.WindowError) as caught:
+                window.preflight(only_legacy, execute=True)
+            self.assertEqual(caught.exception.code, "candidate-selection")
+
+    def test_collect_all_six_profiles_uses_matching_existing_collectors(self):
+        six = self.root / "six-kit"
+        remote = make_kit(six, window.CANDIDATES)
+        text = {"application-setup": setup_log(), "application-control": application_log(),
+                "application-generated": application_mode_log("generated"),
+                "application-observe": application_mode_log("observe"),
+                "sbc-continuous": log("sbc-continuous"), "capture-stream": log("capture-stream")}
+        for identifier in window.CANDIDATES:
+            with self.subTest(identifier=identifier):
+                ftp = FakeFTP(remote)
+                ftp.remote[window.REMOTE_LOG] = text[identifier].encode()
+                report = window.collect_window(six, identifier, execute=True, output_dir=self.output,
+                                               ftp_factory=lambda: ftp)
+                self.assertEqual(report["classification"], "complete_success")
+                record = json.loads(Path(report["record"]).read_text())
+                self.assertEqual(record["identity"]["candidate"], "ps5-bt-" + identifier)
+                self.assertEqual(record["controller_acceptance"], "Unknown")
+                self.assertEqual([call[1] for call in ftp.calls if call[0] == "retrbinary"], ["RETR " + window.REMOTE_LOG])
+                self.assertEqual(ftp.closes, 1)
 
     def test_execute_preflight_only_reads_existing_metadata_size_and_optional_hash(self):
         ftp = self.fake()

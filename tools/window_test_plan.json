@@ -1,0 +1,161 @@
+{
+  "schema": 1,
+  "target_host": "192.168.1.111",
+  "ftp_port": 2121,
+  "remote_root": "/data/pldmgr/payloads/local",
+  "remote_log": "/data/ps5-bt-hw1.log",
+  "candidates": [
+    {
+      "id": "application-setup",
+      "order": 1,
+      "artifact": "build/ps5/ps5-bt-application-setup.elf",
+      "build_manifest": "build/ps5/ps5-bt-application-setup.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-application-setup-source.tar.gz",
+      "slot": "ps5-bt-application-setup",
+      "remote_filename": "ps5-bt-application-setup.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=application_setup_begin schema=1 namespace=fixed private_mode=0700 radio=Unavailable capture=Unavailable",
+        "application_setup_stage=0x00000006",
+        "application_setup_status_bits=0x00000000",
+        "application_setup_verified_mask=0x0000000f",
+        "application_setup_opened_mask=0x0000000f",
+        "application_setup_closed_mask=0x0000000f",
+        "application_setup_cleanup_failed_mask=0x00000000",
+        "event=application_setup_imports_closed",
+        "event=application_setup_complete",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "native lookup, directory protection, ownership, sync or cleanup fails; never chmod/chown an existing path",
+        "no final return within external timeout; preserve incomplete log and stop further tests"
+      ]
+    },
+    {
+      "id": "application-control",
+      "order": 2,
+      "artifact": "build/ps5/ps5-bt-application-control.elf",
+      "build_manifest": "build/ps5/ps5-bt-application-control.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-application-control-source.tar.gz",
+      "slot": "ps5-bt-application-control",
+      "remote_filename": "ps5-bt-application-control.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=application_preflight_begin schema=1 radio=Unavailable capture=Unavailable",
+        "event=application_begin schema=1 mode=control-only transport=Unavailable capture=Unavailable native_format=Unknown codec=Unavailable",
+        "application_cleanup_uncertain=0x00000000",
+        "event=application_complete",
+        "event=application_preflight_cleanup_complete",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "native imports, entropy, private store, clock/wait, HTTP or cleanup fails",
+        "more than 5 seconds observed runtime, 20000 turns or 10000 waits; no final return within external timeout"
+      ]
+    },
+    {
+      "id": "application-generated",
+      "order": 3,
+      "artifact": "build/ps5/ps5-bt-application-generated.elf",
+      "build_manifest": "build/ps5/ps5-bt-application-generated.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-application-generated-source.tar.gz",
+      "slot": "ps5-bt-application-generated",
+      "remote_filename": "ps5-bt-application-generated.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=application_begin schema=1 mode=generated-sbc",
+        "application_generated_phase=0x00000001",
+        "application_generated_completion_observed=0x00000001",
+        "application_generated_discarded_blocks=0x000002ee",
+        "application_generated_bytes=0x0000e196",
+        "application_generated_summary_matches=0x00000002",
+        "application_cleanup_uncertain=0x00000000",
+        "event=application_complete",
+        "event=application_preflight_cleanup_complete",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "clock, pacing, codec, retained frame, bitstream summary or cleanup fails",
+        "no final return within external timeout; save the incomplete log and stop"
+      ]
+    },
+    {
+      "id": "application-observe",
+      "order": 4,
+      "artifact": "build/ps5/ps5-bt-application-observe.elf",
+      "build_manifest": "build/ps5/ps5-bt-application-observe.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-application-observe-source.tar.gz",
+      "slot": "ps5-bt-application-observe",
+      "remote_filename": "ps5-bt-application-observe.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=application_begin schema=1 mode=capture-observe",
+        "application_observe_max_reads=0x00000100",
+        "application_observe_interval_us=0x00002710",
+        "application_observe_reason=0x00000002",
+        "application_observe_error=0x00000000",
+        "application_observe_native_time_present=0x00000000",
+        "application_cleanup_uncertain=0x00000000",
+        "event=application_complete",
+        "event=application_preflight_cleanup_complete",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "clock, raw read, overrun/unknown gap or cleanup fails; Empty/Zero are not PCM success",
+        "no final return within external timeout; save the incomplete log and stop"
+      ]
+    },
+    {
+      "id": "sbc-continuous",
+      "order": 5,
+      "artifact": "build/ps5/ps5-bt-sbc-continuous.elf",
+      "build_manifest": "build/ps5/ps5-bt-sbc-continuous.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-sbc-continuous-source.tar.gz",
+      "slot": "ps5-bt-sbc-continuous",
+      "remote_filename": "ps5-bt-sbc-continuous.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=sbc_continuous_begin schema=1 generated=1 nominal_clock=synthetic sink=discard",
+        "sbc_continuous_outcome=0x00000000",
+        "sbc_continuous_blocks=0x000002ee",
+        "sbc_continuous_pcm_frames=0x00017700",
+        "sbc_continuous_bytes=0x0000e196",
+        "sbc_continuous_prefix=0x9cfd20cb",
+        "sbc_continuous_digest=0x7784d1fb",
+        "sbc_continuous_cleanup_attempted=0x00000001",
+        "event=sbc_continuous_complete",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "clock, budget, bitstream, encode or cleanup failure",
+        "no final return within external timeout; preserve incomplete log as an abnormal run"
+      ]
+    },
+    {
+      "id": "capture-stream",
+      "order": 6,
+      "artifact": "build/ps5/ps5-bt-capture-stream.elf",
+      "build_manifest": "build/ps5/ps5-bt-capture-stream.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-capture-stream-source.tar.gz",
+      "slot": "ps5-bt-capture-stream",
+      "remote_filename": "ps5-bt-capture-stream.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=capture_stream_begin schema=1 reads_max=1 format=Unknown native_time=Unknown",
+        "event=capture_stream_cleanup_complete",
+        "event=capture_stream_complete",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "clock, ownership, raw read or cleanup fails; Empty and Zero do not count as PCM success",
+        "no final return within external timeout; preserve incomplete log as an abnormal run"
+      ]
+    }
+  ]
+}

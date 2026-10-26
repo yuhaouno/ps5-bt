@@ -6,8 +6,9 @@ Implementing or testing this helper does not connect to the console, deploy an
 artifact or authorize execution. Actual launch remains a manual, separately
 confirmed PayloadManager operation.
 
-The helper is deliberately limited to `application-control`,
-`application-generated` and `application-observe`. It calls the existing
+The helper supports exactly six identity-bearing candidates: `application-setup`,
+`application-control`, `application-generated`, `application-observe`,
+`sbc-continuous` and `capture-stream`. It calls the existing
 `mvp_test_kit.load_kit` validation before any network operation. The default kit
 is `build/ps5/next-window-kit-20261026`; select another validated kit directory
 with `--kit`. Target, FTP port, slot root and diagnostic log remain fixed:
@@ -15,15 +16,17 @@ with `--kit`. Target, FTP port, slot root and diagnostic log remain fixed:
 | Item | Value |
 | --- | --- |
 | Console FTP | `192.168.1.111:2121` |
-| Existing local slots | `/data/pldmgr/payloads/local/ps5-bt-application-*` |
+| Existing local slots | Exact `ps5-bt-<selected-id>` slots below `/data/pldmgr/payloads/local` |
 | Only collected remote log | `/data/ps5-bt-hw1.log` |
-| Protected native prerequisite | Existing `/data/ps5-bt/control`, mode `0700`, owned by the payload identity |
+| Application runtime prerequisite | Existing `/data/ps5-bt/control`, mode `0700`, owned by the payload identity |
 
-Slot IDs/ELF filenames are pinned to the three selected application candidates.
+Slot IDs/ELF filenames are pinned to the six supported candidate IDs.
 The helper provides no arbitrary remote path, upload, create, rename, chmod,
 delete, credential mutation or launch operation. FTP visibility does not prove
 the payload's private-directory ownership/protection. That prerequisite always
-remains Unknown here and must be checked by the native candidate.
+remains Unknown here and must be checked by the native candidate. The separately
+selected setup artifact may create its permitted missing private components;
+this helper never creates them or treats FTP visibility as native validation.
 
 ## Preflight
 
@@ -35,9 +38,14 @@ python3 tools/console_window.py \
   --kit build/ps5/next-window-kit-20261026 --preflight
 ```
 
-The default selection is all three application candidates. Repeat `--candidate`
-for a subset. After the console window is confirmed, explicit read-only checks
-are available:
+With no `--candidate`, the helper first validates the actual kit and selects its
+supported items in plan order. An existing three-application kit still selects
+exactly those three; it does not require setup or either standalone audio test.
+A six-item window kit selects its six items. Unsupported legacy diagnostic IDs
+are skipped by automatic selection; a kit with no supported item fails locally.
+Repeat `--candidate` for an explicit subset, in requested order. Empty, duplicate,
+unsupported, more-than-six or supported-but-absent selections fail before FTP.
+After the console window is confirmed, explicit read-only checks are available:
 
 ```sh
 python3 tools/console_window.py \
@@ -91,7 +99,11 @@ and have mode 0700. Raw logs and results are private local evidence, not files
 to commit. Dry-run creates no directory or output file.
 
 The existing diagnostic collector checks the exact embedded build/candidate
-identity, profile, numerical counters, cleanup and outer lifecycle. This helper
+identity, profile, numerical counters, cleanup and outer lifecycle, including the
+C-only setup profile's two import groups and no entropy/runtime entry. Setup
+cancellation remains incomplete; setup success certifies only the bounded fixed
+namespace checks and reported cleanup. The standalone SBC/capture candidates use
+their original distinct bounds. This helper
 adds transfer completion/error, FTP cleanup outcome and explicit operator-run
 observation. No raw FTP response, metadata secret, payload token or arbitrary
 server text is copied into the JSON result or error output. The raw diagnostic
@@ -110,7 +122,7 @@ to match the selected candidate.
 ## Bounds, local durability and outcomes
 
 Metadata is bounded to 16 KiB, ELF readback to four MiB, and the log to one MiB.
-At most three fixed candidates are checked. FTP control/data sockets use a
+At most six fixed candidates are checked. FTP control/data sockets use a
 five-second timeout, with a shared 45-second monotonic operation/transfer budget
 checked between calls and on every received block. The cleanup request still
 gets its finite socket timeout. These are helper bounds, not a PS5 payload run
@@ -138,7 +150,14 @@ python3 tests/tools/test_console_window.py
 ```
 
 The tests use actual local kit/collector validation and fake FTP clients only.
-They cover default zero-FTP behavior, existing-slot metadata/size/hash checks,
+They cover old three-item and new six-item automatic selection in plan order,
+explicit subsets/negative selections, all six actual result-collector profiles,
+default zero-FTP behavior, existing-slot metadata/size/hash checks,
 rejection/size/operation bounds, interrupted and mismatched logs, private unique
 output, explicit Unknown/changed observations, server/cleanup failures and local
 fsync failure. No console connection or hardware result is involved.
+
+For first-slot creation use the version-pinned manager UI/raw-upload procedure in
+[PAYLOADMANAGER-SLOTS.md](PAYLOADMANAGER-SLOTS.md), then this helper's read-back
+hash preflight. The manager import creates complete metadata and uploads the ELF;
+it does not launch it. A second FTP replacement is unnecessary after that import.

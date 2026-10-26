@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Prepare the next console window for a new testing machine: a six-item default
+  plan, installed-toolchain doctor, sequential build/source packaging, verified
+  portable transfer with standalone Python extraction, and matching read-only
+  result collection. Keep a temporary operator handoff and source-backed slot
+  preparation/decision procedures. All native acceptance remains on PS5.
+
 - Integrate separate generated-SBC and raw-capture workloads into the actual
   native application startup, protected store/listener, observed clock and Rust
   loop. Generated mode schedules 750 blocks, validates the pinned joint-stereo
@@ -25,7 +31,7 @@
   explicit live stable-success evidence. Unknown cleanup blocks reopening.
   This does not install automatic application reconnect or a rebuild payload.
 
-- Extend the full source/kit inventory to nine candidates and add a three-item
+- Extend the original source/kit inventory to nine candidates and add a three-item
   startup-only plan for a fresh console window. Add default-dry-run read-only
   slot/artifact preflight and bounded log/result collection; no automatic setup,
   upload, launch or permission changes. Native private-directory and controller
