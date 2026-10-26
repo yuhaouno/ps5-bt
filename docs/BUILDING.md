@@ -15,6 +15,16 @@ need explicit build variants and reviewed ABI/dependency/state contracts;
 preserve the current baseline and its inspection checks. Candidates may be
 committed with PS5 validation pending; building never authorizes deployment.
 
+## Read-only namespace candidate
+
+`make ps5-application-namespace` selects the independent root/data observation
+artifact; `make application-namespace-test` runs strict and sanitized synthetic
+core/orchestration tests. Use `tools/namespace_test_plan.json` with the preparer
+for a one-item clean-source kit. Its fixed `/data/ps5-bt-namespace.log` is separate
+from other diagnostics. See [NAMESPACE-PROBE.md](NAMESPACE-PROBE.md) for the admitted
+operations, layout limits, stop conditions and pending hardware evidence. The
+default six-item plan and original setup implementation are unchanged.
+
 ## Minimal PS5 ELF
 
 Install Rust/rustup, a C11 host compiler (`cc`, or `HOST_CC`), Make, Python 3.11+

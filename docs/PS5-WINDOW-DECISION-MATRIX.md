@@ -17,7 +17,11 @@ completed one Empty read with clean cleanup. Controller input was reported norma
 before/during/after each later run; logs were saved immediately. No PS5-BT slot
 remains. Control/observe were not repeated after the setup prerequisite failed.
 Keep both exact kits; the six-item plan is available for later reviewed progression.
-A separate read-only root/data consistency probe is proposed but not implemented.
+The separately admitted [read-only root/data candidate](NAMESPACE-PROBE.md) now
+uses `tools/namespace_test_plan.json` and its own fixed log; native execution is
+pending. This is the only next candidate while the application prerequisite
+remains blocked. Leave manual launch pending while the operator is away; report
+actual upload/readback status without manufacturing controller observations.
 A rejection bit does not verify native layout or authorize permission changes;
 legacy schema-1 logs have no predicate detail. Do not repeat the blocked application
 sequence or an Empty read without a new reviewed hypothesis.

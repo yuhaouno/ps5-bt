@@ -94,7 +94,7 @@ static int fake_notify(int kind, void *data, size_t size, int flags)
     assert(memchr(request->message, '\0', sizeof request->message));
     ++notifications;
     if (notifications == 1) {
-        assert(!strcmp(request->message, "PS5-BT diagnostic started\nLog: /data/ps5-bt-hw1.log"));
+        assert(!strcmp(request->message, "PS5-BT diagnostic started\nLog: " PS5_DIAGNOSTIC_LOG_PATH));
     } else {
         assert(strstr(request->message, "PS5-BT diagnostic finished\nStatus: "));
     }
@@ -243,6 +243,11 @@ static int run(payload_args_t *args, enum test_mode selected)
 
 int main(void)
 {
+#ifdef PS5_BT_APPLICATION_NAMESPACE
+    assert(!strcmp(PS5_DIAGNOSTIC_LOG_PATH, "/data/ps5-bt-namespace.log"));
+#else
+    assert(!strcmp(PS5_DIAGNOSTIC_LOG_PATH, "/data/ps5-bt-hw1.log"));
+#endif
     int result = -999;
     payload_args_t prepared;
     payload_args_t direct = {.sys_dynlib_dlsym = fake_direct_resolver, .payloadout = &result};
@@ -274,7 +279,7 @@ int main(void)
 
     assert(run(&args, MODE_OK) == 2);
     assert(probes == 1 && opens == 1 && closes == 1 && notifications == 2);
-    assert(strstr(file_log, "event=payload_start log=/data/ps5-bt-hw1.log\n"));
+    assert(strstr(file_log, "event=payload_start log=" PS5_DIAGNOSTIC_LOG_PATH "\n"));
     assert(strstr(file_log, "syntheticsynthetic"));
     assert(strstr(file_log, "event=payload_exit status=2 (expected Unsupported)\n"));
     assert(strstr(file_log, "event=payload_return status=2 (expected Unsupported)\n"));

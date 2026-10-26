@@ -16,7 +16,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import console_window as window
-from test_diagnostic_result import application_log, application_mode_log, setup_log, log, manifest, BUILD
+from test_diagnostic_result import application_log, application_mode_log, setup_log, namespace_log, log, manifest, BUILD
 
 SECRET = "server-reply-secret-never-print"
 
@@ -25,6 +25,7 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
+SIX_CANDIDATES = tuple(item for item in window.CANDIDATES if item != "application-namespace")
 LEGACY_CANDIDATES = ("application-control", "application-generated", "application-observe")
 
 
@@ -32,6 +33,8 @@ def make_kit(root, identifiers=LEGACY_CANDIDATES):
     root.mkdir()
     plan = {"schema": 1, "target_host": window.TARGET, "ftp_port": window.PORT,
             "remote_root": window.REMOTE_ROOT, "remote_log": window.REMOTE_LOG, "candidates": []}
+    if tuple(identifiers) == ("application-namespace",):
+        plan["remote_log"] = window.mvp_test_kit.NAMESPACE_LOG
     entries, remote = [], {}
     for order, identifier in enumerate(identifiers, 1):
         stem = "ps5-bt-" + identifier
@@ -56,7 +59,7 @@ def make_kit(root, identifiers=LEGACY_CANDIDATES):
         remote[prefix + "/" + stem + ".elf"] = artifact
     (root / "test-plan.json").write_text(json.dumps(plan))
     (root / "kit-manifest.json").write_text(json.dumps({"schema": 1, "git_head": "c" * 40, "entries": entries}))
-    remote[window.REMOTE_LOG] = application_log().encode()
+    remote[plan["remote_log"]] = (namespace_log() if tuple(identifiers) == ("application-namespace",) else application_log()).encode()
     return remote
 
 
@@ -176,7 +179,7 @@ class ConsoleWindowTest(unittest.TestCase):
 
     def test_explicit_selection_is_bounded_available_and_keeps_requested_order(self):
         six = self.root / "six-kit"
-        make_kit(six, window.CANDIDATES)
+        make_kit(six, SIX_CANDIDATES)
         with patch.object(window.ftplib, "FTP", side_effect=AssertionError("no FTP")):
             report = window.preflight(six, ["capture-stream", "application-setup"])
             self.assertEqual([item["id"] for item in report["candidates"]], ["capture-stream", "application-setup"])
@@ -210,12 +213,12 @@ class ConsoleWindowTest(unittest.TestCase):
 
     def test_collect_all_six_profiles_uses_matching_existing_collectors(self):
         six = self.root / "six-kit"
-        remote = make_kit(six, window.CANDIDATES)
+        remote = make_kit(six, SIX_CANDIDATES)
         text = {"application-setup": setup_log(), "application-control": application_log(),
                 "application-generated": application_mode_log("generated"),
                 "application-observe": application_mode_log("observe"),
                 "sbc-continuous": log("sbc-continuous"), "capture-stream": log("capture-stream")}
-        for identifier in window.CANDIDATES:
+        for identifier in SIX_CANDIDATES:
             with self.subTest(identifier=identifier):
                 ftp = FakeFTP(remote)
                 ftp.remote[window.REMOTE_LOG] = text[identifier].encode()
@@ -227,6 +230,42 @@ class ConsoleWindowTest(unittest.TestCase):
                 self.assertEqual(record["controller_acceptance"], "Unknown")
                 self.assertEqual([call[1] for call in ftp.calls if call[0] == "retrbinary"], ["RETR " + window.REMOTE_LOG])
                 self.assertEqual(ftp.closes, 1)
+
+    def test_namespace_dedicated_log_is_selected_and_legacy_log_untouched(self):
+        kit = self.root / "namespace-kit"
+        remote = make_kit(kit, ("application-namespace",))
+        remote[window.REMOTE_LOG] = b"old unrelated log must not be read"
+        ftp = FakeFTP(remote)
+        report = window.collect_window(kit, "application-namespace", execute=True,
+            output_dir=self.output, ftp_factory=lambda: ftp)
+        self.assertEqual(report["classification"], "complete_success")
+        self.assertEqual(report["remote_log"], window.mvp_test_kit.NAMESPACE_LOG)
+        self.assertEqual([call[1] for call in ftp.calls if call[0] == "retrbinary"],
+                         ["RETR " + window.mvp_test_kit.NAMESPACE_LOG])
+        preflight = window.preflight(kit)
+        self.assertEqual(preflight["candidates"][0]["id"], "application-namespace")
+        self.assertEqual(preflight["prerequisite"], {
+            "protected_store_required": False,
+            "validation": "not applicable to read-only root/data observation",
+            "native_abi": "Unknown", "store_acceptance": "Unknown"})
+        self.assertEqual(window.preflight(self.kit)["prerequisite"], {
+            "directory": window.CONTROL_DIRECTORY, "required_mode": "0700",
+            "native_owner_and_mode": "Unknown", "validation": "native payload required"})
+
+    def test_namespace_wrong_or_mixed_log_plans_fail_before_ftp(self):
+        kit = self.root / "namespace-kit"
+        make_kit(kit, ("application-namespace",))
+        plan_path = kit / "test-plan.json"
+        plan = json.loads(plan_path.read_text())
+        for path in (window.REMOTE_LOG, "/data/secret", "/data/../secret"):
+            plan_path.write_text(json.dumps(plan | {"remote_log": path}))
+            with patch.object(window.ftplib, "FTP", side_effect=AssertionError("no FTP")):
+                with self.assertRaises(window.WindowError):
+                    window.collect_window(kit, "application-namespace", execute=True)
+        mixed = self.root / "mixed-namespace-kit"
+        make_kit(mixed, ("application-namespace", "application-control"))
+        with self.assertRaises(window.WindowError):
+            window.preflight(mixed)
 
     def test_execute_preflight_only_reads_existing_metadata_size_and_optional_hash(self):
         ftp = self.fake()

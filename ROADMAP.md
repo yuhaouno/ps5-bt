@@ -10,8 +10,10 @@ SBC run of 750 blocks with exact output/digest and a clean one-read Rust capture
 lifecycle returning Empty. Application startup remains blocked: generated mode
 failed Store I/O (errno 1); setup subsequently reported root `PARENT_WRITE`
 rejection (mask 4), with clean cleanup. Native metadata layout and namespace
-authority remain unresolved. The next proposed bounded step is a separate
-read-only root/data consistency probe; no executable candidate exists yet.
+authority remain unresolved. The next bounded step is the separate
+[read-only root/data consistency candidate](docs/NAMESPACE-PROBE.md), with seven
+normal calls, two consume-once closes and a dedicated log. Native execution is
+pending; observation success cannot clear store protection or verify the ABI.
 No PCM-format, real-time pacing, Bluetooth or playback milestone is cleared.
 
 Development policy, 2026-10-26: unavailable PS5 access does not block coherent

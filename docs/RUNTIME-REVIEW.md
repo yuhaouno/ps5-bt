@@ -5,6 +5,12 @@ the project entry/linker and fixed SDK v0.45 revision
 `a7685ce8e97ce1f8a4f38253a41d54241c9124f1`. See
 [HW1-REPAIR.md](HW1-REPAIR.md) for the hardware result and limitations.
 
+The separately selected `PS5_BT_APPLICATION_NAMESPACE` candidate uses the fixed
+log `/data/ps5-bt-namespace.log`; baseline and other existing candidates retain
+`/data/ps5-bt-hw1.log`. No user-defined log path is admitted. Open/write/close and
+failure propagation are unchanged; repeated launches of the same candidate
+still truncate its own log. See [NAMESPACE-PROBE.md](NAMESPACE-PROBE.md).
+
 ## Entry and syscall contract
 
 The trusted pre-existing loader supplies the SDK payload argument structure,

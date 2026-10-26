@@ -65,6 +65,7 @@ def relink_directory(manifest):
     return PurePosixPath("build/ps5/" + VARIANTS[variant][0] + "-relink")
 
 VARIANTS = {
+    "application_namespace": ("ps5-bt-application-namespace", APPLICATION_SOURCES | {"platform/ps5/application/namespace_probe.c", "platform/ps5/application/namespace_probe.h"}, "--application-namespace"),
     "application_setup": ("ps5-bt-application-setup", APPLICATION_SOURCES | {"platform/ps5/application/setup_namespace.c", "platform/ps5/application/setup_namespace.h"}, "--application-setup"),
     "application_control": ("ps5-bt-application-control", APPLICATION_SOURCES, "--application-control"),
     "application_generated": ("ps5-bt-application-generated", APPLICATION_SOURCES, "--application-generated"),
@@ -551,8 +552,7 @@ def self_test():
             root = Path(temporary) / "project"
             root.mkdir()
             git(root, "init", "-q")
-            fixture_files = (REQUIRED_FILES | NATIVE_SOURCES | NATIVE_L2CAP_SOURCES | USB_SOURCES |
-                             CAPTURE_SOURCES | SBC_SELFTEST_SOURCES | SBC_CONTINUOUS_SOURCES | CAPTURE_STREAM_SOURCES | APPLICATION_SOURCES | {"platform/ps5/application/setup_namespace.c", "platform/ps5/application/setup_namespace.h"})
+            fixture_files = REQUIRED_FILES | set().union(*(value[1] for value in VARIANTS.values()))
             for name in fixture_files:
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -876,7 +876,7 @@ def self_test():
         USB_SDK_HEADERS.update(original_headers)
         APPLICATION_SDK_HEADERS.clear()
         APPLICATION_SDK_HEADERS.update(original_application_headers)
-    print("PASS source bundle content/determinism/default/query/USB/capture/SBC/application-control/generated/observe variants; pinned original SDK headers/notices and codec relink inputs; dirty tree, invalid variant, path escape and manifest/source/ELF/archive/relink/SDK mismatch rejection; no stale output (synthetic fixtures, no hardware)")
+    print("PASS source bundle content/determinism/default/query/USB/capture/SBC/application-control/generated/observe/setup/namespace variants; pinned original SDK headers/notices and codec relink inputs; dirty tree, invalid variant, path escape and manifest/source/ELF/archive/relink/SDK mismatch rejection; no stale output (synthetic fixtures, no hardware)")
 
 
 if __name__ == "__main__":

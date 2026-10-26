@@ -169,7 +169,8 @@ raw metadata or changing permissions. Real `stat` layout and underlying cause
 remain unresolved even if a particular bit is reported. The subsequent clean
 `a3c2fc1` run observed only mask 4; no `/data` traversal or creation occurred.
 This isolated the source predicate without validating native layout or clearing
-protection. The proposed read-only consistency probe in HW4 is not yet implemented.
+protection. The separately selected [read-only consistency probe](NAMESPACE-PROBE.md)
+now implements the next observation; this setup's checks remain unchanged.
 
 Use the single-item `tools/setup_test_plan.json` with `prepare_ps5_window.py`
 to build/package a fresh committed source revision. Keep the prior kit and log.

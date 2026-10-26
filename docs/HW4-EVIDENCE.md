@@ -218,7 +218,9 @@ they were not relaunched after setup rejection. The generated startup failure
 is retained; no integrated application workload passed.
 
 The next proposed candidate is an independently selected **read-only root/data
-metadata consistency probe**, not yet implemented or ready to execute. Use only
+metadata consistency probe**. It was not implemented at this result checkpoint;
+the subsequent [candidate admission](NAMESPACE-PROBE.md) records its implementation,
+without adding a hardware outcome to this record. Use only
 already reviewed `geteuid/open/openat/fstat/fstatat/close`: compare root descriptor
 metadata with `fstatat(root, ".")`, and root-relative `data` metadata with its
 opened descriptor. A proposed bound is seven normal calls plus at most two

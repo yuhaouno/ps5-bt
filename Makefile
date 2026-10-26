@@ -272,3 +272,10 @@ application-setup-test:
 
 ps5-application-setup:
 	python3 tools/build_ps5.py --application-setup --loader-kernel-resolver
+
+.PHONY: application-namespace-test ps5-application-namespace
+application-namespace-test:
+	python3 tests/application/run_namespace_probe.py --cc "$(HOST_CC)"
+
+ps5-application-namespace:
+	python3 tools/build_ps5.py --application-namespace --loader-kernel-resolver

@@ -15,9 +15,15 @@ no PCM format or playback follows. Each of these later runs was immediately
 collected, with normal controller behavior reported before/during/after.
 Control/observe's original outcomes remain overwritten/Unknown and were not
 relaunched after setup rejection. Final remote inventory has zero PS5-BT slots;
-unrelated slots and local kits/evidence were preserved. The next proposed step
-is a separate read-only root/data consistency probe, not yet implemented. Do not
-repeat setup or the application sequence without resolving its prerequisite.
+unrelated slots and local kits/evidence were preserved at that checkpoint.
+The next [read-only root/data consistency candidate](NAMESPACE-PROBE.md) is now
+implemented. The operator authorized preparation and upload while away, with
+manual launch on return. Use `tools/namespace_test_plan.json`, its own matching
+kit and dedicated `/data/ps5-bt-namespace.log`; do not wait for an intermediate
+reply to finish preparation. Run that entry only once, observe controller input,
+then retain its log. Do not repeat setup or the application sequence without
+resolving its prerequisite. The final task report records actual upload/hash
+status; a source checkout alone does not establish remote installation.
 
 The selected environment is PS5 Slim / firmware 13.40, PayloadManager 0.6.3,
 Sony WH-1000XM4. Reconfirm the console and the user's current test window before

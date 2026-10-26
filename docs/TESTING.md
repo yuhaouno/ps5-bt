@@ -4,6 +4,18 @@ Host correctness, hardware behavior, audio quality, performance and headset
 interoperability are separate evidence tracks. Never turn a host mock pass into
 a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
+## Namespace observation candidate
+
+`make application-namespace-test` checks the separately selected read-only
+root/data procedure and its C main orchestration under strict C11 and ASan/UBSan.
+Synthetic faults cover each fallible call, cancellation boundaries, reverse
+consume-once cleanup, retained primary errors, sticky uncertainty, predicate
+rejections and field disagreement. Runtime fixtures check the dedicated fixed
+log and unchanged baseline log; collector tests distinguish procedure completion
+from native ABI/store acceptance. These checks do not access host `/data` or a
+console. Hardware still needs the [bounded admission](NAMESPACE-PROBE.md), exact
+artifact identity and real controller observations.
+
 ## Current automated checks
 
 The discovery/management continuation adds bounded Inquiry fixtures, protected

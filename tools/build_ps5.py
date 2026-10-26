@@ -38,9 +38,10 @@ SDK_HEADER_ALIASES = {
 }
 
 
-APPLICATION_VARIANTS = ("application_control", "application_generated", "application_observe", "application_setup")
+APPLICATION_VARIANTS = ("application_control", "application_generated", "application_observe", "application_setup", "application_namespace")
 APPLICATION_FEATURES = {"application_control": "application-control",
                         "application_setup": "application-control",
+                        "application_namespace": "application-control",
                         "application_generated": "application-generated-target",
                         "application_observe": "application-observe"}
 
@@ -134,7 +135,7 @@ def self_test():
                      "ps5-bt-capture-preflight", "ps5-bt-capture-once",
                      "ps5-bt-sbc-selftest", "ps5-bt-capture-observe",
                      "ps5-bt-native-l2cap-probe", "ps5-bt-application-control",
-                     "ps5-bt-application-generated", "ps5-bt-application-observe", "ps5-bt-application-setup",
+                     "ps5-bt-application-generated", "ps5-bt-application-observe", "ps5-bt-application-setup", "ps5-bt-application-namespace",
                      "ps5-bt-capture-stream", "ps5-bt-sbc-continuous"):
             for suffix in suffixes:
                 (base / f"{stem}.{suffix}").write_text(stem)
@@ -153,8 +154,8 @@ def self_test():
         invalidate_output("ps5-bt-native-l2cap-probe", base)
         assert not any((base / f"ps5-bt-native-l2cap-probe.{suffix}").exists() for suffix in suffixes)
         assert (base / "ps5-bt-native-query.elf").read_text() == "optional"
-        APPLICATION_FEATURES_EXPECTED = {"application_generated": "application-generated-target", "application_observe": "application-observe", "application_setup": "application-control"}
-        for name in ("application_generated", "application_observe", "application_setup"):
+        APPLICATION_FEATURES_EXPECTED = {"application_generated": "application-generated-target", "application_observe": "application-observe", "application_setup": "application-control", "application_namespace": "application-control"}
+        for name in ("application_generated", "application_observe", "application_setup", "application_namespace"):
             stem = "ps5-bt-" + name.replace("_", "-")
             options = argument_parser().parse_args(["--" + name.replace("_", "-"), "--loader-kernel-resolver"])
             assert artifact_stem(options) == stem
@@ -165,7 +166,7 @@ def self_test():
             assert all((base / f"ps5-bt-application-control.{suffix}").is_file() for suffix in suffixes)
         import contextlib
         import io
-        for other in ("--application-control", "--application-observe", "--application-setup", "--sbc-selftest"):
+        for other in ("--application-control", "--application-observe", "--application-setup", "--application-namespace", "--sbc-selftest"):
             with contextlib.redirect_stderr(io.StringIO()):
                 try:
                     argument_parser().parse_args(["--application-generated", other])
@@ -197,6 +198,8 @@ def host_test(source):
     run([*command, "-DPS5_BT_CAPTURE_STREAM", "-DPS5_BT_LOADER_KERNEL_RESOLVER"])
     run([output])
     run([*command, "-DPS5_BT_APPLICATION_CONTROL", "-DPS5_BT_LOADER_KERNEL_RESOLVER"])
+    run([output])
+    run([*command, "-DPS5_BT_APPLICATION_CONTROL", "-DPS5_BT_APPLICATION_NAMESPACE", "-DPS5_BT_LOADER_KERNEL_RESOLVER"])
     run([output])
     print("PASS synthetic host startup resolver/log/error/memory cases (not loader execution)")
 
@@ -266,6 +269,8 @@ def build(args):
                     ROOT / "platform/store/bond_file_store.c", ROOT / "platform/control/tcp_listener.c"]
     if args.application_setup:
         sources.append(ROOT / "platform/ps5/application/setup_namespace.c")
+    if args.application_namespace:
+        sources.append(ROOT / "platform/ps5/application/namespace_probe.c")
     if args.capture_stream or application:
         sources.append(ROOT / "platform/ps5/capture/capture_stream.c")
     if args.sbc_continuous or args.capture_stream:
@@ -295,6 +300,8 @@ def build(args):
         flags.append("-DPS5_BT_APPLICATION_CONTROL")
     if args.application_setup:
         flags.append("-DPS5_BT_APPLICATION_SETUP")
+    if args.application_namespace:
+        flags.append("-DPS5_BT_APPLICATION_NAMESPACE")
     if args.capture_stream:
         flags.append("-DPS5_BT_CAPTURE_STREAM")
     if args.sbc_continuous:
@@ -315,6 +322,8 @@ def build(args):
 
         if args.application_setup:
             identity_headers.append(ROOT / "platform/ps5/application/setup_namespace.h")
+        if args.application_namespace:
+            identity_headers.append(ROOT / "platform/ps5/application/namespace_probe.h")
         identity = {
             "candidate": stem,
             "rust_archive": digest(ROOT / "target/x86_64-unknown-none/release/libps5_runtime.a"),
@@ -336,7 +345,7 @@ def build(args):
         if args.usb_metadata and path.name == "usb_probe.c":
             extra += ["-DPS5_BT_USB_PROBE_TARGET", "-isystem", source / "include/freebsd", "-isystem", source / "include",
                       "-MD", "-MF", output / f"{stem}-usb-headers.d"]
-        if application and path.name in ("posix_imports.c", "bond_file_store.c", "tcp_listener.c", "setup_namespace.c"):
+        if application and path.name in ("posix_imports.c", "bond_file_store.c", "tcp_listener.c", "setup_namespace.c", "namespace_probe.c"):
             dependency_file = output / f"{stem}-{index}-headers.d"
             extra += ["-isystem", source / "include/freebsd", "-isystem", source / "include",
                       "-MD", "-MF", dependency_file]
@@ -344,7 +353,7 @@ def build(args):
                 extra += ["-include", ROOT / "platform/ps5/application/posix_redirect.h",
                           "-DPS5_BT_LISTENER_SOCKADDR_HAS_LEN"]
         run([tools["clang"], *flags, *extra, "-c", path, "-o", obj])
-        if application and path.name in ("posix_imports.c", "bond_file_store.c", "tcp_listener.c", "setup_namespace.c"):
+        if application and path.name in ("posix_imports.c", "bond_file_store.c", "tcp_listener.c", "setup_namespace.c", "namespace_probe.c"):
             app_dependencies.update(dependency_file.read_text().replace("\\\n", " ").split())
         objects.append(obj)
     archive = ROOT / "target/x86_64-unknown-none/release/libps5_runtime.a"
@@ -403,6 +412,9 @@ def build(args):
     if args.application_setup:
         name="platform/ps5/application/setup_namespace.h"
         report["project_sources"][name]=digest(ROOT/name)
+    if args.application_namespace:
+        name = "platform/ps5/application/namespace_probe.h"
+        report["project_sources"][name] = digest(ROOT / name)
     if application:
         for name in ("platform/ps5/application/posix_bridge.h", "platform/ps5/application/posix_imports.h", "platform/ps5/application/posix_redirect.h",
                      "platform/ps5/scheduler/scheduler_clock.h", "platform/store/bond_file_store.h",
@@ -497,6 +509,8 @@ def argument_parser():
                           help="bounded Rust control-only native factory/listener startup; no radio/capture")
     variants.add_argument("--application-setup", action="store_true",
                           help="prepare only fixed private namespace with native owner/mode verification; no radio/audio")
+    variants.add_argument("--application-namespace", action="store_true",
+                          help="read-only fixed root/data metadata consistency probe; no namespace acceptance")
     variants.add_argument("--application-generated", action="store_true",
                           help="native factory/HTTP loop with paced generated PCM and target SBC discard sink")
     variants.add_argument("--application-observe", action="store_true",

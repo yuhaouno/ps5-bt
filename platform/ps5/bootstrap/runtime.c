@@ -17,7 +17,14 @@ struct notify_request {
     char message[3075];
 };
 
+/* Namespace metadata observation is separate from protected-store acceptance.
+ * Its fixed private diagnostic log survives launches of the baseline tests.
+ * No caller-supplied path or general log-path override is accepted. */
+#ifdef PS5_BT_APPLICATION_NAMESPACE
+#define PS5_DIAGNOSTIC_LOG_PATH "/data/ps5-bt-namespace.log"
+#else
 #define PS5_DIAGNOSTIC_LOG_PATH "/data/ps5-bt-hw1.log"
+#endif
 #define PS5_O_WRONLY 0x0001
 #define PS5_O_CREAT 0x0200
 #define PS5_O_TRUNC 0x0400

@@ -34,13 +34,14 @@ CANDIDATES = {
     "sbc-selftest": "sbc_selftest", "capture-observe": "capture_observe",
     "sbc-continuous": "sbc_continuous", "capture-stream": "capture_stream",
     "application-setup": "application_setup",
+    "application-namespace": "application_namespace",
     "application-control": "application_control",
     "application-generated": "application_generated",
     "application-observe": "application_observe",
 }
 VARIANTS = tuple(CANDIDATES.values()) + ("native_query", "native_l2cap_probe", "capture_preflight")
 IDENTITY_VARIANTS = {"sbc_continuous", "capture_stream", "application_control",
-                     "application_generated", "application_observe", "application_setup"}
+                     "application_generated", "application_observe", "application_setup", "application_namespace"}
 REQUIRED_PROJECT = {"LICENSE", "README.md", "Cargo.toml", "Cargo.lock", "rust-toolchain.toml",
                     "tools/window_handoff.py", "tools/console_window.py", "tools/mvp_test_kit.py",
                     "tools/diagnostic_result.py", "tools/startup_test_plan.json",
@@ -220,8 +221,8 @@ def validate_kit(files, expected_head=None, expected_project=None):
             or not re.fullmatch(r"[0-9a-f]{40}", head)
             or expected_head is not None and head != expected_head
             or type(plan.get("schema")) is not int or plan.get("schema") != 1
-            or (plan.get("target_host"), plan.get("ftp_port"), plan.get("remote_root"), plan.get("remote_log"))
-                != ("192.168.1.111", 2121, "/data/pldmgr/payloads/local", "/data/ps5-bt-hw1.log")):
+            or (plan.get("target_host"), plan.get("ftp_port"), plan.get("remote_root"))
+                != ("192.168.1.111", 2121, "/data/pldmgr/payloads/local")):
         raise ValueError("kit provenance/target mismatch")
     candidates, entries = plan.get("candidates"), manifest.get("entries")
     if (not isinstance(candidates, list) or not isinstance(entries, list)
@@ -230,6 +231,10 @@ def validate_kit(files, expected_head=None, expected_project=None):
             or len({item.get("id") for item in candidates}) != len(candidates)
             or any(item.get("id") not in CANDIDATES for item in candidates)):
         raise ValueError("reviewed nonempty unique candidate selection required")
+    namespace_only = [item["id"] for item in candidates] == ["application-namespace"]
+    expected_log = "/data/ps5-bt-namespace.log" if namespace_only else "/data/ps5-bt-hw1.log"
+    if plan.get("remote_log") != expected_log or (not namespace_only and any(item["id"] == "application-namespace" for item in candidates)):
+        raise ValueError("unreviewed log path or mixed namespace plan")
     expected = {"test-plan.json", "kit-manifest.json", "RUNBOOK.md"}
     project = expected_project
     slots = set()

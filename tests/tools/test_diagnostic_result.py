@@ -133,6 +133,27 @@ def setup_log(fields=None, outcome="complete", init_status=0, status=2, schema=2
                       f"event=payload_return status={status}", ""])
 
 
+def namespace_log(fields=None, outcome="complete", init_status=0, status=2):
+    values = {"stage": 8, "status_bits": 0, "errno": 0, "raw_bits": 0, "operations": 7,
+              "opened_mask": 3, "closed_mask": 3, "cleanup_failed_mask": 0, "cleanup_errno": 0,
+              "cleanup_raw_bits": 0, "prior_cleanup_mask": 0, "observed_mask": 15,
+              "root_fd_reject": 4, "root_path_reject": 4, "data_path_reject": 0, "data_fd_reject": 0,
+              "root_match_mask": 31, "data_match_mask": 31, "same_device": 2}
+    if fields:
+        values.update(fields)
+    body = [result.NAMESPACE_CONFIG]
+    if init_status:
+        body += imports(2, status=init_status, resolved=3)
+    else:
+        body += imports(3, resolved=23)
+        body += [f"application_namespace_{key}=0x{value:08x}" for key, value in values.items()]
+        body += imports(8) + ["event=application_namespace_imports_closed"]
+    body += ["event=application_namespace_" + outcome]
+    return "\n".join([f"event=run_begin build_id={BUILD} candidate=ps5-bt-application-namespace", *body,
+                       f"event=run_finish build_id={BUILD}", f"event=payload_exit status={status}",
+                       f"event=payload_return status={status}", ""])
+
+
 class CollectorTest(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
@@ -146,6 +167,80 @@ class CollectorTest(unittest.TestCase):
         self.manifest.write_text(json.dumps(manifest() if source is None else source))
         self.log.write_text(log() if text is None else text)
         return result.collect(self.manifest, self.log, NORMAL if observations is None else observations)
+
+    def test_namespace_observation_is_not_store_acceptance_and_redacts_raw_data(self):
+        for fields in ({}, {"root_fd_reject": 7, "root_path_reject": 1, "data_path_reject": 2,
+                           "data_fd_reject": 4, "root_match_mask": 0, "data_match_mask": 0, "same_device": 1}):
+            text = namespace_log(fields).replace("event=application_namespace_complete",
+                "application_namespace_uid=0x12345678\napplication_namespace_stat=private-metadata\nevent=application_namespace_complete")
+            record = self.collect(text, manifest("application-namespace"))
+            self.assertEqual(record["classification"], "complete_success")
+            self.assertEqual(record["diagnostic"]["configuration"]["native_abi"], "Unknown")
+            self.assertEqual(record["diagnostic"]["configuration"]["store_acceptance"], "Unknown")
+            self.assertNotIn("private-metadata", json.dumps(record))
+            self.assertNotIn("12345678", json.dumps(record))
+
+    def test_namespace_each_native_failure_and_clean_cancellation_prefix(self):
+        for status, stages in [(0xffffffff, range(2, 8)), (1, range(1, 9))]:
+            for stage in stages:
+                successes = stage - 1 if stage < 8 else 7
+                opened = (1 if successes >= 2 else 0) | (2 if successes >= 6 else 0)
+                observed = sum(bit for bit, step in ((1, 3), (2, 4), (4, 5), (8, 7)) if successes >= step)
+                fields = {"stage": stage, "status_bits": status,
+                          "errno": 1 if status == 0xffffffff else 0,
+                          "raw_bits": 0xffffffff if status == 0xffffffff else (40 if stage in (3, 7) else 0),
+                          "operations": stage if status == 0xffffffff else successes,
+                          "opened_mask": opened, "closed_mask": opened, "observed_mask": observed,
+                          "root_fd_reject": 4 if observed & 1 else 0,
+                          "root_path_reject": 4 if observed & 2 else 0,
+                          "root_match_mask": 31 if observed & 3 == 3 else 0,
+                          "data_match_mask": 31 if observed & 12 == 12 else 0,
+                          "same_device": 2 if observed == 15 else 0}
+                with self.subTest(status=status, stage=stage):
+                    record = self.collect(namespace_log(fields, outcome="failed" if status == 0xffffffff else "cancelled",
+                        status=1 if status == 0xffffffff else 2), manifest("application-namespace"))
+                    self.assertNotIn("namespace_contract_mismatch", record["issues"])
+                    self.assertEqual(record["diagnostic"]["cleanup"], "reported_complete")
+                    self.assertEqual(record["classification"], "complete_failure" if status == 0xffffffff else "incomplete_evidence")
+
+    def test_namespace_cleanup_failure_and_sticky_refusal_never_pass(self):
+        for fields in ({"status_bits": 0xffffffff, "errno": 4, "cleanup_failed_mask": 2,
+                        "cleanup_errno": 4, "cleanup_raw_bits": 0xffffffff},
+                       {"stage": 1, "status_bits": 0xfffffffd, "operations": 0,
+                        "opened_mask": 0, "closed_mask": 0, "observed_mask": 0,
+                        "root_fd_reject": 0, "root_path_reject": 0, "root_match_mask": 0,
+                        "data_match_mask": 0, "same_device": 0, "prior_cleanup_mask": 1,
+                        "cleanup_errno": 4, "cleanup_raw_bits": 0xffffffff}):
+            record = self.collect(namespace_log(fields, outcome="failed", status=1), manifest("application-namespace"))
+            self.assertEqual(record["classification"], "complete_failure")
+            self.assertNotIn("namespace_contract_mismatch", record["issues"])
+            self.assertEqual(record["diagnostic"]["cleanup"], "failed")
+
+    def test_namespace_malformed_or_impossible_observation_never_passes(self):
+        for fields in ({"operations": 8}, {"stage": 7}, {"opened_mask": 2}, {"closed_mask": 1},
+                       {"observed_mask": 7}, {"same_device": 0}, {"same_device": 3},
+                       {"root_fd_reject": 8}, {"root_match_mask": 32}, {"data_match_mask": 32},
+                       {"raw_bits": 1}, {"errno": 1}, {"cleanup_errno": 4}, {"prior_cleanup_mask": 4},
+                       {"status_bits": 0xfffffffc}, {"root_path_reject": 0}, {"data_fd_reject": 2}):
+            with self.subTest(fields=fields):
+                record = self.collect(namespace_log(fields), manifest("application-namespace"))
+                self.assertNotEqual(record["classification"], "complete_success")
+        text = namespace_log()
+        line = "application_namespace_operations=0x00000007\n"
+        for changed in (text.replace(line, ""), text.replace(line, line * 2),
+                        text.replace(line, "application_namespace_operations=7\n"),
+                        text.replace(result.NAMESPACE_CONFIG, result.NAMESPACE_CONFIG + " altered=1"),
+                        text.replace("event=application_namespace_imports_closed", ""),
+                        text.replace(line, "").replace("event=application_namespace_imports_closed", line + "event=application_namespace_imports_closed")):
+            self.assertNotEqual(self.collect(changed, manifest("application-namespace"))["classification"], "complete_success")
+
+    def test_namespace_import_failure_or_cancellation_has_no_probe_fields(self):
+        for status, outcome in [(0xffffffff, "failed"), (1, "cancelled")]:
+            record = self.collect(namespace_log(init_status=status, outcome=outcome,
+                                  status=1 if status == 0xffffffff else 2), manifest("application-namespace"))
+            self.assertFalse(record["diagnostic"]["namespace_entered"])
+            self.assertNotEqual(record["classification"], "complete_success")
+            self.assertNotIn("namespace_import_contract_mismatch", record["issues"])
 
     def test_setup_existing_or_created_fixed_namespace_success_and_redaction(self):
         for created, operations in [(0, 13), (1, 17), (2, 17), (3, 21)]:

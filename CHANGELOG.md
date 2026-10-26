@@ -14,6 +14,13 @@
 
 ## Unreleased
 
+- Add an independently selected read-only root/data consistency diagnostic with
+  seven normal calls, reverse consume-once cleanup, cancellation and sticky
+  cleanup-uncertainty refusal. Report only predicate/agreement bits and errors;
+  keep protected-store acceptance and native ABI validity Unknown. Add an exact
+  one-item preparation/collection plan and dedicated fixed diagnostic log so a
+  later baseline launch cannot overwrite this pending manual test's evidence.
+
 - Record one Slim/13.40 standalone Rust/target SBC pass: 750 generated blocks,
   57,750 bytes, exact digest and clean finish. Record the Rust capture boundary's
   one Empty read and clean stop/close. Retain immediate per-run logs and normal

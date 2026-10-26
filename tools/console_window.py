@@ -23,7 +23,7 @@ PORT = 2121
 REMOTE_ROOT = "/data/pldmgr/payloads/local"
 REMOTE_LOG = "/data/ps5-bt-hw1.log"
 CONTROL_DIRECTORY = "/data/ps5-bt/control"
-CANDIDATES = ("application-setup", "application-control", "application-generated",
+CANDIDATES = ("application-namespace", "application-setup", "application-control", "application-generated",
               "application-observe", "sbc-continuous", "capture-stream")
 DEFAULT_KIT = mvp_test_kit.ROOT / "build/ps5/next-window-kit-20261026"
 DEFAULT_OUTPUT = mvp_test_kit.ROOT / "build/ps5/console-window"
@@ -47,13 +47,13 @@ def selected_kit(kit_dir, identifiers=None):
         # Load/validate the actual kit first. A default selection must never
         # require profiles absent from an older, otherwise valid three-item kit.
         plan, manifest = mvp_test_kit.load_kit(Path(kit_dir))
-        if (plan["target_host"], plan["ftp_port"], plan["remote_root"], plan["remote_log"]) != (TARGET, PORT, REMOTE_ROOT, REMOTE_LOG):
+        if (plan["target_host"], plan["ftp_port"], plan["remote_root"]) != (TARGET, PORT, REMOTE_ROOT):
             raise WindowError("kit-target")
         if identifiers is None:
             identifiers = tuple(item["id"] for item in plan["candidates"] if item["id"] in CANDIDATES)
         else:
             identifiers = tuple(identifiers)
-        if not identifiers or len(identifiers) > 6 or len(set(identifiers)) != len(identifiers) or any(value not in CANDIDATES for value in identifiers):
+        if not identifiers or len(identifiers) > len(CANDIDATES) or len(set(identifiers)) != len(identifiers) or any(value not in CANDIDATES for value in identifiers):
             raise WindowError("candidate-selection")
         entries = []
         available = {item["candidate"]["id"]: item for item in manifest["entries"]}
@@ -140,7 +140,11 @@ class ReadOnlySession:
         return "ftp-cleanup" if self.connected else None
 
 
-def prerequisite():
+def prerequisite(namespace_only=False):
+    if namespace_only:
+        return {"protected_store_required": False,
+                "validation": "not applicable to read-only root/data observation",
+                "native_abi": "Unknown", "store_acceptance": "Unknown"}
     return {"directory": CONTROL_DIRECTORY, "required_mode": "0700",
             "native_owner_and_mode": "Unknown", "validation": "native payload required"}
 
@@ -148,7 +152,9 @@ def prerequisite():
 def preflight(kit_dir, identifiers=None, execute=False, verify_hash=False, ftp_factory=None, clock=None):
     _, entries = selected_kit(kit_dir, identifiers)
     result = {"action": "preflight", "mode": "execute-read-only" if execute else "dry-run",
-              "target": f"{TARGET}:{PORT}", "prerequisite": prerequisite(), "candidates": []}
+              "target": f"{TARGET}:{PORT}",
+              "prerequisite": prerequisite([entry["candidate"]["id"] for entry in entries] == ["application-namespace"]),
+              "candidates": []}
     for entry in entries:
         candidate = entry["candidate"]
         result["candidates"].append({"id": candidate["id"], "slot": candidate["slot"],
@@ -233,14 +239,14 @@ def publish_log(temporary, complete):
 
 def collect_window(kit_dir, identifier, execute=False, output_dir=DEFAULT_OUTPUT,
                    observations=None, run_observation="Unknown", ftp_factory=None, clock=None):
-    _, entries = selected_kit(kit_dir, [identifier])
+    plan, entries = selected_kit(kit_dir, [identifier])
     if observations is None:
         observations = {phase: "Unknown" for phase in ("before", "during", "after")}
     if set(observations) != {"before", "during", "after"} or any(value not in diagnostic_result.OBSERVATIONS for value in observations.values()) or run_observation not in ("Unknown", "observed"):
         raise WindowError("operator-observations")
     entry = entries[0]
     result = {"action": "collect", "mode": "execute-read-only" if execute else "dry-run",
-              "candidate": identifier, "remote_log": REMOTE_LOG, "output_directory": str(output_dir),
+              "candidate": identifier, "remote_log": plan["remote_log"], "output_directory": str(output_dir),
               "controller": dict(observations), "operator_run_observation": run_observation,
               "expected_sha256": entry["artifact_sha256"]}
     if not execute:
@@ -269,7 +275,7 @@ def collect_window(kit_dir, identifier, execute=False, output_dir=DEFAULT_OUTPUT
                             raise WindowError("local-log-write")
                     except Exception:
                         raise WindowError("local-log-write") from None
-                session.retrieve(REMOTE_LOG, MAX_LOG_BYTES, save)
+                session.retrieve(plan["remote_log"], MAX_LOG_BYTES, save)
             except WindowError as caught:
                 error = caught.code
             finally:

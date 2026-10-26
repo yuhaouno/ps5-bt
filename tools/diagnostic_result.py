@@ -22,12 +22,13 @@ VARIANTS = {
     "sbc_continuous": "ps5-bt-sbc-continuous",
     "capture_stream": "ps5-bt-capture-stream",
     "application_setup": "ps5-bt-application-setup",
+    "application_namespace": "ps5-bt-application-namespace",
     "application_control": "ps5-bt-application-control",
     "application_generated": "ps5-bt-application-generated",
     "application_observe": "ps5-bt-application-observe",
 }
 ALL_VARIANTS = ("native_query", "native_l2cap_probe", "usb_metadata", "capture_preflight",
-                "capture_once", "capture_observe", "capture_stream", "sbc_selftest", "sbc_continuous", "application_control", "application_generated", "application_observe", "application_setup")
+                "capture_once", "capture_observe", "capture_stream", "sbc_selftest", "sbc_continuous", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace")
 OBSERVATIONS = {"Unknown", "normal", "changed"}
 SBC_CONFIG = "event=sbc_continuous_begin schema=1 generated=1 nominal_clock=synthetic sink=discard"
 CAPTURE_CONFIG = "event=capture_stream_begin schema=1 reads_max=1 format=Unknown native_time=Unknown"
@@ -39,6 +40,11 @@ CAPTURE_KEYS = {"stage", "status_bits", "raw_status_bits", "lookup_hi", "lookup_
                 "stop_bits", "close_bits"}
 
 
+NAMESPACE_CONFIG = "event=application_namespace_begin schema=1 namespace=root-data access=read-only radio=Unavailable capture=Unavailable"
+NAMESPACE_KEYS = {"stage", "status_bits", "errno", "raw_bits", "operations", "opened_mask", "closed_mask",
+                  "cleanup_failed_mask", "cleanup_errno", "cleanup_raw_bits", "prior_cleanup_mask", "observed_mask",
+                  "root_fd_reject", "root_path_reject", "data_path_reject", "data_fd_reject",
+                  "root_match_mask", "data_match_mask", "same_device"}
 SETUP_CONFIG_V1 = "event=application_setup_begin schema=1 namespace=fixed private_mode=0700 radio=Unavailable capture=Unavailable"
 SETUP_CONFIG = "event=application_setup_begin schema=2 namespace=fixed private_mode=0700 radio=Unavailable capture=Unavailable"
 SETUP_KEYS_V1 = {"stage", "status_bits", "errno", "lookup_hi", "lookup_lo", "created_mask", "verified_mask",
@@ -702,7 +708,211 @@ def setup_report(body: list[str]) -> dict:
             "cleanup": cleanup, "failure": bool(failure), "issues": sorted(set(issues))}
 
 
+def namespace_report(body: list[str]) -> dict:
+    """Read-only observations; matching views never establish store protection or ABI."""
+    numbers, positions, imports, import_positions = {}, {}, [], []
+    issues = []
+    for index, line in enumerate(body):
+        match = re.fullmatch(r"application_(namespace|import)_([a-z_]+)=0x([0-9a-f]{8})", line)
+        if match and match[2] in (NAMESPACE_KEYS if match[1] == "namespace" else IMPORT_KEYS):
+            category, key, value = match[1], match[2], int(match[3], 16)
+            if category == "namespace":
+                numbers.setdefault(key, []).append(value)
+                positions.setdefault(key, []).append(index)
+                if len(numbers[key]) > 8:
+                    raise ValueError("too many namespace numeric records")
+            else:
+                if key == "stage":
+                    imports.append({})
+                    import_positions.append([])
+                    if len(imports) > 2:
+                        raise ValueError("too many namespace import reports")
+                if not imports or key in imports[-1]:
+                    issues.append("malformed_import_report")
+                else:
+                    imports[-1][key] = value
+                    import_positions[-1].append(index)
+        else:
+            for prefix, allowed in (("application_namespace_", NAMESPACE_KEYS), ("application_import_", IMPORT_KEYS)):
+                if line.startswith(prefix) and line.split("=", 1)[0][len(prefix):] in allowed:
+                    issues.append("malformed_numeric_marker")
+    def one(key):
+        values = numbers.get(key, [])
+        return values[0] if len(values) == 1 else None
+
+    starts = [i for i, line in enumerate(body) if line.startswith("event=application_namespace_begin")]
+    terminal_names = ("event=application_namespace_complete", "event=application_namespace_failed", "event=application_namespace_cancelled")
+    terminals = [(i, name) for i, line in enumerate(body) for name in terminal_names if line == name]
+    closed = [i for i, line in enumerate(body) if line == "event=application_namespace_imports_closed"]
+    config_ok = len(starts) == 1 and body[starts[0]] == NAMESPACE_CONFIG
+    required_keys = NAMESPACE_KEYS
+    if not config_ok:
+        issues.append("missing_or_duplicate_namespace_configuration")
+    if len(terminals) != 1:
+        issues.append("missing_or_duplicate_namespace_outcome")
+    outcome = terminals[0][1].removeprefix("event=application_namespace_") if len(terminals) == 1 else "Unknown"
+    failure = any(name == "event=application_namespace_failed" for _, name in terminals)
+    if outcome != "complete":
+        issues.append("namespace_not_complete")
+    malformed_imports = any(set(group) != set(IMPORT_KEYS) for group in imports)
+    if malformed_imports or not imports:
+        issues.append("malformed_import_report")
+    failure |= any(group.get("status_bits", 0) not in (0, 1)
+                   or group.get("cleanup_flags", 0) or group.get("cleanup_errno", 0) for group in imports)
+    if not malformed_imports and imports:
+        # Init records the native lookup result before checking Stop. A clean
+        # cancellation can retain a nonzero raw result that was never classified
+        # as failure; only completed-success reports require zero raw fields.
+        if any(group["status_bits"] == 0 and any(group[key] for key in
+               ("errno", "lookup_hi", "lookup_lo", "return_hi", "return_lo")) for group in imports):
+            failure = True
+            issues.append("namespace_import_contract_mismatch")
+        first = imports[0]
+        if first["stage"] not in (1, 2, 3) or first["resolved"] > 23:
+            failure = True
+            issues.append("namespace_import_contract_mismatch")
+        if len(imports) == 2 and (imports[1]["stage"] != 8 or imports[1]["resolved"] != 0):
+            failure = True
+            issues.append("namespace_import_contract_mismatch")
+    init_ok = (not malformed_imports and bool(imports) and imports[0] == {
+        "stage": 3, "status_bits": 0, "errno": 0, "lookup_hi": 0, "lookup_lo": 0,
+        "return_hi": 0, "return_lo": 0, "resolved": 23, "cleanup_flags": 0, "cleanup_errno": 0})
+    shutdown_ok = (not malformed_imports and len(imports) == 2 and imports[1] == {
+        "stage": 8, "status_bits": 0, "errno": 0, "lookup_hi": 0, "lookup_lo": 0,
+        "return_hi": 0, "return_lo": 0, "resolved": 0, "cleanup_flags": 0, "cleanup_errno": 0})
+    imports_cleanup = "failed" if any(group.get("cleanup_flags", 0) or group.get("cleanup_errno", 0)
+                                      or group.get("stage") == 8 and group.get("status_bits", 0) for group in imports) else "Unknown"
+    if init_ok and shutdown_ok and len(closed) == 1:
+        imports_cleanup = "reported_complete"
+    if len(closed) > 1 or closed and not (init_ok and shutdown_ok):
+        issues.append("namespace_import_cleanup_not_confirmed")
+    attempted = bool(numbers)
+    complete_fields = all(one(key) is not None for key in required_keys)
+    descriptor_cleanup = "Unknown"
+    if attempted and not complete_fields:
+        issues.append("missing_or_duplicate_namespace_numeric_evidence")
+    if complete_fields:
+        values = {key: one(key) for key in required_keys}
+        opened, closed_mask = values["opened_mask"], values["closed_mask"]
+        failed_mask, prior, observed = (values[key] for key in ("cleanup_failed_mask", "prior_cleanup_mask", "observed_mask"))
+        stage, operations, status = (values[key] for key in ("stage", "operations", "status_bits"))
+        coherent = (stage in range(1, 9) and operations <= 7
+                    and status in (0, 1, 0xffffffff, 0xfffffffe, 0xfffffffd)
+                    and opened in (0, 1, 3) and observed in (0, 1, 3, 7, 15)
+                    and not ((closed_mask | failed_mask | prior) & ~3)
+                    and not (failed_mask & ~closed_mask) and closed_mask == opened
+                    and (not observed or opened & 1) and (not observed & 8 or opened == 3)
+                    and (not opened or operations >= 2) and (opened != 3 or operations >= 6)
+                    and all(not observed & bit or operations >= minimum
+                            for bit, minimum in ((1, 3), (2, 4), (4, 5), (8, 7))))
+        # Fields are meaningful only after their corresponding successful call.
+        for bit, key in ((1, "root_fd_reject"), (2, "root_path_reject"), (4, "data_path_reject"), (8, "data_fd_reject")):
+            coherent &= values[key] <= 7 and (bool(observed & bit) or values[key] == 0)
+        for mask, key, left, right in ((3, "root_match_mask", "root_fd_reject", "root_path_reject"),
+                                      (12, "data_match_mask", "data_path_reject", "data_fd_reject")):
+            matches = values[key]
+            coherent &= matches <= 31 and (observed & mask == mask or matches == 0)
+            # Equal mode/UID fields must yield equal corresponding source
+            # predicates, even though neither observation attests native layout.
+            coherent &= not matches & 4 or (values[left] & 5) == (values[right] & 5)
+            coherent &= not matches & 8 or (values[left] & 2) == (values[right] & 2)
+        coherent &= values["same_device"] in ((1, 2) if observed & 9 == 9 else (0,))
+        # A stage is assigned before its checkpoint. A native failure counts the
+        # attempted call, cancellation may stop before it, and stage 8 follows
+        # all seven successful calls. No retry can add calls or reopen a handle.
+        coherent &= ((stage == 8 and operations == 7 and opened == 3 and observed == 15)
+                     or (stage < 8 and operations in (stage - 1, stage)))
+        if status in (0xfffffffe, 0xfffffffd):
+            coherent &= stage == 1 and operations == opened == observed == 0
+            coherent &= values["errno"] == values["raw_bits"] == 0
+        if status == 0:
+            coherent &= stage == 8 and values["errno"] == values["raw_bits"] == 0
+        if status == 1:
+            coherent &= values["errno"] == 0 and (stage == 8 or operations == stage - 1)
+        successes = operations
+        if status == 0xffffffff and stage < 8:
+            coherent &= stage in range(2, 8) and operations == stage and values["raw_bits"] != 0
+            if stage in (2, 6):
+                coherent &= values["raw_bits"] >= 0x80000000
+            successes -= 1
+        if stage == 8:
+            coherent &= values["raw_bits"] == 0
+        expected_opened = (1 if successes >= 2 else 0) | (2 if successes >= 6 else 0)
+        expected_observed = sum(bit for bit, minimum in ((1, 3), (2, 4), (4, 5), (8, 7)) if successes >= minimum)
+        coherent &= opened == expected_opened and observed == expected_observed
+        if prior:
+            coherent &= status == 0xfffffffd
+        if not coherent:
+            failure = True
+            issues.append("namespace_contract_mismatch")
+        cleanup_error = any(values[key] for key in ("cleanup_failed_mask", "cleanup_errno", "cleanup_raw_bits", "prior_cleanup_mask"))
+        if bool(failed_mask or prior) != bool(values["cleanup_raw_bits"]):
+            failure = True
+            coherent = False
+            issues.append("namespace_contract_mismatch")
+        descriptor_cleanup = "failed" if cleanup_error else "reported_complete" if coherent else "Unknown"
+        if cleanup_error or status not in (0, 1):
+            failure = True
+        if status == 1:
+            if outcome != "cancelled" and not cleanup_error:
+                failure = True
+                issues.append("namespace_contract_mismatch")
+        elif outcome == "cancelled":
+            failure = True
+            issues.append("namespace_contract_mismatch")
+        if outcome == "complete":
+            expected = {"stage": 8, "status_bits": 0, "errno": 0, "operations": 7,
+                        "opened_mask": 3, "closed_mask": 3, "observed_mask": 15,
+                        "cleanup_failed_mask": 0, "cleanup_errno": 0,
+                        "cleanup_raw_bits": 0, "prior_cleanup_mask": 0, "raw_bits": 0}
+            if any(values[key] != value for key, value in expected.items()):
+                failure = True
+                issues.append("namespace_contract_mismatch")
+    if not attempted:
+        issues.append("namespace_not_entered")
+        if outcome == "complete" or init_ok:
+            issues.append("missing_or_duplicate_namespace_numeric_evidence")
+        if len(imports) != 1 or imports and imports[0].get("status_bits") == 0:
+            issues.append("namespace_import_contract_mismatch")
+        if outcome == "cancelled" and imports and imports[0].get("status_bits") != 1:
+            failure = True
+    elif not init_ok:
+        failure = True
+        issues.append("namespace_import_contract_mismatch")
+    if outcome == "complete" and not (init_ok and shutdown_ok):
+        failure |= not malformed_imports and len(imports) == 2
+        issues.append("namespace_import_contract_mismatch")
+    # The native order is begin -> init -> namespace fields -> shutdown -> imports
+    # closed -> outcome. There is no entropy stage or Rust application entry.
+    if config_ok and len(terminals) == 1:
+        start, end = starts[0], terminals[0][0]
+        all_indices = [i for group in import_positions for i in group] + [i for group in positions.values() for i in group] + closed
+        ordered = start < end and all(start < i < end for i in all_indices)
+        if attempted and import_positions:
+            ordered &= all(import_positions[0][-1] < i for group in positions.values() for i in group)
+            if len(import_positions) == 2:
+                ordered &= all(i < import_positions[1][0] for group in positions.values() for i in group)
+                if closed:
+                    ordered &= import_positions[1][-1] < closed[0]
+        if not ordered:
+            issues.append("diagnostic_marker_order_invalid")
+    cleanup = "failed" if "failed" in (descriptor_cleanup, imports_cleanup) else "reported_complete" if descriptor_cleanup == imports_cleanup == "reported_complete" else "Unknown"
+    if cleanup != "reported_complete":
+        issues.append("cleanup_not_confirmed")
+    return {"configuration": {"mode": "read-only-namespace-observation", "schema": 1,
+                "namespace": "root-data", "access": "read-only",
+                "transport": "Unavailable", "radio": "Unavailable", "capture": "Unavailable", "codec": "Unavailable",
+                "native_abi": "Unknown", "store_acceptance": "Unknown", "max_operations": 7,
+                "max_cleanup_closes": 2},
+            "configuration_confirmed": config_ok, "numeric": numbers, "imports": imports,
+            "backend_status_bits": [], "namespace_entered": attempted, "outcome": outcome,
+            "descriptor_cleanup": descriptor_cleanup, "imports_cleanup": imports_cleanup,
+            "cleanup": cleanup, "failure": bool(failure), "issues": sorted(set(issues))}
+
+
 def candidate_report(candidate: str, body: list[str]) -> dict:
+    if candidate == VARIANTS["application_namespace"]:
+        return namespace_report(body)
     if candidate == VARIANTS["application_setup"]:
         return setup_report(body)
     if candidate in APPLICATION_PROFILES:
