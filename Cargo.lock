@@ -36,6 +36,15 @@ name = "bt-core"
 version = "0.0.1"
 
 [[package]]
+name = "bt-device"
+version = "0.0.1"
+dependencies = [
+ "bt-core",
+ "bt-hci",
+ "bt-link",
+]
+
+[[package]]
 name = "bt-hci"
 version = "0.0.1"
 dependencies = [

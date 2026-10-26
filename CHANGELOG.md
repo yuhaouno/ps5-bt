@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Add selected-device pairing/bond management over the owned Classic lifecycle:
+  versioned protected records, Ready-gated saves, explicit SSP tokens, failed-save
+  retry and forget revocation. Clock failure immediately revokes authority while
+  preserving cleanup errors. No platform filesystem or inquiry is implemented.
+
 - Preserve explicit PCM sample gaps through RTP wrapping and atomic media
   queuing; support clean stream restart after actual media-channel cleanup with
   a fresh local CID, retained transaction identities and unchanged credit ownership.
