@@ -5,13 +5,16 @@ reviewed outcome. English is canonical. Read `AGENTS.md` before changing code.
 
 Window update, 2026-10-26: read [HW4-EVIDENCE.md](HW4-EVIDENCE.md) first.
 
-Latest pending entry: **`ps5-bt-application-namespace`**, uploaded and fully
-hash-verified from clean `e219c8d`; one PS5-BT slot, unrelated slots unchanged.
-The kit is `build/ps5/namespace-window-kit-e219c8d`, and its separate log is
-`/data/ps5-bt-namespace.log`. It has not been agent-launched. The operator will
-launch it once on returning and report controller behavior; do not wait for an
-intermediate reply or upload blocked profiles. See the exact identities and
-[uploaded checkpoint](NAMESPACE-PROBE.md#uploaded-manual-run-checkpoint-2026-10-26).
+Latest retained result: **`ps5-bt-application-namespace`** from clean `e219c8d`
+failed at root-dot fstatat (stage 4, return -1, errno 1), after successful root
+open/fstat. Root rejection remained mask 4; owned close/import shutdown were
+clean and the operator reported normal controller input before/during/after.
+No `/data` observation was reached. Both immediate and controller-confirmed
+collections are retained; see the [result](NAMESPACE-PROBE.md#observed-root-dot-fstatat-failure-2026-10-26).
+Do not repeat it or reload blocked application profiles. The next proposed
+independent comparison is relative-vs-absolute directory open with separate
+case results and no protection relaxation. Current slot identity is still the
+completed namespace candidate until a later verified replacement is recorded.
 
 The clean `20a5d66` six-item kit was built, uploaded and fully read back. The
 retained generated-application run failed Store directory acquisition (errno 1).
@@ -29,8 +32,8 @@ The next [read-only root/data consistency candidate](NAMESPACE-PROBE.md) is now
 implemented. The operator authorized preparation and upload while away, with
 manual launch on return. Use `tools/namespace_test_plan.json`, its own matching
 kit and dedicated `/data/ps5-bt-namespace.log`; do not wait for an intermediate
-reply to finish preparation. Run that entry only once, observe controller input,
-then retain its log. Do not repeat setup or the application sequence without
+reply to finish preparation. That entry has now been run and collected; do not
+repeat it without a new reviewed hypothesis. Do not repeat setup or the application sequence without
 resolving its prerequisite. The final task report records actual upload/hash
 status; a source checkout alone does not establish remote installation.
 

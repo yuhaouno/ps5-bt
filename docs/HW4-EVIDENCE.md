@@ -246,3 +246,22 @@ instruction. Its [manual-run checkpoint](NAMESPACE-PROBE.md#uploaded-manual-run-
 records one pending PS5-BT slot, a separate log, and no agent launch or new
 hardware outcome. This supersedes the zero-slot inventory checkpoint above
 without changing any retained result.
+
+## Namespace probe result after operator execution
+
+The `e219c8d` candidate was manually executed and its dedicated log collected
+immediately. It returned **complete_failure** at the fourth operation:
+`fstatat(root, ".", AT_SYMLINK_NOFOLLOW)` returned -1 with errno-slot value 1
+(EPERM). Root open/fstat had succeeded and root rejection was again mask 4.
+Opened/closed masks 1/1 and zero cleanup errors confirm the reported owned
+close; 23 imports and shutdown were clean. No `/data` read or metadata
+comparison was reached. Exact identity, both preserved collections, stream-log
+fallback and interpretation limits are in the
+[namespace result](NAMESPACE-PROBE.md#observed-root-dot-fstatat-failure-2026-10-26).
+
+Log SHA-256: `d0e056fbae51156251b529fafc429905c278ede9a7e9f6ea94ecaa3afadbcb89`.
+The operator confirmed normal controller behavior before/during/after; the first
+Unknown-observation record remains intact alongside the confirmed record.
+No wrapper argument mismatch was found; EPERM's underlying mechanism remains
+Unknown. The next useful comparison is an independently selected, fixed-target
+relative-vs-absolute directory open, not a repeat or a permission exemption.

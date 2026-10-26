@@ -32,8 +32,10 @@ predicate (mask 4). Native metadata layout and namespace authority remain
 unverified. Controller operation was reported normal before/during/after each
 later run; no PCM-format, physical pacing or playback acceptance follows.
 A separate [read-only namespace probe](docs/NAMESPACE-PROBE.md) now prepares the
-next bounded root/data consistency observation. It uses its own fixed log and
-never clears store protection, even when its observation procedure succeeds.
+root/data consistency observation. Its PS5 run failed at root-dot fstatat
+(raw -1/errno 1) after successful root open/fstat, with clean close and normal
+reported controller input. No data observation was reached; its separate log
+is retained and store protection remains gated.
 
 **HW-1 now executes on the recorded Slim / firmware 13.40 environment.**
 The explicit `make ps5-hw1` build uses the existing loader's kernel-R/W

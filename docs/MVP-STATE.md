@@ -16,12 +16,14 @@ input before/during/after. Control/observe remain Unknown from overwritten logs
 and were not rerun. At that cleanup checkpoint remote PS5-BT slots were zero;
 unrelated slots unchanged.
 The next independently selected [read-only root/data probe](NAMESPACE-PROBE.md)
-is now implemented with a dedicated log; hardware outcome remains pending.
-The operator authorized preparation/upload without waiting while away, and will
-manually launch on return. Clean `e219c8d` now has a ready single-item kit and
-one uploaded `ps5-bt-application-namespace` slot with matching metadata/size/full
-hash; no agent launch or hardware result. Preserve prior kits/evidence; do not
-reload blocked application tests or infer controller observations remotely.
+has now failed at root-dot fstatat: stage 4, raw -1/errno 1, after successful
+root open/fstat and root rejection mask 4. One descriptor closed cleanly; imports
+shut down, full lifecycle returned 1, and the operator reported normal controller
+input before/during/after. No data observation or comparison was reached.
+The exact `e219c8d` kit and both collections are retained. No wrapper defect was
+found; native permission/API cause remains Unknown. Next is an independently
+selected relative-vs-absolute open comparison, without fstatat retries or store
+protection changes. Do not reload blocked application tests.
 
 ## New-machine test preparation, 2026-10-26
 

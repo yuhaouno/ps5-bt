@@ -12,8 +12,10 @@ failed Store I/O (errno 1); setup subsequently reported root `PARENT_WRITE`
 rejection (mask 4), with clean cleanup. Native metadata layout and namespace
 authority remain unresolved. The next bounded step is the separate
 [read-only root/data consistency candidate](docs/NAMESPACE-PROBE.md), with seven
-normal calls, two consume-once closes and a dedicated log. Native execution is
-pending; observation success cannot clear store protection or verify the ABI.
+normal calls, two consume-once closes and a dedicated log. Its PS5 run stopped
+at root-dot fstatat (-1/errno 1) with clean close and reported normal controller
+input. No data observation was reached. Next compare relative/absolute fixed
+directory opens independently; EPERM does not identify a permission repair.
 No PCM-format, real-time pacing, Bluetooth or playback milestone is cleared.
 
 Development policy, 2026-10-26: unavailable PS5 access does not block coherent

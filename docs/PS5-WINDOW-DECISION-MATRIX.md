@@ -14,14 +14,16 @@ The [2026-10-26 retained results](HW4-EVIDENCE.md) include setup rejection at
 root with clean close; schema 2 isolated `PARENT_WRITE` (mask 4). Conditional
 standalone SBC then passed 750 blocks with its expected digest, and capture-stream
 completed one Empty read with clean cleanup. Controller input was reported normal
-before/during/after each later run; logs were saved immediately. No PS5-BT slot
-remains. Control/observe were not repeated after the setup prerequisite failed.
+before/during/after each later run; logs were saved immediately. At that
+checkpoint all completed PS5-BT slots were removed. Control/observe were not repeated after the setup prerequisite failed.
 Keep both exact kits; the six-item plan is available for later reviewed progression.
 The separately admitted [read-only root/data candidate](NAMESPACE-PROBE.md) now
-uses `tools/namespace_test_plan.json` and its own fixed log; native execution is
-pending. This is the only next candidate while the application prerequisite
-remains blocked. Leave manual launch pending while the operator is away; report
-actual upload/readback status without manufacturing controller observations.
+uses `tools/namespace_test_plan.json` and its own fixed log. Its observed run
+failed at root-dot fstatat (raw -1/errno 1) after successful root open/fstat;
+root rejection remained mask 4, cleanup was clean and controller input was
+reported normal. No data observation was reached. Do not repeat this candidate;
+the next proposed experiment compares relative and absolute fixed directory
+opens with separate case accounting and no storage-policy change.
 A rejection bit does not verify native layout or authorize permission changes;
 legacy schema-1 logs have no predicate detail. Do not repeat the blocked application
 sequence or an Empty read without a new reviewed hypothesis.

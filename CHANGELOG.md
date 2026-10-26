@@ -14,6 +14,13 @@
 
 ## Unreleased
 
+- Retain the read-only namespace probe's PS5 result: root open/fstat succeeded,
+  root-dot fstatat returned -1/errno 1, root rejection remained mask 4, and owned
+  close/import shutdown completed. Record normal operator-reported controller
+  input, keep both collections and leave data consistency, native ABI and
+  protected-store acceptance Unknown. No wrapper mismatch or permission fix
+  follows from this observed error.
+
 - Add an independently selected read-only root/data consistency diagnostic with
   seven normal calls, reverse consume-once cleanup, cancellation and sticky
   cleanup-uncertainty refusal. Report only predicate/agreement bits and errors;

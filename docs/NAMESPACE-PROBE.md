@@ -1,7 +1,9 @@
 # Read-only root/data namespace consistency diagnostic
 
-Status: independently selected experimental candidate. Native execution and
-native layout validity remain **Requires hardware**. The 2026-10-26 operator
+Status: executed on Slim/13.40 on 2026-10-26; root open/fstat succeeded, then
+root-dot `fstatat` returned -1 with errno 1. Cleanup completed and the operator
+reported normal controller input before/during/after. Native layout validity,
+root/data consistency and protected-store acceptance remain **Requires hardware**. The 2026-10-26 operator
 asked for autonomous preparation and upload, with manual execution after returning.
 This admission describes the candidate, not a result or authority for a future
 console window. See [HW4-EVIDENCE.md](HW4-EVIDENCE.md) for the preceding failures.
@@ -164,8 +166,8 @@ also pass. The target build passes synthetic startup for baseline and namespace
 log selection, pinned SDK dependency closure, final link and structural ELF
 inspection. Collector, window, preparer, handoff and source/kit self-tests cover
 new observations and the fixed path while retaining legacy plans. These are
-local checks; no namespace hardware result has been collected. Full `make check`
-was not run: the previously recorded ARM-host x86 fixture limitation remains.
+local checks, distinct from the subsequent native failure recorded below.
+Full `make check` was not run: the previously recorded ARM-host x86 fixture limitation remains.
 
 ## Uploaded manual-run checkpoint, 2026-10-26
 
@@ -188,8 +190,8 @@ with all unrelated slot records unchanged. FTP preflight independently verified
 schema/filename metadata, exact size and the complete ELF hash. The ignored
 record is `build/ps5/namespace-preflight-e219c8d.json`.
 
-**Not launched by the agent; manual execution and current controller observations
-remain pending.** Only this candidate is loaded; blocked application tests and
+At this upload checkpoint the agent had not launched the candidate; manual
+execution/controller observations were pending. The subsequent result is below. Only this candidate is loaded; blocked application tests and
 previously completed codec/capture tests were not reloaded. The operator should
 refresh and launch `ps5-bt-application-namespace` once, observe controller input
 before/during/after, and stop if it does not return within 15 seconds or input
@@ -197,3 +199,48 @@ changes. When the operator reports the result, use the command above with
 `--kit build/ps5/namespace-window-kit-e219c8d`. Do not delete or replace this slot
 before retaining the matching dedicated log. A new session still needs a current
 console window; this upload checkpoint is not a future execution authorization.
+
+## Observed root-dot fstatat failure, 2026-10-26
+
+The operator subsequently reported execution and normal wireless input before,
+during and after. Immediate collection saved `application-namespace-abr65dcq.log`
+and JSON with controller observations Unknown. After the explicit confirmation,
+a new collection saved `application-namespace-uh6aef1q.log` and JSON with all
+three observations normal. Both collections contain identical raw log bytes;
+keep both records rather than editing or overwriting the initial uncertainty.
+
+- Log SHA-256: `d0e056fbae51156251b529fafc429905c278ede9a7e9f6ea94ecaa3afadbcb89`.
+- Artifact/source/build ID/manifest match the uploaded `e219c8d` identity above.
+- Classification: **complete_failure**, matching begin/finish and payload return 1.
+- Stage 4, operations 4, primary status -1, native return -1, errno-slot value 1
+  (EPERM in the pinned SDK).
+- Opened/closed masks 1/1, observed mask 1, root descriptor rejection mask 4.
+- All current/prior cleanup values zero; 23 imports resolved and shut down cleanly.
+- No root-dot metadata, data-path metadata, data descriptor or comparisons were
+  obtained. Their zero fields are unobserved, not accepted predicates or equality.
+
+The exact attempted call is `fstatat(root, ".", ..., AT_SYMLINK_NOFOLLOW)` after
+successful root open and fstat. The bridge derives its callable type from pinned
+`sys/stat.h`, forwards all four arguments unchanged, and reads the current-thread
+errno slot immediately before cleanup. No concrete wrapper defect was found.
+Observed -1/errno 1 does not identify a credential, syscall-origin, flag, export
+implementation or mount restriction. Root rejection 4 still describes only the
+compiled SDK interpretation. This does not establish the earlier Store I/O
+failure's exact call or a shared cause.
+
+The stream log became unavailable, but its explicit persistent fallback retained
+complete lifecycle; this is not a missing-return outcome. Collector freshness,
+native ABI validity, protected-store acceptance and audio acceptance remain
+Unknown. Controller normality is an operator report, not general coexistence
+or stability acceptance. No automatic repeat or application launch follows.
+
+The next bounded experiment should compare fixed-target descriptor-relative
+`openat(root, "data", directory/no-follow flags)` with absolute `open("/data",
+same flags)`, with successful-descriptor fstats. This would isolate an open-route
+asymmetry relevant to Store traversal without repeating fstatat or relaxing
+protection. It needs its own selected artifact, per-case error/skipped-call
+accounting, at most seven normal calls and three consume-once closes. Root
+acquisition is prerequisite; a known failed case may skip only its dependent
+stat and proceed to the independent case. No directory contents or private
+store file may be accessed. An absolute-open success is not safe store traversal
+or evidence that the root-to-data edge cannot be replaced.
