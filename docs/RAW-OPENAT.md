@@ -170,3 +170,46 @@ not a linked input. The final deployment must use a fresh clean-commit rebuild.
 Full `make check` remains unavailable on this ARM host at its documented x86
 syscall execution fixture; it is not reported as passing. Native route behavior,
 store protection/ABI, PCM format and Bluetooth ownership/allowance remain pending.
+
+
+## Uploaded manual-run checkpoint, 2026-10-27
+
+Clean source `e328d8574dee69f949697c565033541486a2f09b` passed the toolchain doctor
+and all three sequential build/package/assembly steps. Existing pinned tools
+sufficed; no installation was needed. The ready kit is
+`build/ps5/raw-openat-window-kit-e328d85`, with matching preparation identity.
+The clean target build again passed runtime synthetic checks, target header
+closure, link and ELF inspection. Reference-only SDK source bytes in the final
+bundle match their pinned hash and are not a linked input.
+
+- ELF SHA-256: `68af865401fba4e3efaeb9b071f556690d4a87e9f3490cbd169778c08c65c93c`.
+- ELF size: 75144 bytes.
+- Embedded build ID: `fb99f5f9e596d2de140a7104fe66506218ce1e87c53b85207b6947b3dee8ea25`.
+- Build manifest SHA-256: `e9d2376871558de5d1374852418e36a90988fde2c2c566ea10e8b7bb81100333`.
+- Matching source bundle SHA-256: `9769d68fb261ba39b393b5178c26f3a681dec747ade153bed96d2a882a3570c6`.
+
+Within the ongoing authorized window, the manager again reported 0.6.3 at
+.111:8084. Its reviewed `mode=new` upload created the absent exact slot.
+Read-only FTP preflight verified metadata, size and full ELF SHA-256; output is
+`build/ps5/raw-openat-preflight-e328d85.json`. After saving the old comparison
+result and verifying this upload, the exact completed open-compare slot was
+removed through the reviewed manager route. Final inventory is saved in
+`build/ps5/raw-openat-final-inventory-e328d85.json`: only
+**`local/ps5-bt-application-raw-openat`** remains among PS5-BT entries, with all
+unrelated slot records unchanged. Previous local kits/logs remain intact.
+
+**No agent launch or raw-openat hardware outcome.** Refresh and manually run the
+single entry once, observe wireless input before/during/after, and stop on a
+missing return at 15 seconds or any input change. Immediately after the operator
+reports execution, collect without launching another payload:
+
+```sh
+python3 tools/console_window.py --kit build/ps5/raw-openat-window-kit-e328d85 \
+  --collect --candidate application-raw-openat --execute \
+  --controller-before normal --controller-during normal --controller-after normal \
+  --run-observation observed
+```
+
+Use only actually reported observation values; otherwise keep Unknown. The log
+is `/data/ps5-bt-raw-openat.log`. This checkpoint grants no future window, and
+matching upload/build identities do not clear store, PCM or Bluetooth gates.

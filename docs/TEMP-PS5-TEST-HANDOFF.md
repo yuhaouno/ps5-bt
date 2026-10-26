@@ -5,6 +5,16 @@ reviewed outcome. English is canonical. Read `AGENTS.md` before changing code.
 
 Window update, 2026-10-27: read [HW4-EVIDENCE.md](HW4-EVIDENCE.md) first.
 
+Current pending manual entry: **`ps5-bt-application-raw-openat`**. Clean `e328d85`
+passed doctor/build/package/assembly, and the remote ELF hash matches. Only this
+PS5-BT slot remains; the completed open-compare slot was removed after its result
+was saved. Unrelated entries are unchanged. Kit:
+`build/ps5/raw-openat-window-kit-e328d85`; collect its own
+`/data/ps5-bt-raw-openat.log` immediately after the operator reports a single
+manual run. Keep the 15-second ceiling and before/during/after controller checks.
+No agent launch or new hardware result. Exact identities and collection command
+are in the [uploaded checkpoint](RAW-OPENAT.md#uploaded-manual-run-checkpoint-2026-10-27).
+
 Latest retained result: **`ps5-bt-application-open-compare`** from clean
 `8639164` completed its independent cases: relative `openat(root, "data")` failed
 with -1/errno 1, while absolute `open("/data")` and fstat succeeded. Both observed
@@ -13,8 +23,8 @@ close/import shutdown were clean; the operator reported no abnormality. The
 immediate log/result and exact identity are in the
 [observed result](OPEN-COMPARE.md#observed-access-route-asymmetry-2026-10-27).
 Classification is complete_failure; no store, native ABI, PCM or Bluetooth gate
-is cleared. No manual run is pending. The previously verified remote inventory
-contains only the completed open-compare PS5-BT slot; no replacement was uploaded.
+is cleared. That completed slot has now been replaced by the separately prepared
+raw-openat entry above; its pending run is distinct from this retained result.
 Keep `build/ps5/open-compare-window-kit-8639164` and its independent log.
 
 The preceding namespace probe failed at root-dot fstatat (-1/errno 1), after
@@ -27,9 +37,8 @@ A separately selected [raw-openat comparison](RAW-OPENAT.md) now supplies the ne
 source-backed hypothesis: compare imported openat with the existing checked
 syscall bridge, preserving parent/name/flags, error contracts and finite cleanup.
 Use `tools/raw_openat_test_plan.json` and its dedicated `/data/ps5-bt-raw-openat.log`.
-Prepare/build/package, verify upload and replace only the completed PS5-BT slot
-before requesting its single manual run. Actual clean source/upload identities
-must come from the completed kit and preflight; they are not implied here.
+Preparation and upload are now complete, as recorded above. Actual clean source
+and upload identities are retained with the completed kit and preflight.
 
 The clean `20a5d66` six-item kit was built, uploaded and fully read back. The
 retained generated-application run failed Store directory acquisition (errno 1).

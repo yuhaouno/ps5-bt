@@ -38,7 +38,11 @@ same held parent/name/flags, at most seven normal calls plus three reverse close
 Its syscall mapping is pinned source evidence, not confirmed firmware behavior.
 Unrepresentable/aliased descriptor claims stop with ownership uncertainty. Only
 its own matching kit may be uploaded; a source change is not installation or
-hardware acceptance.
+hardware acceptance. Clean `e328d85` now passed doctor and build/package/assembly;
+its raw-openat ELF has been uploaded and fully hash-verified. Only that PS5-BT slot
+remains after the completed open-compare entry was removed; unrelated slots are
+unchanged. Manual launch/controller observations remain pending. See the
+[checkpoint](RAW-OPENAT.md#uploaded-manual-run-checkpoint-2026-10-27).
 
 ## New-machine test preparation, 2026-10-26
 

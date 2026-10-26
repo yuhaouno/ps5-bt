@@ -300,3 +300,12 @@ profiles. Next work requires target descriptor-relative syscall/export and
 filesystem-protection evidence to justify a concrete repair or new experiment,
 without weakening safe traversal or guessing a permission patch. Unknown PCM,
 Bluetooth ownership and actual allowance remain gated.
+
+
+Following source review of the pinned SDK openat mapping, clean `e328d85`'s
+separate [raw-openat candidate](RAW-OPENAT.md#uploaded-manual-run-checkpoint-2026-10-27)
+passed doctor/build/package/assembly and was uploaded with full remote hash
+verification. The completed open-compare slot was removed only after retaining
+its evidence and verifying the new upload. The sole remaining PS5-BT slot is
+raw-openat; unrelated slots and previous logs/kits are unchanged. Its manual
+launch and controller observations are pending; there is no new hardware result.
