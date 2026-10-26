@@ -14,7 +14,8 @@ Production integration, longer-term acceptance and comparative improvements rema
 The first original queue-pressure policy completed one short XM4 comparison
 (one reported dropout versus approximately two previously); repeated benefit
 is not established. A bounded queue-drain candidate now addresses cap reduction
-while occupied; its effect on continuity and delay still requires hardware. See
+while occupied. Its first PS5 run had zero sender drops but one audible dropout,
+and did not exercise deferred shrinking; next inspect capture/send timing. See
 [its scope and tradeoffs](experiments/queue-pressure/README.md).
 
 Milestones are evidence gates, not dates or promises. A compiling archive, a

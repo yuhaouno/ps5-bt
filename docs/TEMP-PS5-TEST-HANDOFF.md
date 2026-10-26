@@ -4,7 +4,7 @@ Updated 2026-10-27 after the user's priority correction. This is the current
 execution queue; it supersedes earlier diagnostic sequences and pending-run
 instructions. Read `AGENTS.md`, then only the sources needed for the next change.
 
-## Next candidate: bounded queue drain
+## Queue-drain candidate and result — 2026-10-27
 
 The user requested the shrink fix and preparation of the next test, confirming
 devices remain available. The new `--queue-drain` build layers an original ABI-v1
@@ -23,14 +23,45 @@ Fresh-source target build and 71-import check passed. The actual upstream queue
 admission/order/expiry regression and policy bounds pass strict warnings plus
 ASan/UBSan, including from the freshly extracted candidate. Existing connection
 switch and slow/fast channel-configuration checks pass (zero failures).
-No hardware run yet.
-Use the same 30-second capture-first and 180-second overall cooperative bounds,
-preserve the completed pressure state and verify upload before any launch.
-Observe whether a deferred shrink actually occurs, its elapsed time and cap,
-sender/audible drops, backlog/bitpool and controller operation before/during/after.
-Keep the missing disconnect-completion limitation; no superiority claim follows
-from one clean run. Readiness means current audible PS5 content, explicit XM4
-pairing mode and normal wireless controller input.
+Candidate commit `2f6f106` was uploaded through PayloadManager 0.6.3; FTP readback
+matched the hash and schema-2 metadata. The sole PS5-BT slot is now
+`local/ps5-bt-hearbridge-drain`. Previous pressure state was hash-verified and
+renamed intact to `/data/ps5-bt-hb-reference-pressure-20261027`; no bond file was
+downloaded. Unrelated slots are unchanged. Deployment evidence is in `remote/`.
+After the operator confirmed matching audible content, explicit pairing mode
+and normal controller input, one capture-first run completed. Tone was disabled
+before scan; immediate logs/status and final process inventory are in `drain-run/`.
+The same 30-second media and 180-second overall cooperative bounds applied.
+
+- Operator heard **one brief audible dropout**, with controller operation normal
+  before/during/after and headset disconnection explicitly confirmed. Obvious
+  quality/latency changes were not separately reported.
+- Sender recorded **zero media drops**: 1,223 media packets, 11,248 SBC frames,
+  1,405 successful capture reads and 13,215 Empty/over reads. This demonstrates
+  that sender drop counts alone cannot establish listening continuity; it does
+  not localize the audible interruption or establish lossless delivery.
+- Drain events: initialization 40 → 8 at media=0; ordinary growth 8 → 10;
+  shrink 10 → 8 at media=6, waited=0 ms. **No deferred wait or timeout occurred**:
+  hardware exercised immediate application with sufficient room, not the new
+  occupied-wait branch. That branch is covered by real-queue host tests only.
+- Pressure v1 intervened once (41 → 37); preceding 47 → 44 → 41 reductions came
+  from the retained upstream controller. Conditions differed from the previous
+  run; do not credit the shrinking change for the zero sender-drop count.
+- Last ACL counters: 1,281 submitted, 1,243 event credits, **34 timed fallbacks**,
+  four outstanding in six-slot accounting, max queue eight and 20 stalls.
+  Capture Stop/Close/Terminate returned 0; USB cleanup calls were acknowledged.
+  Final status is stopped and the process is absent. HCI Disconnection Complete
+  and AVDTP/L2CAP close responses remained unconfirmed.
+- Final log: 38,466 bytes, SHA-256
+  `a59ccc0dc03d751fff18379fddfa2e664696a59e09e658a59f22f78f4d2801af`.
+  Private state remains at `/data/ps5-bt-hb-reference`; preserve it before any
+  later run. No bond files were downloaded and no further launch is queued.
+
+Next useful work: inspect capture/encode/send timing evidence and add only the
+bounded measurements needed to distinguish a capture gap from late output or
+unobserved downstream delivery loss. Do not continue blind rate/cap tuning or
+call zero sender drops continuous audio. Occupied-wait hardware coverage and
+longer stability/latency acceptance remain pending.
 
 ## Queue-pressure comparison result — 2026-10-27
 
@@ -91,13 +122,14 @@ Immediate evidence is in `build/reference/queue-pressure-candidate/pressure-run-
   No bond files were collected. Current private state retains this completed run;
   preserve it before any later launch. No further launch is queued.
 
-Next concrete hypothesis: the existing `tune_link` shrank the media cap from
+The hypothesis motivating the now-implemented drain candidate: `tune_link` shrank the media cap from
 10 to 8 immediately after rate reduction, with backlog already 8 and drops still
 0. One drop appeared within the next 235 ms. Source inspection shows the setter
 changes the cap without trimming; enqueue at capacity drops the oldest queued
 whole media packet before admitting the new one.
-Investigate bounded capacity reduction after drain, with an explicit delay bound;
-do not claim this timing proves the drop's cause or silently increase buffering.
+The bounded drain candidate above addresses this admission interaction; the
+timing does not prove the original drop's cause. Its deferred branch remains
+hardware-unexercised, and the new audible result requires broader timing evidence.
 
 ## Objective and next decision
 
@@ -119,8 +151,8 @@ the production store to bypass its current failure.
 2. The user heard corresponding game/menu audio with about two very brief
    dropouts; controller input was normal and the headset disconnected afterward.
    Sender accounting also reported two drops, but correlation is unproven.
-   The new policy's first comparison is recorded above; follow the cap-reduction
-   hypothesis next. Do not treat Empty reads as audio loss or timed event-credit
+   The pressure and drain comparisons are recorded above; follow the timing
+   evidence next. Do not treat Empty reads as audio loss or timed event-credit
    estimates as actual controller capacity.
 3. Preserve this working reference for comparison. Develop the smallest scoped
    change addressing short dropouts and integrate only the required C chain;
@@ -162,11 +194,12 @@ Initial reference sound and production safety/stability are separate outcomes.
 - `ps5-bt-application-raw-openat` was removed after the reference upload verified.
   Its diagnostic remains **on hold**. Do not ask the user to run it by default.
   Its immutable kit is `build/ps5/raw-openat-window-kit-e328d85`; no run is known.
-- Latest verified inventory has only `local/ps5-bt-hearbridge-pressure` among
-  PS5-BT slots; unrelated entries are unchanged. All reference processes exited.
+- Latest verified inventory has only `local/ps5-bt-hearbridge-drain` among
+  PS5-BT slots; unrelated entries are unchanged. The latest run ended and the
+  reference process is absent.
   Tone, baseline capture and aborted pressure state are preserved at the remote
-  archive paths above. The completed pressure comparison remains at
-  `/data/ps5-bt-hb-reference`. No bond file was downloaded. Do not blindly relaunch:
+  archive paths above, including the completed pressure comparison. The drain
+  run uses `/data/ps5-bt-hb-reference`. No bond file was downloaded. Do not blindly relaunch:
   fresh mkdir would fail; preserve evidence and confirm readiness for a later run.
 - Standalone SBC passed 750 blocks. Capture-stream returned Empty. Application
   startup failed store prerequisites. Directory comparisons found relative-open

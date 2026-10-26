@@ -18,7 +18,11 @@
   old cap until two slots are free or a 500 ms episode expires. Repeated shrink
   requests cannot extend the deadline; expiry preserves observable upstream
   admission drops. Verify actual queue ordering, no credit mutation, stalled
-  expiry and clock bounds with sanitizers. Hardware benefit remains unverified.
+  expiry and clock bounds with sanitizers; existing connection/configuration
+  checks and the target build pass. The first PS5 run recorded zero sender drops
+  but one audible dropout; no deferred wait occurred. Preserve that distinction,
+  normal operator-confirmed controller/exit behavior and missing protocol-close
+  acknowledgment. Hardware benefit remains unverified.
 
 - Add an original, allocation-free queue-pressure policy and opt-in reference
   adapter. Suppress upward bitrate probing under pressure, request bounded

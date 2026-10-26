@@ -124,3 +124,9 @@ until known allowance drains the queue, and checks no policy credit mutation.
 It also verifies stalled expiry (including retained drop behavior), unchanged
 deadlines across requests, cancellation, clock regression and integer bounds.
 These tests establish local behavior; hardware improvement remains unverified.
+
+The first drain-candidate PS5 run recorded zero sender drops but the operator
+heard one brief dropout, with normal controller input and headset disconnection.
+Shrinking 10 → 8 occurred at media occupancy 6, so no waiting branch triggered.
+This is not hardware coverage of deferred shrinking or proof of audible benefit.
+See the [run evidence](../../docs/TEMP-PS5-TEST-HANDOFF.md#queue-drain-candidate-and-result--2026-10-27).
