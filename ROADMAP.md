@@ -19,7 +19,11 @@ input. No data observation was reached. The new independently selected
 EPERM and successful absolute open/fstat, with clean cleanup and normal reported
 controller input. Both root/data retain rejection mask 4 under the SDK view.
 Source-backed target descriptor-relative API/syscall and filesystem-protection
-evidence is required next; EPERM does not identify a permission repair.
+evidence is required next; EPERM does not identify a permission repair. The
+separate [raw-openat experiment](docs/RAW-OPENAT.md) now tests the source-backed
+syscall mapping against the imported route using identical target/flags. Its
+hardware result is pending; successful raw access would still not clear store
+protection or native metadata ABI.
 No PCM-format, real-time pacing, Bluetooth or playback milestone is cleared.
 
 Development policy, 2026-10-26: unavailable PS5 access does not block coherent

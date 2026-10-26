@@ -15,6 +15,18 @@ need explicit build variants and reviewed ABI/dependency/state contracts;
 preserve the current baseline and its inspection checks. Candidates may be
 committed with PS5 validation pending; building never authorizes deployment.
 
+## Imported versus checked-syscall openat comparison
+
+`make ps5-application-raw-openat` selects the independent fixed-path, read-only
+route comparison. `make application-raw-openat-test` runs its strict/sanitized
+synthetic core and orchestration tests. Prepare its singleton kit with
+`tools/raw_openat_test_plan.json`; the dedicated log is
+`/data/ps5-bt-raw-openat.log`. See [RAW-OPENAT.md](RAW-OPENAT.md) for source mapping,
+distinct return conventions, finite budgets and admission limits. Only this
+variant bundles the hash-pinned SDK `libc/syscalls.c` as review material; it is
+never compiled. The existing selected runtime bridge supplies the invocation.
+Default plans and prior diagnostic identities/bounds remain unchanged.
+
 ## Fixed directory open comparison
 
 `make ps5-application-open-compare` selects the independent relative/absolute

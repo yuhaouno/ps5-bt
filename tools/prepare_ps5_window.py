@@ -117,7 +117,8 @@ def validate_tools(root, llvm_config, sdk_source, plan, runner=run_command):
             with contextlib.redirect_stdout(io.StringIO()):
                 build_ps5.sdk_sources(sdk_source,
                     any(item["id"] == "usb-binding" for item in plan["candidates"]),
-                    any(Path(item["artifact"]).stem.startswith("ps5-bt-application-") for item in plan["candidates"]))
+                    any(Path(item["artifact"]).stem.startswith("ps5-bt-application-") for item in plan["candidates"]),
+                    any(item["id"] == "application-raw-openat" for item in plan["candidates"]))
     except PreparationError:
         raise
     except Exception:

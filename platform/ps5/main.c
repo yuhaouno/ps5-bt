@@ -11,6 +11,9 @@
 #ifdef PS5_BT_APPLICATION_OPEN_COMPARE
 #include "application/open_compare.h"
 #endif
+#ifdef PS5_BT_APPLICATION_RAW_OPENAT
+#include "application/raw_openat.h"
+#endif
 #include "bootstrap/bootstrap.h"
 static void application_field(const char *name, uint64_t value,
                               unsigned digits) {
@@ -41,7 +44,79 @@ static void application_import_report(const struct ps5_app_posix_report *r) {
   application_field("application_import_cleanup_errno=0x",
                     (uint32_t)r->cleanup_errno, 8);
 }
-#ifdef PS5_BT_APPLICATION_OPEN_COMPARE
+#ifdef PS5_BT_APPLICATION_RAW_OPENAT
+static int application_raw_openat(void) {
+  const uint8_t begin[] =
+      "event=application_raw_openat_begin schema=1 namespace=root-data "
+      "access=read-only cases=imported-checked radio=Unavailable "
+      "capture=Unavailable\n";
+  const uint8_t complete[] = "event=application_raw_openat_complete\n";
+  const uint8_t failed[] = "event=application_raw_openat_failed\n";
+  const uint8_t cancelled[] = "event=application_raw_openat_cancelled\n";
+  struct ps5_app_posix_report imports;
+  struct ps5_app_raw_openat_report probe = {0};
+  ps5_platform_log(begin, sizeof begin - 1);
+  int32_t status = ps5_app_posix_init_cancel(
+      ps5_bootstrap_lookup, ps5_rust_application_stop_requested, &imports);
+  application_import_report(&imports);
+  if (!status) {
+    status = ps5_app_raw_openat(ps5_rust_application_stop_requested, &probe);
+#define FIELD(name, value)                                                     \
+  application_field("application_raw_openat_" name "=0x", (uint32_t)(value), 8)
+    FIELD("stage", probe.stage);
+    FIELD("status_bits", probe.status);
+    FIELD("errno", probe.raw_errno);
+    FIELD("raw_return_lo", probe.raw_return_lo);
+    FIELD("raw_return_hi", probe.raw_return_hi);
+    FIELD("failed_stage", probe.failed_stage);
+    FIELD("operations", probe.operations);
+    FIELD("attempted_mask", probe.attempted_mask);
+    FIELD("opened_mask", probe.opened_mask);
+    FIELD("closed_mask", probe.closed_mask);
+    FIELD("cleanup_failed_mask", probe.cleanup_failed_mask);
+    FIELD("cleanup_errno", probe.cleanup_errno);
+    FIELD("cleanup_raw_bits", probe.cleanup_raw_return);
+    FIELD("prior_cleanup_mask", probe.prior_cleanup_mask);
+    FIELD("observed_mask", probe.observed_mask);
+    FIELD("root_reject", probe.root_reject);
+    FIELD("imported_reject", probe.imported_reject);
+    FIELD("checked_reject", probe.checked_reject);
+    FIELD("imported_open_raw", probe.imported_open_raw);
+    FIELD("imported_open_errno", probe.imported_open_errno);
+    FIELD("imported_stat_raw", probe.imported_stat_raw);
+    FIELD("imported_stat_errno", probe.imported_stat_errno);
+    FIELD("checked_open_lo", probe.checked_open_lo);
+    FIELD("checked_open_hi", probe.checked_open_hi);
+    FIELD("checked_open_kind", probe.checked_open_kind);
+    FIELD("checked_stat_raw", probe.checked_stat_raw);
+    FIELD("checked_stat_errno", probe.checked_stat_errno);
+    FIELD("data_match_mask", probe.data_match_mask);
+    FIELD("imported_same_device", probe.imported_same_device);
+    FIELD("checked_same_device", probe.checked_same_device);
+    FIELD("raw_ownership_unknown", probe.raw_ownership_unknown);
+    FIELD("prior_raw_ownership_unknown", probe.prior_raw_ownership_unknown);
+#undef FIELD
+    int32_t shutdown = ps5_app_posix_shutdown(&imports);
+    application_import_report(&imports);
+    if (shutdown)
+      status = -1;
+    const uint8_t cleaned[] = "event=application_raw_openat_imports_closed\n";
+    if (!shutdown)
+      ps5_platform_log(cleaned, sizeof cleaned - 1);
+  }
+  int clean_cancel =
+      status == 1 && !probe.cleanup_failed_mask && !probe.prior_cleanup_mask &&
+      !probe.raw_ownership_unknown && !probe.prior_raw_ownership_unknown;
+  const uint8_t *event = status == 0    ? complete
+                         : clean_cancel ? cancelled
+                                        : failed;
+  uint32_t length = status == 0    ? sizeof complete - 1
+                    : clean_cancel ? sizeof cancelled - 1
+                                   : sizeof failed - 1;
+  ps5_platform_log(event, length);
+  return status == 0 || clean_cancel ? 0 : 1;
+}
+#elif defined(PS5_BT_APPLICATION_OPEN_COMPARE)
 static int application_open_compare(void) {
   const uint8_t begin[] =
       "event=application_open_compare_begin schema=1 namespace=root-data "
@@ -415,7 +490,9 @@ int main(void) {
 #endif
   int result = (int)ps5_rust_probe();
 #ifdef PS5_BT_APPLICATION_CONTROL
-#ifdef PS5_BT_APPLICATION_OPEN_COMPARE
+#ifdef PS5_BT_APPLICATION_RAW_OPENAT
+  if (application_raw_openat() != 0)
+#elif defined(PS5_BT_APPLICATION_OPEN_COMPARE)
   if (application_open_compare() != 0)
 #elif defined(PS5_BT_APPLICATION_NAMESPACE)
   if (application_namespace() != 0)

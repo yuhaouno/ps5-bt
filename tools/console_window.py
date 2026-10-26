@@ -23,7 +23,7 @@ PORT = 2121
 REMOTE_ROOT = "/data/pldmgr/payloads/local"
 REMOTE_LOG = "/data/ps5-bt-hw1.log"
 CONTROL_DIRECTORY = "/data/ps5-bt/control"
-CANDIDATES = ("application-open-compare", "application-namespace", "application-setup", "application-control", "application-generated",
+CANDIDATES = ("application-raw-openat", "application-open-compare", "application-namespace", "application-setup", "application-control", "application-generated",
               "application-observe", "sbc-continuous", "capture-stream")
 DEFAULT_KIT = mvp_test_kit.ROOT / "build/ps5/next-window-kit-20261026"
 DEFAULT_OUTPUT = mvp_test_kit.ROOT / "build/ps5/console-window"

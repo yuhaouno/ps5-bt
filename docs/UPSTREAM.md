@@ -339,3 +339,19 @@ file hashes, immutable links and native execution limits are in
 [PAYLOADMANAGER-SLOTS.md](PAYLOADMANAGER-SLOTS.md). The source's HTTP port is not
 a claim about a presently listening service. This review does not authorize
 console execution or change project transport/permission scope.
+
+
+## Checked openat route experiment, 2026-10-27
+
+The separate [RAW-OPENAT.md](RAW-OPENAT.md) diagnostic uses SDK
+`ps5-payload-dev/sdk@a7685ce8e97ce1f8a4f38253a41d54241c9124f1`
+`libc/syscalls.c` as a reference for the openat syscall mapping (499).
+SHA-256: `82bb957e859b7fcba00f6d777fe753a7e6fce7bac864f42f730b130fda187a77`.
+The original John Törnblom GPL-3.0-or-later source and notice are retained verbatim
+as review-only material in this variant's matching source package. It is not
+compiled or linked; no stock syscall stubs, libc, CRT or permission patches are
+imported. The original project adapter supplies a fixed invocation through the
+already selected SDK bridge and project carry/error wrapper. Native headers and
+their existing per-file notices remain unchanged. This source-backed mapping is
+an experimental hypothesis, not demonstrated firmware-13.40 compatibility.
+Native export bodies are unknown; symbol inventory is not implementation proof.

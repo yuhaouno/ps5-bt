@@ -19,7 +19,8 @@ DEFAULT_KIT = ROOT / "build/ps5/mvp-test-kit"
 LEGACY_LOG = "/data/ps5-bt-hw1.log"
 NAMESPACE_LOG = "/data/ps5-bt-namespace.log"
 OPEN_COMPARE_LOG = "/data/ps5-bt-open-compare.log"
-READ_ONLY_LOGS = {"application-namespace": NAMESPACE_LOG, "application-open-compare": OPEN_COMPARE_LOG}
+RAW_OPENAT_LOG = "/data/ps5-bt-raw-openat.log"
+READ_ONLY_LOGS = {"application-namespace": NAMESPACE_LOG, "application-open-compare": OPEN_COMPARE_LOG, "application-raw-openat": RAW_OPENAT_LOG}
 SAFE_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$")
 HANDLED_ERRORS = (OSError, ValueError, subprocess.CalledProcessError, tarfile.TarError) + ftplib.all_errors
 
@@ -126,7 +127,7 @@ def validate_candidate(root, candidate, head):
         "sbc-continuous": "sbc_continuous",
         "capture-stream": "capture_stream",
         "capture-observe": "capture_observe",
-        "application-setup": "application_setup", "application-namespace": "application_namespace", "application-open-compare": "application_open_compare",
+        "application-setup": "application_setup", "application-namespace": "application_namespace", "application-open-compare": "application_open_compare", "application-raw-openat": "application_raw_openat",
         "application-control": "application_control",
         "application-generated": "application_generated",
         "application-observe": "application_observe",
@@ -134,14 +135,14 @@ def validate_candidate(root, candidate, head):
     if expected_variant is None:
         raise ValueError("unreviewed candidate id")
     variants = ("native_query", "native_l2cap_probe", "usb_metadata", "capture_preflight", "capture_once",
-                "sbc_selftest", "capture_observe", "sbc_continuous", "capture_stream", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare")
+                "sbc_selftest", "capture_observe", "sbc_continuous", "capture_stream", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare", "application_raw_openat")
     if any(type(manifest.get(key, False)) is not bool for key in variants) or [
         key for key in variants if manifest.get(key, False)
     ] != [expected_variant]:
         raise ValueError(f"wrong diagnostic variant: {candidate['id']}")
     if not manifest.get("loader_kernel_resolver"):
         raise ValueError("candidate lacks reviewed loader kernel resolver")
-    if expected_variant in ("sbc_continuous", "capture_stream", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare"):
+    if expected_variant in ("sbc_continuous", "capture_stream", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare", "application_raw_openat"):
         build_id = manifest.get("diagnostic_build_id")
         if (not isinstance(build_id, str) or not re.fullmatch(r"[0-9a-f]{64}", build_id)
                 or manifest.get("diagnostic_candidate") != artifact.stem):
@@ -206,7 +207,7 @@ def runbook(plan, head, entries):
             "",
         ]
     lines += [
-        "Read-only namespace/open-compare probes do not require or prepare the store.",
+        "Read-only namespace/open-comparison probes do not require or prepare the store.",
         "Application workloads require a private mode-0700 `/data/ps5-bt/control`",
         "owned by the payload identity. Separately selected application-setup",
         "only validates/creates fixed project directory components using native",
@@ -383,7 +384,9 @@ def self_test():
         # Exercise selected-variant and embedded-identity checks for every item.
         open_compare_plan = load_plan(ROOT / "tools/open_compare_test_plan.json", root)
         assert open_compare_plan["remote_log"] == OPEN_COMPARE_LOG
-        for candidate in plan["candidates"] + namespace_plan["candidates"] + open_compare_plan["candidates"]:
+        raw_openat_plan = load_plan(ROOT / "tools/raw_openat_test_plan.json", root)
+        assert raw_openat_plan["remote_log"] == RAW_OPENAT_LOG
+        for candidate in plan["candidates"] + namespace_plan["candidates"] + open_compare_plan["candidates"] + raw_openat_plan["candidates"]:
             artifact = root / candidate["artifact"]
             artifact.write_bytes(b"synthetic-elf")
             manifest_path = root / candidate["build_manifest"]
@@ -391,12 +394,12 @@ def self_test():
             variant = {"usb-binding": "usb_metadata", "capture-settled": "capture_once",
                        "sbc-selftest": "sbc_selftest", "capture-observe": "capture_observe",
                        "sbc-continuous": "sbc_continuous", "capture-stream": "capture_stream",
-                       "application-setup": "application_setup", "application-namespace": "application_namespace", "application-open-compare": "application_open_compare", "application-control": "application_control", "application-generated": "application_generated",
+                       "application-setup": "application_setup", "application-namespace": "application_namespace", "application-open-compare": "application_open_compare", "application-raw-openat": "application_raw_openat", "application-control": "application_control", "application-generated": "application_generated",
                        "application-observe": "application_observe"}[candidate["id"]]
             manifest = {"git_head": "test-head", "git_status": [], "sha256": digest(artifact),
                         "size": artifact.stat().st_size, "loader_kernel_resolver": True,
                         variant: True}
-            if variant in ("sbc_continuous", "capture_stream", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare"):
+            if variant in ("sbc_continuous", "capture_stream", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare", "application_raw_openat"):
                 manifest.update(diagnostic_build_id="b" * 64, diagnostic_candidate=artifact.stem)
             def write_inputs():
                 manifest_path.write_text(json.dumps(manifest))

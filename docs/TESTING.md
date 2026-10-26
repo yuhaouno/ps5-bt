@@ -4,6 +4,18 @@ Host correctness, hardware behavior, audio quality, performance and headset
 interoperability are separate evidence tracks. Never turn a host mock pass into
 a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
+## Imported versus checked-syscall openat comparison
+
+`make application-raw-openat-test` checks the separately selected
+[route comparison](RAW-OPENAT.md). Test full-width checked returns independently
+from imported POSIX errno, exact syscall number/all six argument slots, dependent
+stat skipping, first-error preservation, cancellation after failure, reverse
+consume-once cleanup and sticky ownership uncertainty. An out-of-range positive
+return must not be truncated into a descriptor or reported as clean cleanup.
+Collector tests must preserve these distinctions and reject contradictory masks
+and apparently successful incomplete profiles. Fixtures call synthetic adapters;
+no host or console filesystem operation establishes native compatibility.
+
 ## Fixed directory open comparison
 
 `make application-open-compare-test` runs strict C11 and ASan/UBSan core/main

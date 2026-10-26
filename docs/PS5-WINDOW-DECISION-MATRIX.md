@@ -30,7 +30,11 @@ with root/data rejection masks 4, clean owned cleanup and normal reported
 controller behavior. Classification remains complete_failure. No run is pending;
 source-backed descriptor-relative API/syscall and filesystem-protection evidence
 is needed before another experiment or repair. Absolute access cannot replace
-protected traversal.
+protected traversal. The separately admitted [raw-openat comparison](RAW-OPENAT.md)
+now isolates invocation route using the same held parent/name/flags: imported
+openat versus the existing checked bridge with source-pinned mapping. Select only
+`tools/raw_openat_test_plan.json`, its matching kit and dedicated log; native
+results remain pending. A raw success cannot clear store protection or PCM/radio.
 A rejection bit does not verify native layout or authorize permission changes;
 legacy schema-1 logs have no predicate detail. Do not repeat the blocked application
 sequence or an Empty read without a new reviewed hypothesis.

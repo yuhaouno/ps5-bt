@@ -24,12 +24,13 @@ VARIANTS = {
     "application_setup": "ps5-bt-application-setup",
     "application_namespace": "ps5-bt-application-namespace",
     "application_open_compare": "ps5-bt-application-open-compare",
+    "application_raw_openat": "ps5-bt-application-raw-openat",
     "application_control": "ps5-bt-application-control",
     "application_generated": "ps5-bt-application-generated",
     "application_observe": "ps5-bt-application-observe",
 }
 ALL_VARIANTS = ("native_query", "native_l2cap_probe", "usb_metadata", "capture_preflight",
-                "capture_once", "capture_observe", "capture_stream", "sbc_selftest", "sbc_continuous", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare")
+                "capture_once", "capture_observe", "capture_stream", "sbc_selftest", "sbc_continuous", "application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare", "application_raw_openat")
 OBSERVATIONS = {"Unknown", "normal", "changed"}
 SBC_CONFIG = "event=sbc_continuous_begin schema=1 generated=1 nominal_clock=synthetic sink=discard"
 CAPTURE_CONFIG = "event=capture_stream_begin schema=1 reads_max=1 format=Unknown native_time=Unknown"
@@ -41,6 +42,13 @@ CAPTURE_KEYS = {"stage", "status_bits", "raw_status_bits", "lookup_hi", "lookup_
                 "stop_bits", "close_bits"}
 
 
+RAW_OPENAT_CONFIG = "event=application_raw_openat_begin schema=1 namespace=root-data access=read-only cases=imported-checked radio=Unavailable capture=Unavailable"
+RAW_OPENAT_KEYS = {"stage", "status_bits", "errno", "raw_return_lo", "raw_return_hi", "failed_stage", "operations", "attempted_mask",
+                   "opened_mask", "closed_mask", "cleanup_failed_mask", "cleanup_errno", "cleanup_raw_bits", "prior_cleanup_mask",
+                   "observed_mask", "root_reject", "imported_reject", "checked_reject", "imported_open_raw", "imported_open_errno",
+                   "imported_stat_raw", "imported_stat_errno", "checked_open_lo", "checked_open_hi", "checked_open_kind",
+                   "checked_stat_raw", "checked_stat_errno", "data_match_mask", "imported_same_device", "checked_same_device",
+                   "raw_ownership_unknown", "prior_raw_ownership_unknown"}
 OPEN_COMPARE_CONFIG = "event=application_open_compare_begin schema=1 namespace=root-data access=read-only cases=relative-absolute radio=Unavailable capture=Unavailable"
 OPEN_COMPARE_KEYS = {"stage", "status_bits", "errno", "raw_bits", "failed_stage", "operations", "attempted_mask",
                      "opened_mask", "closed_mask", "cleanup_failed_mask", "cleanup_errno", "cleanup_raw_bits", "prior_cleanup_mask",
@@ -1153,7 +1161,208 @@ def open_compare_report(body: list[str]) -> dict:
             "cleanup": cleanup, "failure": bool(failure), "issues": sorted(set(issues))}
 
 
+def raw_openat_contract(v: dict, outcome: str) -> tuple[bool, bool]:
+    """Validate checked signed-64 returns before replaying the shared call graph."""
+    kind, status = v["checked_open_kind"], v["status_bits"]
+    checked = (v["checked_open_hi"] << 32) | v["checked_open_lo"]
+    primary = (v["raw_return_hi"] << 32) | v["raw_return_lo"]
+    unknown, prior_unknown = v["raw_ownership_unknown"], v["prior_raw_ownership_unknown"]
+    coherent = kind in range(5) and unknown in (0, 1) and prior_unknown in (0, 1)
+    coherent &= bool(v["attempted_mask"] & 32) == bool(kind)
+    imported_alias = bool(unknown) and v["stage"] == 4
+    coherent &= bool(unknown) == (kind in (3, 4) or imported_alias)
+    if imported_alias:
+        coherent &= kind == 0 and v["imported_open_raw"] <= 0x7fffffff and v["imported_open_errno"] == 0
+        coherent &= v["attempted_mask"] == 15 and not v["opened_mask"] & 2
+        coherent &= v["failed_stage"] == 4 and primary == v["imported_open_raw"] and v["errno"] == 0
+    if kind == 0:
+        coherent &= checked == 0
+    elif kind == 1:
+        coherent &= checked <= 0x7fffffff
+        # Root's descriptor is intentionally unlogged; an alias to the logged
+        # imported descriptor is still detectably inconsistent with fresh ownership.
+        coherent &= not v["opened_mask"] & 2 or checked != v["imported_open_raw"]
+    elif kind == 2:
+        coherent &= checked >= 1 << 63  # Checked bridge error is full-width -errno.
+    elif kind == 3:
+        coherent &= 0x7fffffff < checked < 1 << 63
+    else:
+        coherent &= checked <= 0x7fffffff  # Explicit alias observation; never close twice.
+    if unknown:
+        coherent &= (imported_alias or v["stage"] == 6) and not v["attempted_mask"] & 64 and not v["opened_mask"] & 4
+        coherent &= status == (0xfffffffc if v["failed_stage"] == v["stage"] else 0xffffffff)
+    else:
+        coherent &= status != 0xfffffffc
+    if prior_unknown:
+        coherent &= status == 0xfffffffd
+    if v["failed_stage"] == 6:
+        coherent &= kind in (2, 3, 4) and primary == checked and v["errno"] == 0
+    else:
+        # POSIX primary returns are signed int32; do not truncate a checked result
+        # into that representation or manufacture POSIX errno from raw -errno.
+        expected_hi = 0xffffffff if v["raw_return_lo"] & 0x80000000 else 0
+        coherent &= v["raw_return_hi"] == expected_hi
+    if status in (0xfffffffe, 0xfffffffd):
+        zero_keys = RAW_OPENAT_KEYS - {"stage", "status_bits", "cleanup_errno", "cleanup_raw_bits",
+                                       "prior_cleanup_mask", "prior_raw_ownership_unknown"}
+        coherent &= v["stage"] == 1 and all(v[key] == 0 for key in zero_keys)
+    normalized = {key: v[key] for key in OPEN_COMPARE_KEYS & RAW_OPENAT_KEYS}
+    for destination, source in (("relative", "imported"), ("absolute", "checked")):
+        for suffix in ("reject", "stat_raw", "stat_errno", "same_device"):
+            normalized[destination + "_" + suffix] = v[source + "_" + suffix]
+    normalized["relative_open_raw"] = v["imported_open_raw"]
+    normalized["relative_open_errno"] = v["imported_open_errno"]
+    normalized["absolute_open_raw"] = v["checked_open_lo"] if kind == 1 else 0xffffffff if kind >= 2 else 0
+    normalized["absolute_open_errno"] = 0
+    normalized["raw_bits"] = 0xffffffff if v["failed_stage"] == 6 or imported_alias else v["raw_return_lo"]
+    if unknown:
+        # Reuse the finite graph's failed-open path only after validating the
+        # actual anomaly stop above. No descriptor is acquired from an alias.
+        normalized["stage"] = 6 if imported_alias else 8
+        normalized["status_bits"] = 0xffffffff
+        if imported_alias:
+            normalized["relative_open_raw"] = 0xffffffff
+    path_ok, cleanup_error = open_compare_contract(normalized, outcome)
+    return bool(coherent and path_ok), bool(cleanup_error or unknown or prior_unknown)
+
+
+def raw_openat_report(body: list[str]) -> dict:
+    """Imported versus checked openat; full-width raw errors remain distinct."""
+    numbers, positions, imports, import_positions = {}, {}, [], []
+    issues = []
+    for index, line in enumerate(body):
+        match = re.fullmatch(r"application_(raw_openat|import)_([a-z_]+)=0x([0-9a-f]{8})", line)
+        if match and match[2] in (RAW_OPENAT_KEYS if match[1] == "raw_openat" else IMPORT_KEYS):
+            category, key, value = match[1], match[2], int(match[3], 16)
+            if category == "raw_openat":
+                numbers.setdefault(key, []).append(value)
+                positions.setdefault(key, []).append(index)
+                if len(numbers[key]) > 8:
+                    raise ValueError("too many raw_openat numeric records")
+            else:
+                if key == "stage":
+                    imports.append({})
+                    import_positions.append([])
+                    if len(imports) > 2:
+                        raise ValueError("too many raw_openat import reports")
+                if not imports or key in imports[-1]:
+                    issues.append("malformed_import_report")
+                else:
+                    imports[-1][key] = value
+                    import_positions[-1].append(index)
+        else:
+            for prefix, allowed in (("application_raw_openat_", RAW_OPENAT_KEYS), ("application_import_", IMPORT_KEYS)):
+                if line.startswith(prefix) and line.split("=", 1)[0][len(prefix):] in allowed:
+                    issues.append("malformed_numeric_marker")
+    def one(key):
+        values = numbers.get(key, [])
+        return values[0] if len(values) == 1 else None
+
+    starts = [i for i, line in enumerate(body) if line.startswith("event=application_raw_openat_begin")]
+    terminal_names = ("event=application_raw_openat_complete", "event=application_raw_openat_failed", "event=application_raw_openat_cancelled")
+    terminals = [(i, name) for i, line in enumerate(body) for name in terminal_names if line == name]
+    closed = [i for i, line in enumerate(body) if line == "event=application_raw_openat_imports_closed"]
+    config_ok = len(starts) == 1 and body[starts[0]] == RAW_OPENAT_CONFIG
+    required_keys = RAW_OPENAT_KEYS
+    if not config_ok:
+        issues.append("missing_or_duplicate_raw_openat_configuration")
+    if len(terminals) != 1:
+        issues.append("missing_or_duplicate_raw_openat_outcome")
+    outcome = terminals[0][1].removeprefix("event=application_raw_openat_") if len(terminals) == 1 else "Unknown"
+    failure = any(name == "event=application_raw_openat_failed" for _, name in terminals)
+    if outcome != "complete":
+        issues.append("raw_openat_not_complete")
+    malformed_imports = any(set(group) != set(IMPORT_KEYS) for group in imports)
+    if malformed_imports or not imports:
+        issues.append("malformed_import_report")
+    failure |= any(group.get("status_bits", 0) not in (0, 1)
+                   or group.get("cleanup_flags", 0) or group.get("cleanup_errno", 0) for group in imports)
+    if not malformed_imports and imports:
+        # Init records the native lookup result before checking Stop. A clean
+        # cancellation can retain a nonzero raw result that was never classified
+        # as failure; only completed-success reports require zero raw fields.
+        if any(group["status_bits"] == 0 and any(group[key] for key in
+               ("errno", "lookup_hi", "lookup_lo", "return_hi", "return_lo")) for group in imports):
+            failure = True
+            issues.append("raw_openat_import_contract_mismatch")
+        first = imports[0]
+        if first["stage"] not in (1, 2, 3) or first["resolved"] > 23:
+            failure = True
+            issues.append("raw_openat_import_contract_mismatch")
+        if len(imports) == 2 and (imports[1]["stage"] != 8 or imports[1]["resolved"] != 0):
+            failure = True
+            issues.append("raw_openat_import_contract_mismatch")
+    init_ok = (not malformed_imports and bool(imports) and imports[0] == {
+        "stage": 3, "status_bits": 0, "errno": 0, "lookup_hi": 0, "lookup_lo": 0,
+        "return_hi": 0, "return_lo": 0, "resolved": 23, "cleanup_flags": 0, "cleanup_errno": 0})
+    shutdown_ok = (not malformed_imports and len(imports) == 2 and imports[1] == {
+        "stage": 8, "status_bits": 0, "errno": 0, "lookup_hi": 0, "lookup_lo": 0,
+        "return_hi": 0, "return_lo": 0, "resolved": 0, "cleanup_flags": 0, "cleanup_errno": 0})
+    imports_cleanup = "failed" if any(group.get("cleanup_flags", 0) or group.get("cleanup_errno", 0)
+                                      or group.get("stage") == 8 and group.get("status_bits", 0) for group in imports) else "Unknown"
+    if init_ok and shutdown_ok and len(closed) == 1:
+        imports_cleanup = "reported_complete"
+    if len(closed) > 1 or closed and not (init_ok and shutdown_ok):
+        issues.append("raw_openat_import_cleanup_not_confirmed")
+    attempted = bool(numbers)
+    complete_fields = all(one(key) is not None for key in required_keys)
+    descriptor_cleanup = "Unknown"
+    if attempted and not complete_fields:
+        issues.append("missing_or_duplicate_raw_openat_numeric_evidence")
+    if complete_fields:
+        values = {key: one(key) for key in required_keys}
+        coherent, cleanup_error = raw_openat_contract(values, outcome)
+        if not coherent:
+            failure = True
+            issues.append("raw_openat_contract_mismatch")
+        descriptor_cleanup = "failed" if cleanup_error else "reported_complete" if coherent else "Unknown"
+        if cleanup_error or values["status_bits"] not in (0, 1):
+            failure = True
+    if not attempted:
+        issues.append("raw_openat_not_entered")
+        if outcome == "complete" or init_ok:
+            issues.append("missing_or_duplicate_raw_openat_numeric_evidence")
+        if len(imports) != 1 or imports and imports[0].get("status_bits") == 0:
+            issues.append("raw_openat_import_contract_mismatch")
+        if outcome == "cancelled" and imports and imports[0].get("status_bits") != 1:
+            failure = True
+    elif not init_ok:
+        failure = True
+        issues.append("raw_openat_import_contract_mismatch")
+    if outcome == "complete" and not (init_ok and shutdown_ok):
+        failure |= not malformed_imports and len(imports) == 2
+        issues.append("raw_openat_import_contract_mismatch")
+    # The native order is begin -> init -> raw_openat fields -> shutdown -> imports
+    # closed -> outcome. There is no entropy stage or Rust application entry.
+    if config_ok and len(terminals) == 1:
+        start, end = starts[0], terminals[0][0]
+        all_indices = [i for group in import_positions for i in group] + [i for group in positions.values() for i in group] + closed
+        ordered = start < end and all(start < i < end for i in all_indices)
+        if attempted and import_positions:
+            ordered &= all(import_positions[0][-1] < i for group in positions.values() for i in group)
+            if len(import_positions) == 2:
+                ordered &= all(i < import_positions[1][0] for group in positions.values() for i in group)
+                if closed:
+                    ordered &= import_positions[1][-1] < closed[0]
+        if not ordered:
+            issues.append("diagnostic_marker_order_invalid")
+    cleanup = "failed" if "failed" in (descriptor_cleanup, imports_cleanup) else "reported_complete" if descriptor_cleanup == imports_cleanup == "reported_complete" else "Unknown"
+    if cleanup != "reported_complete":
+        issues.append("cleanup_not_confirmed")
+    return {"configuration": {"mode": "read-only-imported-checked-openat", "schema": 1,
+                "namespace": "root-data", "access": "read-only", "cases": "imported-checked",
+                "transport": "Unavailable", "radio": "Unavailable", "capture": "Unavailable", "codec": "Unavailable",
+                "native_abi": "Unknown", "store_acceptance": "Unknown", "max_operations": 7,
+                "max_cleanup_closes": 3},
+            "configuration_confirmed": config_ok, "numeric": numbers, "imports": imports,
+            "backend_status_bits": [], "raw_openat_entered": attempted, "outcome": outcome,
+            "descriptor_cleanup": descriptor_cleanup, "imports_cleanup": imports_cleanup,
+            "cleanup": cleanup, "failure": bool(failure), "issues": sorted(set(issues))}
+
+
 def candidate_report(candidate: str, body: list[str]) -> dict:
+    if candidate == VARIANTS["application_raw_openat"]:
+        return raw_openat_report(body)
     if candidate == VARIANTS["application_open_compare"]:
         return open_compare_report(body)
     if candidate == VARIANTS["application_namespace"]:

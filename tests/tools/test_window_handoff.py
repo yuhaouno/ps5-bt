@@ -48,7 +48,7 @@ def fixture(root, identifiers=("application-control", "application-generated", "
     kit.mkdir(parents=True)
     plan = {"schema": 1, "target_host": "192.168.1.111", "ftp_port": 2121,
             "remote_root": "/data/pldmgr/payloads/local", "remote_log": "/data/ps5-bt-hw1.log", "candidates": []}
-    if len(identifiers) == 1 and identifiers[0] in ("application-namespace", "application-open-compare"):
+    if len(identifiers) == 1 and identifiers[0] in ("application-namespace", "application-open-compare", "application-raw-openat"):
         plan["remote_log"] = "/data/ps5-bt-" + identifiers[0].removeprefix("application-") + ".log"
     entries = []
     for order, identifier in enumerate(identifiers, 1):
@@ -140,6 +140,27 @@ class HandoffTests(unittest.TestCase):
         manifest = handoff.json_read(files[handoff.KIT + "/application-setup/ps5-bt-application-setup.manifest.json"][0])
         self.assertIs(manifest["application_setup"], True)
         self.assertEqual(manifest["diagnostic_candidate"], "ps5-bt-application-setup")
+
+    def test_raw_openat_singleton_export_preserves_fixed_log_and_profile(self):
+        root = self.base / "raw_openat-project"
+        kit, head = fixture(root, ("application-raw-openat",))
+        output = root / "build/raw_openat.tar.gz"
+        report = handoff.export(root, kit, output)
+        self.assertEqual(report["candidates"], 1)
+        self.assertEqual(handoff.inspect(output), report)
+        destination = self.base / "raw_openat-extracted"
+        handoff.extract(output, destination)
+        result = command(destination, sys.executable, "tools/console_window.py", "--collect",
+                         "--candidate", "application-raw-openat", "--kit", handoff.KIT)
+        self.assertEqual(json.loads(result.stdout)["remote_log"], "/data/ps5-bt-raw-openat.log")
+        plan = json.loads((kit / "test-plan.json").read_text())
+        for log_path in ("/data/ps5-bt-hw1.log", "/data/unknown.log"):
+            (kit / "test-plan.json").write_text(json.dumps(plan | {"remote_log": log_path}))
+            with self.assertRaises(ValueError):
+                handoff.validate_kit(handoff.kit_inventory(kit), head)
+        mixed, mixed_head = fixture(self.base / "mixed-raw_openat-project", ("application-raw-openat", "application-control"))
+        with self.assertRaises(ValueError):
+            handoff.validate_kit(handoff.kit_inventory(mixed), mixed_head)
 
     def test_open_compare_singleton_export_preserves_fixed_log_and_profile(self):
         root = self.base / "open_compare-project"

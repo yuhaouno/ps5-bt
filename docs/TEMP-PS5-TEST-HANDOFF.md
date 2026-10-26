@@ -23,6 +23,13 @@ Both collections remain retained. Do not repeat either probe or reload blocked
 application profiles. Next work needs source-backed target descriptor-relative
 API/syscall and filesystem-protection evidence before selecting a repair or a
 new bounded experiment; absolute-open success does not make a safe store.
+A separately selected [raw-openat comparison](RAW-OPENAT.md) now supplies the next
+source-backed hypothesis: compare imported openat with the existing checked
+syscall bridge, preserving parent/name/flags, error contracts and finite cleanup.
+Use `tools/raw_openat_test_plan.json` and its dedicated `/data/ps5-bt-raw-openat.log`.
+Prepare/build/package, verify upload and replace only the completed PS5-BT slot
+before requesting its single manual run. Actual clean source/upload identities
+must come from the completed kit and preflight; they are not implied here.
 
 The clean `20a5d66` six-item kit was built, uploaded and fully read back. The
 retained generated-application run failed Store directory acquisition (errno 1).

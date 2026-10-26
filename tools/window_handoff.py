@@ -36,13 +36,14 @@ CANDIDATES = {
     "application-setup": "application_setup",
     "application-namespace": "application_namespace",
     "application-open-compare": "application_open_compare",
+    "application-raw-openat": "application_raw_openat",
     "application-control": "application_control",
     "application-generated": "application_generated",
     "application-observe": "application_observe",
 }
 VARIANTS = tuple(CANDIDATES.values()) + ("native_query", "native_l2cap_probe", "capture_preflight")
 IDENTITY_VARIANTS = {"sbc_continuous", "capture_stream", "application_control",
-                     "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare"}
+                     "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare", "application_raw_openat"}
 REQUIRED_PROJECT = {"LICENSE", "README.md", "Cargo.toml", "Cargo.lock", "rust-toolchain.toml",
                     "tools/window_handoff.py", "tools/console_window.py", "tools/mvp_test_kit.py",
                     "tools/diagnostic_result.py", "tools/startup_test_plan.json",
@@ -233,7 +234,8 @@ def validate_kit(files, expected_head=None, expected_project=None):
             or any(item.get("id") not in CANDIDATES for item in candidates)):
         raise ValueError("reviewed nonempty unique candidate selection required")
     read_only_logs = {"application-namespace": "/data/ps5-bt-namespace.log",
-                      "application-open-compare": "/data/ps5-bt-open-compare.log"}
+                      "application-open-compare": "/data/ps5-bt-open-compare.log",
+                      "application-raw-openat": "/data/ps5-bt-raw-openat.log"}
     expected_log = read_only_logs.get(candidates[0]["id"], "/data/ps5-bt-hw1.log") if len(candidates) == 1 else "/data/ps5-bt-hw1.log"
     if plan.get("remote_log") != expected_log or (len(candidates) != 1 and any(item["id"] in read_only_logs for item in candidates)):
         raise ValueError("unreviewed log path or mixed read-only observation plan")

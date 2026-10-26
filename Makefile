@@ -286,3 +286,10 @@ application-open-compare-test:
 
 ps5-application-open-compare:
 	python3 tools/build_ps5.py --application-open-compare --loader-kernel-resolver
+
+.PHONY: application-raw-openat-test ps5-application-raw-openat
+application-raw-openat-test:
+	python3 tests/application/run_raw_openat.py --cc "$(HOST_CC)"
+
+ps5-application-raw-openat:
+	python3 tools/build_ps5.py --application-raw-openat --loader-kernel-resolver

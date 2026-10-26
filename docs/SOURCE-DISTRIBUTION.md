@@ -183,3 +183,15 @@ An existing private 0700 directory, ephemeral loopback policy and fresh unlogged
 authorization are runtime prerequisites; none is provisioned, deployed or inferred
 by packaging. Existing capture/SBC diagnostic bounds and replacement obligations
 remain unchanged. See APPLICATION-STARTUP.md and PS5-POSIX-IMPORTS.md.
+
+
+## Raw-openat review-only source
+
+Only `application-raw-openat` adds the separately pinned review source
+`libc/syscalls.c` from the same SDK revision. Its exact path/hash inventory is
+validated independently from the compiled SDK subset, retained in the manifest
+and included verbatim with its GPL notice in the source bundle. It is never a
+compilation input. Missing/modified review material or this inventory on another
+variant must fail packaging. See [RAW-OPENAT.md](RAW-OPENAT.md) and
+[UPSTREAM.md](UPSTREAM.md) for the selected mapping and scope. Earlier variants
+keep their existing SDK source/header inventories.

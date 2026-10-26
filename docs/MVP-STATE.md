@@ -32,6 +32,13 @@ operator reported no abnormality. Classification is complete_failure, with no
 manual run pending. Source-backed target descriptor-relative syscall/export and
 filesystem-protection evidence is the next prerequisite; do not substitute
 absolute paths or reload blocked application tests.
+The separately selected [raw-openat comparison](RAW-OPENAT.md) is the next bounded
+candidate: imported openat versus the already selected checked syscall bridge,
+same held parent/name/flags, at most seven normal calls plus three reverse closes.
+Its syscall mapping is pinned source evidence, not confirmed firmware behavior.
+Unrepresentable/aliased descriptor claims stop with ownership uncertainty. Only
+its own matching kit may be uploaded; a source change is not installation or
+hardware acceptance.
 
 ## New-machine test preparation, 2026-10-26
 
@@ -39,7 +46,7 @@ Start with [TEMP-PS5-TEST-HANDOFF.md](TEMP-PS5-TEST-HANDOFF.md) and
 [PS5-WINDOW-DECISION-MATRIX.md](PS5-WINDOW-DECISION-MATRIX.md). The current default
 `tools/window_test_plan.json` contains application-setup, application-control,
 application-generated, application-observe, then conditional standalone
-sbc-continuous/capture-stream. The full inventory now contains ten candidates;
+sbc-continuous/capture-stream. The older inventory counts below describe their dated snapshots;
 the older three-item startup plan and previous kit paths below describe earlier
 artifacts, not the new default kit identity.
 

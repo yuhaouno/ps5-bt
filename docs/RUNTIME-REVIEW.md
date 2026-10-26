@@ -203,3 +203,20 @@ directories persist on error/cancellation; existing paths are never chmodded,
 chowned or removed. Native permission, export, durability and cleanup acceptance
 require the independently identified hardware run. The old application modes
 still only open an already protected namespace and retain their original bounds.
+
+
+## Separate imported-versus-checked openat selection
+
+`PS5_BT_APPLICATION_RAW_OPENAT` uses the independent fixed log
+`/data/ps5-bt-raw-openat.log`, preserving baseline and prior diagnostic paths.
+It invokes the existing checked `__crt_syscall` bridge once with source-reviewed
+openat number 499 and all six argument slots explicitly supplied. This is a
+separately admitted experiment, not a fallback in the application or store.
+Negative checked returns carry errno directly; imported POSIX calls use their
+current-thread errno slot. Preserve the full checked value and never truncate
+an anomalous positive value into a guessed descriptor. The source review,
+exactly-once owned cleanup, bounds and uncertainty rules are in
+[RAW-OPENAT.md](RAW-OPENAT.md). No native text inspection, new syscall instruction,
+credential/syscall-range mutation, system process or driver change is selected.
+The normal Rust application remains unstarted and all audio/transport gates stay
+closed. Firmware/runtime compatibility still requires the bounded hardware run.

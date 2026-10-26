@@ -243,7 +243,9 @@ static int run(payload_args_t *args, enum test_mode selected)
 
 int main(void)
 {
-#ifdef PS5_BT_APPLICATION_OPEN_COMPARE
+#ifdef PS5_BT_APPLICATION_RAW_OPENAT
+    assert(!strcmp(PS5_DIAGNOSTIC_LOG_PATH, "/data/ps5-bt-raw-openat.log"));
+#elif defined(PS5_BT_APPLICATION_OPEN_COMPARE)
     assert(!strcmp(PS5_DIAGNOSTIC_LOG_PATH, "/data/ps5-bt-open-compare.log"));
 #elif defined(PS5_BT_APPLICATION_NAMESPACE)
     assert(!strcmp(PS5_DIAGNOSTIC_LOG_PATH, "/data/ps5-bt-namespace.log"));

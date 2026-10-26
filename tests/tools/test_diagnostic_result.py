@@ -221,6 +221,63 @@ def open_compare_log(fields=None, outcome=None, init_status=0, status=None):
                        f"event=payload_return status={status}", ""])
 
 
+def raw_openat_fields(failures=None, cancel=None, checked_return=None, alias=False, imported_alias=False):
+    failures = dict(failures or {})
+    if checked_return is not None and (checked_return < 0 or checked_return > 0x7fffffff or alias):
+        failures[6] = 0
+    if imported_alias:
+        cancel = 5
+    base = open_compare_fields(failures, cancel)
+    values = {key: base[key] for key in result.RAW_OPENAT_KEYS & result.OPEN_COMPARE_KEYS}
+    for destination, source in (("imported", "relative"), ("checked", "absolute")):
+        for suffix in ("reject", "stat_raw", "stat_errno", "same_device"):
+            values[destination + "_" + suffix] = base[source + "_" + suffix]
+    values.update(imported_open_raw=base["relative_open_raw"], imported_open_errno=base["relative_open_errno"],
+                  checked_open_lo=0, checked_open_hi=0, checked_open_kind=0,
+                  raw_ownership_unknown=0, prior_raw_ownership_unknown=0)
+    primary = base["raw_bits"] | (0xffffffff00000000 if base["raw_bits"] & 0x80000000 else 0)
+    if values["attempted_mask"] & 32:
+        raw = checked_return if checked_return is not None else (-1 if 6 in failures else base["absolute_open_raw"])
+        bits = raw & 0xffffffffffffffff
+        kind = 2 if raw < 0 else 3 if raw > 0x7fffffff else 4 if alias else 1
+        values.update(checked_open_lo=bits & 0xffffffff, checked_open_hi=bits >> 32, checked_open_kind=kind)
+        if values["failed_stage"] == 6:
+            primary = bits
+            values["errno"] = 0
+        if kind in (3, 4):
+            values.update(stage=6, raw_ownership_unknown=1)
+            if values["failed_stage"] == 6:
+                values["status_bits"] = 0xfffffffc
+    if imported_alias:
+        values.update(stage=4, status_bits=0xfffffffc, errno=0, failed_stage=4,
+                      imported_open_raw=42, imported_open_errno=0,
+                      opened_mask=1, closed_mask=1, raw_ownership_unknown=1)
+        primary = 42
+    values.update(raw_return_lo=primary & 0xffffffff, raw_return_hi=primary >> 32)
+    return values
+
+
+def raw_openat_log(fields=None, outcome=None, init_status=0, status=None):
+    values = raw_openat_fields()
+    if fields:
+        values.update(fields)
+    if outcome is None:
+        outcome = "failed" if init_status not in (0, 1) or values["status_bits"] not in (0, 1) or values["cleanup_failed_mask"] or values["prior_cleanup_mask"] or values["raw_ownership_unknown"] or values["prior_raw_ownership_unknown"] else "cancelled" if init_status == 1 or values["status_bits"] == 1 else "complete"
+    if status is None:
+        status = 1 if outcome == "failed" else 2
+    body = [result.RAW_OPENAT_CONFIG]
+    if init_status:
+        body += imports(2, status=init_status, resolved=3)
+    else:
+        body += imports(3, resolved=23)
+        body += [f"application_raw_openat_{key}=0x{value:08x}" for key, value in values.items()]
+        body += imports(8) + ["event=application_raw_openat_imports_closed"]
+    body += ["event=application_raw_openat_" + outcome]
+    return "\n".join([f"event=run_begin build_id={BUILD} candidate=ps5-bt-application-raw-openat", *body,
+                       f"event=run_finish build_id={BUILD}", f"event=payload_exit status={status}",
+                       f"event=payload_return status={status}", ""])
+
+
 class CollectorTest(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
@@ -234,6 +291,89 @@ class CollectorTest(unittest.TestCase):
         self.manifest.write_text(json.dumps(manifest() if source is None else source))
         self.log.write_text(log() if text is None else text)
         return result.collect(self.manifest, self.log, NORMAL if observations is None else observations)
+
+    def test_raw_openat_success_and_redaction_keep_acceptance_unknown(self):
+        text = raw_openat_log().replace("event=application_raw_openat_complete", "application_raw_openat_uid=0x12345678\napplication_raw_openat_path=/private-secret\nevent=application_raw_openat_complete")
+        record = self.collect(text, manifest("application-raw-openat"))
+        self.assertEqual(record["classification"], "complete_success")
+        self.assertEqual(record["diagnostic"]["configuration"]["native_abi"], "Unknown")
+        self.assertEqual(record["diagnostic"]["configuration"]["store_acceptance"], "Unknown")
+        self.assertNotIn("private-secret", json.dumps(record))
+        self.assertNotIn("12345678", json.dumps(record))
+
+    def test_raw_openat_full_width_negative_errors_and_first_error_survive(self):
+        for raw in (-1, -13, -2147483649, -(1 << 63)):
+            for failures in ({}, {4: 1}, {5: 2}):
+                fields = raw_openat_fields(failures, checked_return=raw)
+                record = self.collect(raw_openat_log(fields), manifest("application-raw-openat"))
+                self.assertEqual(record["classification"], "complete_failure")
+                self.assertNotIn("raw_openat_contract_mismatch", record["issues"])
+                self.assertEqual(record["diagnostic"]["cleanup"], "reported_complete")
+                if not failures:
+                    self.assertEqual(record["diagnostic"]["numeric"]["errno"], [0])
+                    self.assertEqual(record["diagnostic"]["numeric"]["raw_return_hi"], [(raw & 0xffffffffffffffff) >> 32])
+        for step in (2, 3, 4, 5, 7):
+            fields = raw_openat_fields({step: 1})
+            record = self.collect(raw_openat_log(fields), manifest("application-raw-openat"))
+            self.assertEqual(record["classification"], "complete_failure")
+            self.assertNotIn("raw_openat_contract_mismatch", record["issues"])
+
+    def test_raw_openat_wide_or_alias_descriptor_never_claims_cleanup(self):
+        for raw, alias in ((1 << 31, False), (1 << 40, False), ((1 << 63) - 1, False), (44, True), (42, True)):
+            for failures in ({}, {4: 1}, {5: 2}):
+                fields = raw_openat_fields(failures, checked_return=raw, alias=alias)
+                record = self.collect(raw_openat_log(fields), manifest("application-raw-openat"))
+                self.assertEqual(record["classification"], "complete_failure")
+                self.assertNotIn("raw_openat_contract_mismatch", record["issues"])
+                self.assertEqual(record["diagnostic"]["cleanup"], "failed")
+        record = self.collect(raw_openat_log(raw_openat_fields(imported_alias=True)), manifest("application-raw-openat"))
+        self.assertEqual(record["classification"], "complete_failure")
+        self.assertNotIn("raw_openat_contract_mismatch", record["issues"])
+        self.assertEqual(record["diagnostic"]["numeric"]["stage"], [4])
+
+    def test_raw_openat_cancellation_cleanup_and_sticky_unknown(self):
+        for stage in range(1, 9):
+            fields = raw_openat_fields(cancel=stage)
+            record = self.collect(raw_openat_log(fields), manifest("application-raw-openat"))
+            self.assertEqual(record["classification"], "incomplete_evidence")
+            self.assertNotIn("raw_openat_contract_mismatch", record["issues"])
+        for fields in (raw_openat_fields({4: 1}, cancel=6), raw_openat_fields({5: 1}, cancel=7)):
+            record = self.collect(raw_openat_log(fields), manifest("application-raw-openat"))
+            self.assertEqual(record["classification"], "complete_failure")
+            self.assertNotIn("raw_openat_contract_mismatch", record["issues"])
+        guard = {key: 0 for key in result.RAW_OPENAT_KEYS}
+        guard.update(stage=1, status_bits=0xfffffffd, prior_raw_ownership_unknown=1)
+        clean_fail = raw_openat_fields()
+        clean_fail.update(status_bits=0xffffffff, errno=4, cleanup_failed_mask=4, cleanup_errno=4, cleanup_raw_bits=0xffffffff)
+        for fields in (guard, clean_fail):
+            record = self.collect(raw_openat_log(fields), manifest("application-raw-openat"))
+            self.assertEqual(record["classification"], "complete_failure")
+            self.assertNotIn("raw_openat_contract_mismatch", record["issues"])
+            self.assertEqual(record["diagnostic"]["cleanup"], "failed")
+
+    def test_raw_openat_malformed_kinds_width_and_primary_evidence_rejected(self):
+        for fields in ({"checked_open_kind": 5}, {"checked_open_kind": 0}, {"checked_open_hi": 1},
+                       {"raw_ownership_unknown": 1}, {"prior_raw_ownership_unknown": 1},
+                       {"checked_open_lo": 44}, {"raw_return_hi": 1}, {"attempted_mask": 63},
+                       {"status_bits": 0xfffffffc}, {"checked_stat_raw": 1}):
+            with self.subTest(fields=fields):
+                record = self.collect(raw_openat_log(fields), manifest("application-raw-openat"))
+                self.assertNotEqual(record["classification"], "complete_success")
+                self.assertIn("raw_openat_contract_mismatch", record["issues"])
+        failed = raw_openat_fields(checked_return=-13)
+        for changed in ({"errno": 13}, {"raw_return_hi": 0}, {"raw_return_lo": 0xffffffff},
+                        {"checked_open_kind": 1}, {"checked_stat_errno": 1}):
+            record = self.collect(raw_openat_log(failed | changed), manifest("application-raw-openat"))
+            self.assertIn("raw_openat_contract_mismatch", record["issues"])
+        unknown = raw_openat_fields(checked_return=1 << 40)
+        for changed in ({"stage": 8}, {"raw_ownership_unknown": 0}, {"checked_open_kind": 2}):
+            record = self.collect(raw_openat_log(unknown | changed), manifest("application-raw-openat"))
+            self.assertIn("raw_openat_contract_mismatch", record["issues"])
+        text = raw_openat_log()
+        line = "application_raw_openat_checked_open_hi=0x00000000\n"
+        for changed in (text.replace(line, ""), text.replace(line, line * 2), text.replace(line, "application_raw_openat_checked_open_hi=0\n"),
+                        text.replace("event=application_raw_openat_imports_closed", "")):
+            self.assertNotEqual(self.collect(changed, manifest("application-raw-openat"))["classification"], "complete_success")
 
     def test_open_compare_success_observes_predicates_without_acceptance(self):
         for changed in ({}, {"relative_reject": 7, "absolute_reject": 1, "data_match_mask": 0,

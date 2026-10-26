@@ -27,6 +27,9 @@ SDK_FILES = {
     "crt/nid.h": "f79fd2a5daacde8bae9e070d4bf8158b42b2fdd8fccd9ea5f868a7a099dcb365",
     "crt/klog.h": "19fc44e52797d1a1f9959f5f7e6dee6006f600486f4bae451db862510a2cbe11",
 }
+# Reference only: syscall-number provenance for the separately selected raw-openat
+# experiment. This file is verified and packaged, never compiled or linked.
+RAW_OPENAT_REVIEW_SOURCES = {"libc/syscalls.c": "82bb957e859b7fcba00f6d777fe753a7e6fce7bac864f42f730b130fda187a77"}
 USB_SDK_HEADERS = json.loads((ROOT / "tools/usb_sdk_headers.json").read_text())
 APPLICATION_SDK_HEADERS = json.loads((ROOT / "tools/application_sdk_headers.json").read_text())
 # Expand the upstream stdint.h symlink into the identical, notice-bearing target
@@ -38,11 +41,12 @@ SDK_HEADER_ALIASES = {
 }
 
 
-APPLICATION_VARIANTS = ("application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare")
+APPLICATION_VARIANTS = ("application_control", "application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare", "application_raw_openat")
 APPLICATION_FEATURES = {"application_control": "application-control",
                         "application_setup": "application-control",
                         "application_namespace": "application-control",
                         "application_open_compare": "application-control",
+                        "application_raw_openat": "application-control",
                         "application_generated": "application-generated-target",
                         "application_observe": "application-observe"}
 
@@ -64,10 +68,10 @@ def run(command, capture=False, env=None):
                           text=True, stdout=subprocess.PIPE if capture else None, env=env).stdout
 
 
-def sdk_sources(source=None, usb_metadata=False, application_control=False):
+def sdk_sources(source=None, usb_metadata=False, application_control=False, raw_openat=False):
     """A fixed subset, not an SDK installation or unverified moving checkout."""
     directory = Path(source).resolve() if source else ROOT / ".sdk" / SDK_REVISION
-    selected = SDK_FILES | (USB_SDK_HEADERS if usb_metadata else {}) | (APPLICATION_SDK_HEADERS if application_control else {})
+    selected = SDK_FILES | (USB_SDK_HEADERS if usb_metadata else {}) | (APPLICATION_SDK_HEADERS if application_control else {}) | (RAW_OPENAT_REVIEW_SOURCES if raw_openat else {})
     for name, expected in selected.items():
         path = directory / name
         if not path.exists() and not source:
@@ -136,7 +140,7 @@ def self_test():
                      "ps5-bt-capture-preflight", "ps5-bt-capture-once",
                      "ps5-bt-sbc-selftest", "ps5-bt-capture-observe",
                      "ps5-bt-native-l2cap-probe", "ps5-bt-application-control",
-                     "ps5-bt-application-generated", "ps5-bt-application-observe", "ps5-bt-application-setup", "ps5-bt-application-namespace", "ps5-bt-application-open-compare",
+                     "ps5-bt-application-generated", "ps5-bt-application-observe", "ps5-bt-application-setup", "ps5-bt-application-namespace", "ps5-bt-application-open-compare", "ps5-bt-application-raw-openat",
                      "ps5-bt-capture-stream", "ps5-bt-sbc-continuous"):
             for suffix in suffixes:
                 (base / f"{stem}.{suffix}").write_text(stem)
@@ -155,8 +159,8 @@ def self_test():
         invalidate_output("ps5-bt-native-l2cap-probe", base)
         assert not any((base / f"ps5-bt-native-l2cap-probe.{suffix}").exists() for suffix in suffixes)
         assert (base / "ps5-bt-native-query.elf").read_text() == "optional"
-        APPLICATION_FEATURES_EXPECTED = {"application_generated": "application-generated-target", "application_observe": "application-observe", "application_setup": "application-control", "application_namespace": "application-control", "application_open_compare": "application-control"}
-        for name in ("application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare"):
+        APPLICATION_FEATURES_EXPECTED = {"application_generated": "application-generated-target", "application_observe": "application-observe", "application_setup": "application-control", "application_namespace": "application-control", "application_open_compare": "application-control", "application_raw_openat": "application-control"}
+        for name in ("application_generated", "application_observe", "application_setup", "application_namespace", "application_open_compare", "application_raw_openat"):
             stem = "ps5-bt-" + name.replace("_", "-")
             options = argument_parser().parse_args(["--" + name.replace("_", "-"), "--loader-kernel-resolver"])
             assert artifact_stem(options) == stem
@@ -167,7 +171,7 @@ def self_test():
             assert all((base / f"ps5-bt-application-control.{suffix}").is_file() for suffix in suffixes)
         import contextlib
         import io
-        for other in ("--application-control", "--application-observe", "--application-setup", "--application-namespace", "--application-open-compare", "--sbc-selftest"):
+        for other in ("--application-control", "--application-observe", "--application-setup", "--application-namespace", "--application-open-compare", "--application-raw-openat", "--sbc-selftest"):
             with contextlib.redirect_stderr(io.StringIO()):
                 try:
                     argument_parser().parse_args(["--application-generated", other])
@@ -204,6 +208,8 @@ def host_test(source):
     run([output])
     run([*command, "-DPS5_BT_APPLICATION_CONTROL", "-DPS5_BT_APPLICATION_OPEN_COMPARE", "-DPS5_BT_LOADER_KERNEL_RESOLVER"])
     run([output])
+    run([*command, "-DPS5_BT_APPLICATION_CONTROL", "-DPS5_BT_APPLICATION_RAW_OPENAT", "-DPS5_BT_LOADER_KERNEL_RESOLVER"])
+    run([output])
     print("PASS synthetic host startup resolver/log/error/memory cases (not loader execution)")
 
 
@@ -220,7 +226,7 @@ def build(args):
     if (args.capture_preflight or args.capture_once or args.capture_observe or args.capture_stream or application) and not args.loader_kernel_resolver:
         raise ValueError("capture/application diagnostics require the explicit existing-loader kernel resolver")
     tools = llvm_tools(args.llvm_config)
-    source = sdk_sources(args.sdk_source, args.usb_metadata, bool(application))
+    source = sdk_sources(args.sdk_source, args.usb_metadata, bool(application), args.application_raw_openat)
     host_test(source)
     review = ROOT / "docs/RUNTIME-REVIEW.md"
     if not review.is_file():
@@ -276,6 +282,8 @@ def build(args):
         sources.append(ROOT / "platform/ps5/application/namespace_probe.c")
     if args.application_open_compare:
         sources.append(ROOT / "platform/ps5/application/open_compare.c")
+    if args.application_raw_openat:
+        sources.append(ROOT / "platform/ps5/application/raw_openat.c")
     if args.capture_stream or application:
         sources.append(ROOT / "platform/ps5/capture/capture_stream.c")
     if args.sbc_continuous or args.capture_stream:
@@ -309,6 +317,8 @@ def build(args):
         flags.append("-DPS5_BT_APPLICATION_NAMESPACE")
     if args.application_open_compare:
         flags.append("-DPS5_BT_APPLICATION_OPEN_COMPARE")
+    if args.application_raw_openat:
+        flags.append("-DPS5_BT_APPLICATION_RAW_OPENAT")
     if args.capture_stream:
         flags.append("-DPS5_BT_CAPTURE_STREAM")
     if args.sbc_continuous:
@@ -333,6 +343,8 @@ def build(args):
             identity_headers.append(ROOT / "platform/ps5/application/namespace_probe.h")
         if args.application_open_compare:
             identity_headers.append(ROOT / "platform/ps5/application/open_compare.h")
+        if args.application_raw_openat:
+            identity_headers.append(ROOT / "platform/ps5/application/raw_openat.h")
         identity = {
             "candidate": stem,
             "rust_archive": digest(ROOT / "target/x86_64-unknown-none/release/libps5_runtime.a"),
@@ -344,6 +356,8 @@ def build(args):
             "flags": flags,
             "linker": digest(ROOT / "platform/ps5/bootstrap/minimal.ld"),
         }
+        if args.application_raw_openat:
+            identity["sdk_review_sources"] = RAW_OPENAT_REVIEW_SOURCES
         diagnostic_build_id = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         flags += [f'-DPS5_BT_DIAGNOSTIC_BUILD_ID="{diagnostic_build_id}"',
                   f'-DPS5_BT_DIAGNOSTIC_CANDIDATE="{stem}"']
@@ -354,7 +368,7 @@ def build(args):
         if args.usb_metadata and path.name == "usb_probe.c":
             extra += ["-DPS5_BT_USB_PROBE_TARGET", "-isystem", source / "include/freebsd", "-isystem", source / "include",
                       "-MD", "-MF", output / f"{stem}-usb-headers.d"]
-        if application and path.name in ("posix_imports.c", "bond_file_store.c", "tcp_listener.c", "setup_namespace.c", "namespace_probe.c", "open_compare.c"):
+        if application and path.name in ("posix_imports.c", "bond_file_store.c", "tcp_listener.c", "setup_namespace.c", "namespace_probe.c", "open_compare.c", "raw_openat.c"):
             dependency_file = output / f"{stem}-{index}-headers.d"
             extra += ["-isystem", source / "include/freebsd", "-isystem", source / "include",
                       "-MD", "-MF", dependency_file]
@@ -362,7 +376,7 @@ def build(args):
                 extra += ["-include", ROOT / "platform/ps5/application/posix_redirect.h",
                           "-DPS5_BT_LISTENER_SOCKADDR_HAS_LEN"]
         run([tools["clang"], *flags, *extra, "-c", path, "-o", obj])
-        if application and path.name in ("posix_imports.c", "bond_file_store.c", "tcp_listener.c", "setup_namespace.c", "namespace_probe.c", "open_compare.c"):
+        if application and path.name in ("posix_imports.c", "bond_file_store.c", "tcp_listener.c", "setup_namespace.c", "namespace_probe.c", "open_compare.c", "raw_openat.c"):
             app_dependencies.update(dependency_file.read_text().replace("\\\n", " ").split())
         objects.append(obj)
     archive = ROOT / "target/x86_64-unknown-none/release/libps5_runtime.a"
@@ -401,6 +415,8 @@ def build(args):
     report["tool_sha256"] = {name: digest(path) for name, path in tools.items()}
     report["sdk_revision"] = SDK_REVISION
     report["sdk_sources"] = SDK_FILES
+    if args.application_raw_openat:
+        report["sdk_review_sources"] = RAW_OPENAT_REVIEW_SOURCES
     report["git_head"] = run(["git", "rev-parse", "HEAD"], capture=True).strip()
     report["git_status"] = run(["git", "status", "--porcelain"], capture=True).splitlines()
     report["rust_archive_sha256"] = digest(archive)
@@ -426,6 +442,9 @@ def build(args):
         report["project_sources"][name] = digest(ROOT / name)
     if args.application_open_compare:
         name = "platform/ps5/application/open_compare.h"
+        report["project_sources"][name] = digest(ROOT / name)
+    if args.application_raw_openat:
+        name = "platform/ps5/application/raw_openat.h"
         report["project_sources"][name] = digest(ROOT / name)
     if application:
         for name in ("platform/ps5/application/posix_bridge.h", "platform/ps5/application/posix_imports.h", "platform/ps5/application/posix_redirect.h",
@@ -525,6 +544,8 @@ def argument_parser():
                           help="read-only fixed root/data metadata consistency probe; no namespace acceptance")
     variants.add_argument("--application-open-compare", action="store_true",
                           help="read-only relative/absolute data open comparison; no namespace acceptance")
+    variants.add_argument("--application-raw-openat", action="store_true",
+                          help="compare imported and checked-syscall fixed data openat; no namespace acceptance")
     variants.add_argument("--application-generated", action="store_true",
                           help="native factory/HTTP loop with paced generated PCM and target SBC discard sink")
     variants.add_argument("--application-observe", action="store_true",

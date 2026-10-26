@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "target_host": "192.168.1.111",
+  "ftp_port": 2121,
+  "remote_root": "/data/pldmgr/payloads/local",
+  "remote_log": "/data/ps5-bt-raw-openat.log",
+  "candidates": [
+    {
+      "id": "application-raw-openat",
+      "order": 1,
+      "artifact": "build/ps5/ps5-bt-application-raw-openat.elf",
+      "build_manifest": "build/ps5/ps5-bt-application-raw-openat.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-application-raw-openat-source.tar.gz",
+      "slot": "ps5-bt-application-raw-openat",
+      "remote_filename": "ps5-bt-application-raw-openat.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=application_raw_openat_begin schema=1 namespace=root-data access=read-only cases=imported-checked radio=Unavailable capture=Unavailable",
+        "application_raw_openat_stage=0x00000008",
+        "application_raw_openat_status_bits=0x00000000",
+        "application_raw_openat_operations=0x00000007",
+        "application_raw_openat_attempted_mask=0x0000007f",
+        "application_raw_openat_opened_mask=0x00000007",
+        "application_raw_openat_closed_mask=0x00000007",
+        "application_raw_openat_observed_mask=0x00000007",
+        "application_raw_openat_cleanup_failed_mask=0x00000000",
+        "application_raw_openat_raw_ownership_unknown=0x00000000",
+        "event=application_raw_openat_imports_closed",
+        "event=application_raw_openat_complete",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "root prerequisite or cleanup failure stops; failed imported/checked opens skip dependent stat; anomalous checked descriptor stops with explicit ownership uncertainty; no retries or permission changes",
+        "no final return within external timeout; preserve incomplete log and stop further tests"
+      ]
+    }
+  ]
+}

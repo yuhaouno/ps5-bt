@@ -12,7 +12,7 @@ import subprocess
 import tarfile
 import tempfile
 
-from build_ps5 import SDK_FILES, SDK_REVISION, USB_SDK_HEADERS, APPLICATION_SDK_HEADERS, APPLICATION_VARIANTS
+from build_ps5 import SDK_FILES, SDK_REVISION, USB_SDK_HEADERS, APPLICATION_SDK_HEADERS, APPLICATION_VARIANTS, RAW_OPENAT_REVIEW_SOURCES
 from target_sbc import source_inventory as target_sbc_source_inventory
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -65,6 +65,7 @@ def relink_directory(manifest):
     return PurePosixPath("build/ps5/" + VARIANTS[variant][0] + "-relink")
 
 VARIANTS = {
+    "application_raw_openat": ("ps5-bt-application-raw-openat", APPLICATION_SOURCES | {"platform/ps5/application/raw_openat.c", "platform/ps5/application/raw_openat.h"}, "--application-raw-openat"),
     "application_open_compare": ("ps5-bt-application-open-compare", APPLICATION_SOURCES | {"platform/ps5/application/open_compare.c", "platform/ps5/application/open_compare.h"}, "--application-open-compare"),
     "application_namespace": ("ps5-bt-application-namespace", APPLICATION_SOURCES | {"platform/ps5/application/namespace_probe.c", "platform/ps5/application/namespace_probe.h"}, "--application-namespace"),
     "application_setup": ("ps5-bt-application-setup", APPLICATION_SOURCES | {"platform/ps5/application/setup_namespace.c", "platform/ps5/application/setup_namespace.h"}, "--application-setup"),
@@ -127,9 +128,9 @@ def tracked_files(root):
     return files
 
 
-def sdk_files(source, usb_metadata=False, application_control=False):
+def sdk_files(source, usb_metadata=False, application_control=False, raw_openat=False):
     files = {}
-    selected = SDK_FILES | (USB_SDK_HEADERS if usb_metadata else {}) | (APPLICATION_SDK_HEADERS if application_control else {})
+    selected = SDK_FILES | (USB_SDK_HEADERS if usb_metadata else {}) | (APPLICATION_SDK_HEADERS if application_control else {}) | (RAW_OPENAT_REVIEW_SOURCES if raw_openat else {})
     for name, expected in selected.items():
         relative = PurePosixPath(name)
         if relative.is_absolute() or ".." in relative.parts or str(relative) != name or "\\" in name:
@@ -356,6 +357,9 @@ def validate_manifest(root, head, files, manifest_path):
     if "18.1.8" not in str(manifest.get("llvm", "")) or "18.1.8" not in str(manifest.get("lld", "")):
         raise ValueError("manifest does not identify pinned LLVM/LLD 18.1.8")
     variant = selected_variant(manifest)
+    expected_review = RAW_OPENAT_REVIEW_SOURCES if variant == "application_raw_openat" else {}
+    if manifest.get("sdk_review_sources", {}) != expected_review:
+        raise ValueError("manifest SDK review-source inventory differs from selected variant")
     if type(manifest.get("loader_kernel_resolver", False)) is not bool:
         raise ValueError("manifest loader_kernel_resolver must be a boolean")
     if variant in ("capture_preflight", "capture_once", "capture_observe", "capture_stream", *APP_VARIANTS) and not manifest.get("loader_kernel_resolver", False):
@@ -417,6 +421,8 @@ def source_readme(manifest, manifest_name):
         header_notice = (f"The application diagnostic additionally includes {len(APPLICATION_SDK_HEADERS)} original pinned SDK headers.\n"
                          "Their file-specific BSD and other notices are retained verbatim, including advertising clauses.\n"
                          "No SDK header is patched; standalone errno/fcntl/stdint aliases retain target notice-bearing bytes.\n")
+    if variant == "application_raw_openat":
+        header_notice += "The original pinned libc/syscalls.c is retained for syscall-number review only.\nIts original notice remains intact; it is never compiled or linked into this payload.\n"
     relink_contents = (
         "  relink/                  Application objects, Rust archive, default codec archive,\n"
         "                           linker script, inspection helper and replacement-link script.\n"
@@ -501,7 +507,8 @@ def package(root, source, destination, manifest_path=None):
     files = tracked_files(root)
     manifest, manifest_bytes, artifacts, relink_entries = validate_manifest(
         root, head, files, manifest_path)
-    sdk = sdk_files(source, manifest.get("usb_metadata", False), selected_variant(manifest) in APP_VARIANTS)
+    sdk = sdk_files(source, manifest.get("usb_metadata", False), selected_variant(manifest) in APP_VARIANTS,
+                    selected_variant(manifest) == "application_raw_openat")
     entries = {PREFIX + "project/" + name: value for name, value in files.items()}
     entries.update({PREFIX + f"sdk/{SDK_REVISION}/" + name: (data, 0o644)
                     for name, data in sdk.items()})
@@ -548,6 +555,7 @@ def self_test():
     original_sdk = SDK_FILES.copy()
     original_headers = USB_SDK_HEADERS.copy()
     original_application_headers = APPLICATION_SDK_HEADERS.copy()
+    original_review_sources = RAW_OPENAT_REVIEW_SOURCES.copy()
     try:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "project"
@@ -579,6 +587,11 @@ def self_test():
                 if not path.exists():
                     path.write_bytes(("synthetic retained application BSD SDK header " + name).encode())
                 APPLICATION_SDK_HEADERS[name] = sha256(path.read_bytes())
+            for name in RAW_OPENAT_REVIEW_SOURCES:
+                path = source / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(("synthetic retained SDK review source " + name).encode())
+                RAW_OPENAT_REVIEW_SOURCES[name] = sha256(path.read_bytes())
             files = tracked_files(root)
             elf = root / "build/ps5/ps5-bt.elf"
             elf.parent.mkdir(parents=True)
@@ -708,6 +721,8 @@ def self_test():
                     variant_manifest["sdk_headers"] = USB_SDK_HEADERS.copy()
                 elif key in APP_VARIANTS:
                     variant_manifest["sdk_headers"] = APPLICATION_SDK_HEADERS.copy()
+                if key == "application_raw_openat":
+                    variant_manifest["sdk_review_sources"] = RAW_OPENAT_REVIEW_SOURCES.copy()
                 if key in CODEC_VARIANTS:
                     codec_sha256, relink_files, codec_sources = synthetic_relink_bundle(
                         variant_elf)
@@ -730,7 +745,7 @@ def self_test():
                     assert "project/build/ps5/" + stem + ".manifest.json" in readme
                     assert variant_manifest["sha256"] in readme
                     assert json.load(archive.extractfile(PREFIX + "build-manifest.json")) == variant_manifest
-                    expected_sdk = SDK_FILES | (USB_SDK_HEADERS if key == "usb_metadata" else {}) | (APPLICATION_SDK_HEADERS if key in APP_VARIANTS else {})
+                    expected_sdk = SDK_FILES | (USB_SDK_HEADERS if key == "usb_metadata" else {}) | (APPLICATION_SDK_HEADERS if key in APP_VARIANTS else {}) | (RAW_OPENAT_REVIEW_SOURCES if key == "application_raw_openat" else {})
                     sdk_prefix = PREFIX + f"sdk/{SDK_REVISION}/"
                     assert {item.name.removeprefix(sdk_prefix) for item in archive.getmembers()
                             if item.name.startswith(sdk_prefix)} == expected_sdk.keys()
@@ -764,6 +779,16 @@ def self_test():
                     else:
                         raise AssertionError(label + " accepted")
 
+                if key == "application_raw_openat":
+                    for bad_review in ({}, {"../unreviewed.c": "0" * 64}, {"libc/syscalls.c": "0" * 64}):
+                        reject_variant(dict(variant_manifest, sdk_review_sources=bad_review), "review-source inventory mismatch")
+                    review_path = source / "libc/syscalls.c"
+                    review_original = review_path.read_bytes()
+                    review_path.write_bytes(b"modified review source")
+                    reject_variant(variant_manifest, "review-source content mismatch")
+                    review_path.write_bytes(review_original)
+                else:
+                    reject_variant(dict(variant_manifest, sdk_review_sources=RAW_OPENAT_REVIEW_SOURCES.copy()), "unexpected review-source inventory")
                 if key in ("sbc_continuous", "capture_stream", *APP_VARIANTS):
                     for bad_identity in (None, "invalid", "A" * 64):
                         reject_variant(dict(variant_manifest, diagnostic_build_id=bad_identity), "invalid embedded build identity")
@@ -877,7 +902,9 @@ def self_test():
         USB_SDK_HEADERS.update(original_headers)
         APPLICATION_SDK_HEADERS.clear()
         APPLICATION_SDK_HEADERS.update(original_application_headers)
-    print("PASS source bundle content/determinism/default/query/USB/capture/SBC/application-control/generated/observe/setup/namespace/open-compare variants; pinned original SDK headers/notices and codec relink inputs; dirty tree, invalid variant, path escape and manifest/source/ELF/archive/relink/SDK mismatch rejection; no stale output (synthetic fixtures, no hardware)")
+        RAW_OPENAT_REVIEW_SOURCES.clear()
+        RAW_OPENAT_REVIEW_SOURCES.update(original_review_sources)
+    print("PASS source bundle content/determinism/default/query/USB/capture/SBC/application-control/generated/observe/setup/namespace/open-compare/raw-openat variants; pinned original SDK headers/notices and codec relink inputs; dirty tree, invalid variant, path escape and manifest/source/ELF/archive/relink/SDK mismatch rejection; no stale output (synthetic fixtures, no hardware)")
 
 
 if __name__ == "__main__":

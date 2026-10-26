@@ -14,6 +14,13 @@
 
 ## Unreleased
 
+- Add an independently selected imported-versus-checked-syscall openat diagnostic
+  using a pinned source mapping, identical fixed read-only target/flags, separate
+  full-width error contracts and bounded owned cleanup. Reject unrepresentable
+  or aliased descriptor claims without guessing cleanup. Preserve old diagnostics,
+  a dedicated log, source-review materials and exact singleton kit selection;
+  native route compatibility and all production gates remain unverified.
+
 - Retain the 2026-10-27 directory-open comparison: root-relative open returned
   EPERM while absolute data open/fstat succeeded. Preserve independent skipped
   and observed fields, root/data protection rejection, complete owned cleanup,
