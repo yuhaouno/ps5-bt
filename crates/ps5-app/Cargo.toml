@@ -1,0 +1,27 @@
+[package]
+name = "ps5-app"
+description = "Fallible fixed-storage PS5 candidate resource assembly"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+native-resources = ["bt-store/external-posix", "bt-listener/external-posix", "bt-capture/external-avcap2", "ps5-platform/external-clock-wait"]
+host-candidate = ["native-resources", "bt-store/native-posix", "bt-listener/native-posix", "bt-capture/host-avcap2-tests", "ps5-platform/host-clock-wait-tests", "host-libsbc"]
+host-libsbc = ["bt-codec/host-libsbc", "bt-audio/host-libsbc"]
+target-libsbc = ["native-resources", "bt-codec/target-libsbc", "bt-audio/target-libsbc"]
+
+[dependencies]
+bt-core = { path = "../bt-core" }
+bt-capture = { path = "../bt-capture" }
+bt-store = { path = "../bt-store" }
+bt-listener = { path = "../bt-listener" }
+bt-codec = { path = "../bt-codec" }
+bt-audio = { path = "../bt-audio" }
+ps5-platform = { path = "../ps5-platform" }
+
+[lints]
+workspace = true

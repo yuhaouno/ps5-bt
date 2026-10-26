@@ -63,6 +63,7 @@ on any PS5 crate; they are not a prerequisite for PS5 development or acceptance.
 
 | Crate | Initial responsibility | Dependency direction |
 | --- | --- | --- |
+| `ps5-app` | fixed-storage concrete candidate resource factory with explicit modes and reverse cleanup | existing clock/store/listener/capture/codec owners; no transport authority or credits |
 | `bt-runner` | `no_std` discovery/device/management bridge and noninterleaving connection ACL pumps | application, discovery, control and framing; no ownership discovery or native waits |
 | `bt-discovery` | `no_std` bounded Classic Inquiry/Cancel and stable device observations | core/HCI/link types; no native transport or automatic pairing |
 | `bt-store` | protected fixed-record filesystem owner through opaque versioned C ABI | device/link; optional native POSIX or separately linked external adapter |

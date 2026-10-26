@@ -230,3 +230,10 @@ scheduler-clock-test:
 	cargo check -p ps5-platform --target x86_64-unknown-none --features external-clock-wait --locked
 	$(HOST_CC) -std=c11 -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -Iplatform/ps5/scheduler -Itests/platform platform/ps5/scheduler/scheduler_clock.c tests/platform/scheduler_clock_fixture.c tests/platform/scheduler_clock_test.c -o build/host/scheduler-clock/test-sanitized
 	build/host/scheduler-clock/test-sanitized
+
+.PHONY: resource-factory-test
+resource-factory-test:
+	cargo test -p ps5-app --locked
+	cargo test -p ps5-app --features host-candidate --locked
+	cargo clippy -p ps5-app --all-targets --features host-candidate --locked -- -D warnings
+	cargo check -p ps5-app --target x86_64-unknown-none --features native-resources --locked

@@ -14,6 +14,11 @@
 
 ## Unreleased
 
+- Add a concrete fixed-storage Rust PS5 resource factory around existing reviewed
+  clock, private store, listener, capture and persistent SBC owners. Preserve
+  primary and reverse-cleanup failures, explicit store handoff and per-mode
+  native-format gates. No transport, command allowance or ACL credits are created.
+
 - Add a persistent bounded listener service that accepts successive clients,
   reuses HTTP state without self-reference, preserves admitted command ownership
   across reply failure, and returns to accept after ordinary client errors.

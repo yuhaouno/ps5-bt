@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/ps5-app",
     "crates/bt-capture",
     "crates/bt-listener",
     "crates/bt-runner",

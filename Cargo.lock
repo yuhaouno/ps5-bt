@@ -187,6 +187,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ps5-app"
+version = "0.0.1"
+dependencies = [
+ "bt-audio",
+ "bt-capture",
+ "bt-codec",
+ "bt-core",
+ "bt-listener",
+ "bt-store",
+ "ps5-platform",
+]
+
+[[package]]
 name = "ps5-platform"
 version = "0.0.1"
 dependencies = [

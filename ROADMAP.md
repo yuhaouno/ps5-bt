@@ -19,6 +19,12 @@ Source-backed isolated transport experiments use AGENTS.md's admission rules;
 production ownership/credit guarantees still gate support. No console window
 is currently available from this chat; the 2026-10-25 window below is historical.
 
+The Rust `ps5-app` candidate now constructs actual reviewed native resource
+owners in stages and unwinds them in reverse on startup failure. Control-only,
+unknown-format capture observation and explicit generated-SBC modes are separate;
+native audio still requires verified format and no radio authority is granted.
+See [PS5-RESOURCE-FACTORY.md](docs/PS5-RESOURCE-FACTORY.md).
+
 A persistent listener service now safely lends its owned native client to
 reusable HTTP state, accepts successive clients under total budgets and checks
 Stop before accept/read. This closes the single-client wiring gap offline;
