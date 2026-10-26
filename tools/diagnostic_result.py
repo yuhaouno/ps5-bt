@@ -22,9 +22,11 @@ VARIANTS = {
     "sbc_continuous": "ps5-bt-sbc-continuous",
     "capture_stream": "ps5-bt-capture-stream",
     "application_control": "ps5-bt-application-control",
+    "application_generated": "ps5-bt-application-generated",
+    "application_observe": "ps5-bt-application-observe",
 }
 ALL_VARIANTS = ("native_query", "native_l2cap_probe", "usb_metadata", "capture_preflight",
-                "capture_once", "capture_observe", "capture_stream", "sbc_selftest", "sbc_continuous", "application_control")
+                "capture_once", "capture_observe", "capture_stream", "sbc_selftest", "sbc_continuous", "application_control", "application_generated", "application_observe")
 OBSERVATIONS = {"Unknown", "normal", "changed"}
 SBC_CONFIG = "event=sbc_continuous_begin schema=1 generated=1 nominal_clock=synthetic sink=discard"
 CAPTURE_CONFIG = "event=capture_stream_begin schema=1 reads_max=1 format=Unknown native_time=Unknown"
@@ -37,6 +39,21 @@ CAPTURE_KEYS = {"stage", "status_bits", "raw_status_bits", "lookup_hi", "lookup_
 
 
 APPLICATION_CONFIG = "event=application_begin schema=1 mode=control-only transport=Unavailable capture=Unavailable native_format=Unknown codec=Unavailable"
+GENERATED_CONFIG = "event=application_begin schema=1 mode=generated-sbc transport=Unavailable capture=Unavailable native_format=Unknown codec=diagnostic"
+OBSERVE_CONFIG = "event=application_begin schema=1 mode=capture-observe transport=Unavailable capture=raw-observe native_format=Unknown codec=Unavailable"
+APPLICATION_PROFILES = {
+    VARIANTS["application_control"]: {"begin": APPLICATION_CONFIG, "mode": "control-only", "capture": "Unavailable", "codec": "Unavailable", "mask": 7},
+    VARIANTS["application_generated"]: {"begin": GENERATED_CONFIG, "mode": "generated-sbc", "capture": "Unavailable", "codec": "diagnostic", "mask": 23},
+    VARIANTS["application_observe"]: {"begin": OBSERVE_CONFIG, "mode": "capture-observe", "capture": "raw-observe", "codec": "Unavailable", "mask": 15},
+}
+GENERATED_KEYS = {"phase", "error", "blocks", "discarded_blocks", "bytes", "operations", "prefix", "digest",
+                  "summary_matches", "elapsed_hi", "elapsed_lo", "concealed", "rebuffer", "expired",
+                  "stopped_frames", "stopped_blocks", "codec_bits", "completion_observed"}
+OBSERVE_KEYS = {"reason", "error", "reads", "data", "empty", "zero", "overruns", "ended", "native_errors",
+                "owner_failures", "gaps", "bytes_hi", "bytes_lo", "max_bytes", "last_raw_bits", "last_kind",
+                "last_discontinuity", "native_time_present", "native_value_hi", "native_value_lo", "native_domain",
+                "host_hi", "host_lo", "started_hi", "started_lo", "elapsed_hi", "elapsed_lo",
+                "max_reads", "duration_us", "first_settle_us", "interval_us"}
 APPLICATION_PREFLIGHT = "event=application_preflight_begin schema=1 radio=Unavailable capture=Unavailable"
 APPLICATION_BUDGET = {"duration_us": 5_000_000, "stop_timeout_us": 100_000,
                       "max_turns": 20_000, "max_waits": 10_000, "max_clients": 64}
@@ -122,8 +139,156 @@ def manifest_identity(data: bytes) -> dict:
             "git_head": git_head, "source_clean": source_status == []}
 
 
-def application_report(body: list[str]) -> dict:
-    """Control-only runtime and its separately owned C import/entropy lifecycle."""
+def application_workload(mode: str, numbers: dict[str, list[int]]) -> dict:
+    """Validate only numeric workload evidence; never copy native data blobs."""
+    prefix = "generated_" if mode == "generated-sbc" else "observe_"
+    required = GENERATED_KEYS if prefix == "generated_" else OBSERVE_KEYS
+    issues = []
+    values = {key: numbers[prefix + key][0] for key in required
+              if len(numbers.get(prefix + key, [])) == 1}
+    if len(values) != len(required):
+        return {"configuration": {}, "complete": False, "failure": False,
+                "issues": ["missing_or_duplicate_workload_evidence"]}
+    failure = False
+    complete = False
+    if prefix == "generated_":
+        elapsed = (values["elapsed_hi"] << 32) | values["elapsed_lo"]
+        configuration = {"generated": True, "sink": "discard", "nominal_clock": "host-monotonic",
+                         "max_blocks": 750, "max_operations": 60_000,
+                         "elapsed_budget_us": 2_000_000, "observed_elapsed_us": elapsed}
+        phase, error = values["phase"], values["error"]
+        blocks, discarded, operations = (values[key] for key in ("blocks", "discarded_blocks", "operations"))
+        coherent = (phase in range(4) and error in range(9) and values["summary_matches"] in (0, 1, 2)
+            and values["completion_observed"] in (0, 1)
+            and 0 <= discarded <= blocks <= 750 and values["bytes"] == discarded * 77
+            and 3 * discarded <= operations <= 60_000
+            and values["stopped_frames"] <= 96_000 and values["stopped_blocks"] <= 750
+            and elapsed <= 5_000_000)
+        if not coherent or phase == 3 or error or values["codec_bits"] or values["summary_matches"] == 1:
+            failure = True
+        if any(values[key] for key in ("concealed", "rebuffer", "expired")):
+            failure = True
+        if phase == 1:
+            # SampleClock rounds UP: the last of 750 blocks cannot be admitted
+            # before ceil(749*128*1e6/48000), and the budget is exclusive.
+            expected = {"error": 0, "blocks": 750, "discarded_blocks": 750, "bytes": 57_750,
+                        "prefix": 0x9cfd20cb, "digest": 0x7784d1fb, "summary_matches": 2,
+                        "concealed": 0, "rebuffer": 0, "expired": 0,
+                        "stopped_frames": 0, "stopped_blocks": 0, "codec_bits": 0}
+            complete = (all(values[key] == value for key, value in expected.items())
+                        and 1_997_334 <= elapsed < 2_000_000 and coherent)
+            if not complete:
+                failure = True
+            elif values["completion_observed"] != 1:
+                complete = False
+                issues.append("generated_completion_not_observed")
+            elif operations < 2251:
+                complete = False
+                failure = True
+        else:
+            issues.append("generated_workload_not_complete")
+            if values["completion_observed"] != 0:
+                failure = True
+        if failure:
+            issues.append("generated_workload_contract_mismatch")
+    else:
+        elapsed = (values["elapsed_hi"] << 32) | values["elapsed_lo"]
+        started = (values["started_hi"] << 32) | values["started_lo"]
+        host = (values["host_hi"] << 32) | values["host_lo"]
+        total = (values["bytes_hi"] << 32) | values["bytes_lo"]
+        configuration = {"max_reads": 256, "duration_us": 2_000_000,
+                         "first_settle_us": 100_000, "interval_us": 10_000,
+                         "observed_elapsed_us": elapsed, "host_started_us": started,
+                         "deadline_overshoot_us": max(0, elapsed - 2_000_000),
+                         "nonempty_bytes_observed": values["data"] > 0,
+                         "pcm_format_verified": "Unknown", "pcm_success": "Unknown",
+                         "sample_frames": "Unknown", "gap_sample_frames": "Unknown",
+                         "native_time_units": "Unknown"}
+        expected_config = {key: configuration[key] for key in
+                           ("max_reads", "duration_us", "first_settle_us", "interval_us")}
+        possible_reads = min(configuration["max_reads"], 1 + (
+            configuration["duration_us"] - configuration["first_settle_us"] - 1
+        ) // configuration["interval_us"])
+        configuration["cadence_read_ceiling"] = possible_reads
+        reason, error, reads = values["reason"], values["error"], values["reads"]
+        kinds = ("data", "empty", "zero", "overruns", "ended", "native_errors")
+        outcome_count = sum(values[key] for key in kinds)
+        coherent = (all(values[key] == value for key, value in expected_config.items())
+            and reason in range(6) and error in range(9) and reads <= configuration["max_reads"]
+            and outcome_count <= reads <= outcome_count + values["owner_failures"]
+            and values["owner_failures"] <= 1 and values["ended"] <= 1
+            and values["native_errors"] <= 1 and values["gaps"] == values["overruns"]
+            and values["native_time_present"] == values["native_value_hi"] == values["native_value_lo"] == values["native_domain"] == 0
+            and values["last_discontinuity"] in (0, 1)
+            and elapsed <= 5_000_000 and started + elapsed <= (1 << 64) - 1)
+        data, maximum = values["data"], values["max_bytes"]
+        if data == 0:
+            coherent &= total == maximum == 0
+        else:
+            coherent &= (1 <= maximum <= 8192 and maximum + data - 1 <= total <= data * maximum)
+        kind, raw, discontinuity = (values[key] for key in
+                                   ("last_kind", "last_raw_bits", "last_discontinuity"))
+        if reads == 0 or kind == 0:
+            coherent &= (kind == raw == discontinuity == host == 0 and outcome_count == 0
+                         and (reads == 0 or values["owner_failures"] != 0))
+        else:
+            # Each observed outcome follows the first settle and another fixed
+            # cadence for every preceding outcome. No catch-up burst is allowed.
+            earliest_last = (started + configuration["first_settle_us"]
+                             + max(0, outcome_count - 1) * configuration["interval_us"])
+            coherent &= earliest_last <= host <= started + elapsed
+            expected_kind = {2: ("zero", 0, 0), 3: ("empty", 0x81950002, 0),
+                             4: ("overruns", 0x81950004, 1), 5: ("ended", 0x81950008, 0)}
+            if kind == 1:
+                coherent &= (data >= 1 and 1 <= raw <= maximum <= 8192 and discontinuity == 0
+                             and raw + data - 1 <= total <= raw + (data - 1) * maximum
+                             and (raw == maximum or data >= 2))
+            elif kind in expected_kind:
+                counter, expected_raw, flag = expected_kind[kind]
+                coherent &= values[counter] >= 1 and raw == expected_raw and discontinuity == flag
+            elif kind == 6:
+                coherent &= (values["native_errors"] >= 1 and raw >= 0x80000000
+                             and raw not in (0x81950002, 0x81950004, 0x81950008)
+                             and discontinuity == 0)
+            else:
+                coherent = False
+        if values["ended"]:
+            coherent &= kind == 5 and reason in (4, 5)
+        if reason == 4:
+            coherent &= values["ended"] == 1 and kind == 5
+        if not values["owner_failures"] and not values["native_errors"]:
+            coherent &= outcome_count == reads
+        if error or reason == 5 or values["native_errors"] or values["owner_failures"]:
+            failure = True
+        # Derive the exclusive-window ceiling from the selected configuration.
+        # This is a maximum; slow calls/late turns can yield fewer actual reads.
+        # Native overshoot remains observed, never rounded to a guessed 1 ms.
+        coherent &= reads <= possible_reads
+        if reason == 2:
+            coherent &= elapsed >= 2_000_000
+            complete = coherent and reads > 0 and not failure
+        elif reason == 3:
+            coherent = False  # 256-read budget cannot win before this cadence's 190-call ceiling.
+        elif reason in (0, 1, 4):
+            issues.append("raw_observation_not_complete")
+        if not coherent:
+            failure = True
+        if failure:
+            issues.append("raw_observation_contract_mismatch")
+        configuration["bounded_raw_observation_completed"] = complete and not failure
+    return {"configuration": configuration, "complete": complete and not failure,
+            "failure": bool(failure), "issues": sorted(set(issues))}
+
+
+def application_report(body: list[str], candidate: str = VARIANTS["application_control"]) -> dict:
+    """Selected application runtime and separately owned C import/entropy lifecycle."""
+    profile = APPLICATION_PROFILES[candidate]
+    mode, mask = profile["mode"], profile["mask"]
+    allowed = APPLICATION_KEYS.copy()
+    if mode == "generated-sbc":
+        allowed |= {"generated_" + key for key in GENERATED_KEYS}
+    elif mode == "capture-observe":
+        allowed |= {"observe_" + key for key in OBSERVE_KEYS}
     numbers: dict[str, list[int]] = {}
     imports: list[dict[str, int]] = []
     import_positions: list[list[int]] = []
@@ -158,14 +323,14 @@ def application_report(body: list[str]) -> dict:
                 else:
                     http[-1][key] = value
                     http_positions.append(index)
-            elif key in APPLICATION_KEYS:
+            elif key in allowed:
                 numbers.setdefault(key, []).append(value)
                 positions.setdefault(key, []).append(index)
                 if len(numbers[key]) > 8:
                     raise ValueError("too many repeated application numeric records")
         elif line.startswith("application_"):
             key = line.split("=", 1)[0][12:]
-            if key in APPLICATION_KEYS or (key.startswith("import_") and key[7:] in IMPORT_KEYS) or (key.startswith("http_") and key[5:] in HTTP_KEYS):
+            if key in allowed or (key.startswith("import_") and key[7:] in IMPORT_KEYS) or (key.startswith("http_") and key[5:] in HTTP_KEYS):
                 issues.append("malformed_numeric_marker")
                 if key.startswith("http_") and key[5:] in HTTP_KEYS:
                     issues.append("malformed_http_report")
@@ -221,7 +386,7 @@ def application_report(body: list[str]) -> dict:
     factory_cleanup = "Unknown"
     if all(one(key) is not None for key in factory_masks):
         required, active, cleaned, failed, uncertain = (one(key) for key in factory_masks)
-        coherent = required == 7 and not (active & ~required or cleaned & ~required or failed & ~cleaned) and uncertain in (0, 1)
+        coherent = required == mask and not (active & ~required or cleaned & ~required or failed & ~cleaned) and uncertain in (0, 1)
         if not coherent:
             failure = True
             issues.append("factory_cleanup_contract_mismatch")
@@ -262,8 +427,14 @@ def application_report(body: list[str]) -> dict:
     required = set(APPLICATION_BUDGET) | {"result", "drive_entered", "factory_entered", "stop_reason",
         "drive_failure", "clock_calls", "turns", "waits", "forced", "finished", "stop_error_bits",
         "clients", "client_failures", "protocols_closed", *factory_masks}
+    workload = None
     if runtime_entered:
-        if len(runtime_starts) != 1 or body[runtime_starts[0]] != APPLICATION_CONFIG:
+        if mode != "control-only":
+            required.add("cleanup_turns")
+            workload = application_workload(mode, numbers)
+            failure |= workload["failure"]
+            issues.extend(workload["issues"])
+        if len(runtime_starts) != 1 or body[runtime_starts[0]] != profile["begin"]:
             issues.append("application_profile_mismatch")
             failure = True
         if any(one(key) is None for key in required):
@@ -275,13 +446,14 @@ def application_report(body: list[str]) -> dict:
             issues.append("runtime_after_failed_preflight")
         expected = {**APPLICATION_BUDGET, "result": 0, "drive_entered": 1, "factory_entered": 1,
                     "drive_failure": 0, "forced": 0, "finished": 1, "stop_error_bits": 0,
-                    "cleanup_mask": 7, "cleanup_failed_mask": 0, "active_mask": 0,
-                    "required_mask": 7, "cleanup_uncertain": 0, "protocols_closed": 1}
+                    "cleanup_mask": mask, "cleanup_failed_mask": 0, "active_mask": 0,
+                    "required_mask": mask, "cleanup_uncertain": 0, "protocols_closed": 1}
         # An early clean Stop may return result0 before the factory/drive enters.
         # Preserve that observation, but never call it a completed runtime test.
         not_driven = one("drive_entered") == 0 or one("factory_entered") == 0
         early_stop = (one("result") == 0 and one("stop_reason") == 1
-                      and (one("cleanup_mask") != 7 or one("protocols_closed") == 0))
+                      and (one("cleanup_mask") != mask or one("protocols_closed") == 0)
+                      and (workload is None or not workload["complete"]))
         if not_driven:
             issues.append("runtime_not_driven")
         if early_stop:
@@ -336,9 +508,10 @@ def application_report(body: list[str]) -> dict:
     cleanup = "failed" if http_cleanup_failed or "failed" in (factory_cleanup, preflight_cleanup) else "reported_complete" if factory_cleanup == preflight_cleanup == "reported_complete" else "Unknown"
     if len(preflight_starts) == 1 and imports and preflight_starts[0] >= import_positions[0][0]:
         issues.append("preflight_marker_order_invalid")
-    return {"configuration": {"mode": "control-only", "transport": "Unavailable", "capture": "Unavailable",
-                "native_format": "Unknown", "codec": "Unavailable", "profile_budget": APPLICATION_BUDGET.copy()},
-            "configuration_confirmed": body.count(APPLICATION_CONFIG) == 1 and all(one(key) == value for key, value in APPLICATION_BUDGET.items()),
+    return {"configuration": {"mode": mode, "transport": "Unavailable", "capture": profile["capture"],
+                "native_format": "Unknown", "codec": profile["codec"], "profile_budget": APPLICATION_BUDGET.copy()},
+            "configuration_confirmed": body.count(profile["begin"]) == 1 and all(one(key) == value for key, value in APPLICATION_BUDGET.items()),
+            "workload": workload,
             "numeric": numbers, "imports": imports, "http": http, "backend_status_bits": [], "runtime_entered": runtime_entered,
             "preflight_outcome": preflight_outcome, "preflight_cleanup": preflight_cleanup,
             "factory_cleanup": factory_cleanup, "cleanup": cleanup, "failure": bool(failure),
@@ -346,8 +519,8 @@ def application_report(body: list[str]) -> dict:
 
 
 def candidate_report(candidate: str, body: list[str]) -> dict:
-    if candidate == VARIANTS["application_control"]:
-        return application_report(body)
+    if candidate in APPLICATION_PROFILES:
+        return application_report(body, candidate)
     prefix = "sbc_continuous_" if candidate == VARIANTS["sbc_continuous"] else "capture_stream_"
     allowed = SBC_KEYS if prefix == "sbc_continuous_" else CAPTURE_KEYS
     numbers: dict[str, list[int]] = {}

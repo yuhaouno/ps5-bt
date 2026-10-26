@@ -3,7 +3,7 @@
 The public project/package name is not selected. Crate names are local and
 unpublished. Builds never contact or deploy to a console. The PS5 output is a
 real diagnostic ELF linking C -> Rust -> an Unsupported Bluetooth adapter, plus
-separately selected capture, codec and control-only application candidates. The
+separately selected capture, codec and native application workload candidates. The
 explicit HW-1 variant has executed on Slim/13.40, but it does not provide working
 Bluetooth or HCI controller capability information. The separate USB
 diagnostic below has read device descriptors on one console.
@@ -214,7 +214,7 @@ See SBC-IMPLEMENTATION.md for exact commands and remaining PS5 ABI/link gates.
 ### Bounded hardware-test kit
 
 After the intended changes are committed and the worktree is clean, rebuild the
-seven independently selected kit candidates and their corresponding source packages:
+nine independently selected kit candidates and their corresponding source packages:
 
 ```sh
 LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-usb-metadata
@@ -238,6 +238,12 @@ python3 tools/package_source.py \
 LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-application-control
 python3 tools/package_source.py \
   --manifest build/ps5/ps5-bt-application-control.manifest.json
+LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-application-generated
+python3 tools/package_source.py \
+  --manifest build/ps5/ps5-bt-application-generated.manifest.json
+LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config make ps5-application-observe
+python3 tools/package_source.py \
+  --manifest build/ps5/ps5-bt-application-observe.manifest.json
 python3 tools/mvp_test_kit.py --assemble
 ```
 
@@ -302,7 +308,7 @@ After a clean commit and rebuild, package this candidate with:
 python3 tools/package_source.py --manifest build/ps5/ps5-bt-sbc-continuous.manifest.json
 ```
 
-The seven-item test-kit plan includes this independent candidate; build/package
+The nine-item test-kit plan includes this independent candidate; build/package
 all selected manifests and corresponding sources before assembly. No new slot is created by the
 uploader. A new hardware window and execution authorization remain required.
 
@@ -315,8 +321,8 @@ lints, freestanding external-ABI checks and the C ASan/UBSan lifecycle harness.
 same reviewed module lookup as the older capture diagnostic. Format/time remain
 unknown; raw bytes and native metadata are never logged or encoded.
 Package the clean build with `tools/package_source.py --manifest
-build/ps5/ps5-bt-capture-stream.manifest.json`. The kit has seven independent
-candidates including application-control; build/package all seven before assembly. This creates no new hardware
+build/ps5/ps5-bt-capture-stream.manifest.json`. The kit has nine independent
+candidates including application-control; build/package all nine before assembly. This creates no new hardware
 window or deployment authority. See CAPTURE-STREAM.md for exact admission.
 
 ## Native clock/wait adapter candidate
@@ -331,7 +337,7 @@ diagnostic. See PLATFORM-CLOCK.md.
 
 ## Correlated local experiment results
 
-The Rust capture, continuous SBC and application-control candidates embed an input-build identity
+The Rust capture, continuous SBC and three application candidates embed an input-build identity
 matching `diagnostic_build_id` / `diagnostic_candidate` in their manifest. Their
 unique begin/finish markers precede the runtime's existing termination report.
 After an authorized hardware run and local log collection,
@@ -389,8 +395,89 @@ python3 tools/package_source.py --manifest build/ps5/ps5-bt-application-control.
 The package includes the exact original target headers/notices and preserves
 `--application-control --loader-kernel-resolver` in its rebuild command. This
 candidate does not execute the SBC archive or need codec replacement materials.
-It is the seventh independently packaged kit candidate; assembly requires all
-seven matching clean-commit builds/source bundles. No final kit identity exists
+It is one of nine independently packaged kit candidates; full-inventory assembly
+requires all nine matching clean-commit builds/source bundles. No final kit identity exists
 until assembly succeeds. The uploader does not create the application-control
 console slot. Building and packaging never deploy or authorize a hardware run. A new current authorized window and
 explicit controller observations are required before execution.
+
+
+## Integrated generated and observation application candidates
+
+Build each mode separately; the builder flags are mutually exclusive:
+
+```sh
+make ps5-application-generated
+make ps5-application-observe
+# Equivalent explicit selections:
+python3 tools/build_ps5.py --application-generated --loader-kernel-resolver
+python3 tools/build_ps5.py --application-observe --loader-kernel-resolver
+```
+
+Both acquire the actual protected store, persistent loopback listener and reviewed
+clock, then run bounded Rust work inside the platform owner loop. The same
+private 0700 directory `/data/ps5-bt/control`, matching native owner and import/
+entropy prerequisites apply. Preparation remains manual; no build or helper
+creates/chmods the directory or assumes native permissions were established.
+
+Generated mode uses observed clock pacing for 750 blocks/96,000 generated stereo
+frames across two seconds of nominal sample positions. Real persistent target
+SBC output is hashed/discarded: the joint profile expects 57,750 bytes, prefix
+`9cfd20cb` and FNV-1a `7784d1fb`. It sends no media. Its source bundle includes
+matching codec replacement/relink material and preserves
+`--application-generated --loader-kernel-resolver`.
+
+Observation mode starts the reviewed capture owner, retains format/native time
+Unknown and continues bounded raw reads after Data/Empty/Overrun. Its 100 ms settle
+and 10 ms interval permit up to 190 scheduled polls before an exclusive two-second deadline;
+256 is a hard upper bound. Late scheduling makes fewer reads, never catch-up
+bursts. No samples, PCM format or lost-sample count are inferred and raw bytes are
+scrubbed. Existing one-read and first-data diagnostics keep their original bounds.
+See APPLICATION-GENERATED.md and APPLICATION-OBSERVE.md for outcome details.
+
+## Three-item next-window kit and read-only collection
+
+The full `tools/mvp_test_plan.json` inventory has nine candidates. The new
+`tools/startup_test_plan.json` selects only application-control,
+application-generated and application-observe, in that order. Once committed
+sources have been rebuilt and packaged cleanly, assemble that selected plan:
+
+```sh
+python3 tools/mvp_test_kit.py --plan tools/startup_test_plan.json \
+  --kit-dir build/ps5/next-window-kit-20261026 --assemble
+python3 tools/console_window.py --kit build/ps5/next-window-kit-20261026 --preflight
+```
+
+The preflight command above defaults to dry-run. With a separately authorized
+console window, adding `--execute` performs read-only FTP slot metadata and
+artifact-size checks; optional `--verify-hash` reads back bounded ELF contents.
+No helper creates a PayloadManager slot, directory, permission, deployment or
+launch. The selected plan requires manually prepared existing slots named
+`ps5-bt-application-control`, `ps5-bt-application-generated` and
+`ps5-bt-application-observe`, with matching metadata. Existing private 0700 namespace protection and the expected native owner
+remain prerequisites until the payload actually verifies them. Planned environment
+is the reported Slim/13.40, PayloadManager 0.6.3 and XM4; this is no compatibility
+or present execution authorization.
+
+After a separately authorized manual launch, collect the fixed diagnostic log:
+
+```sh
+python3 tools/console_window.py --kit build/ps5/next-window-kit-20261026 \
+  --collect --candidate application-generated
+```
+
+Collection also defaults to dry-run. Adding `--execute` fetches only the bounded
+fixed log, saves a unique private raw log and correlated JSON under
+`build/ps5/console-window` (or explicit `--output-dir`). Supply actual
+`--controller-before`, `--controller-during`, `--controller-after` observations
+(`Unknown`, `normal` or `changed`) and `--run-observation` (`Unknown` or `observed`).
+Defaults remain Unknown; reading a log does not prove a human observed this run
+or that the controller remained normal. Preserve each log before another manual
+launch overwrites it. Root's final handoff records actual assembled kit identity;
+an intended path alone is not a completed artifact or deployment.
+
+There is still no usable Bluetooth connection backend or ready safe active-HCI
+artifact. The recorded native L2CAP errno 47 result remains a blocker. These three
+local startup tests cannot connect the XM4 or validate audible playback. Scoped
+native resource rebuilding is host-tested library work, not automatic reconnect
+in these application ELFs and not an additional console artifact.

@@ -17,7 +17,9 @@ Functional, quality, latency, coexistence and stability acceptance remains on
 PS5. Retain development checks without requiring a Linux Bluetooth backend.
 Source-backed isolated transport experiments use AGENTS.md's admission rules;
 production ownership/credit guarantees still gate support. No console window
-is currently available from this chat; the 2026-10-25 window below is historical.
+is authorized by an offline build. Next-window planning records the reported
+Slim/13.40, PayloadManager 0.6.3 and XM4 environment; it does not authorize a
+current deployment/run. The 2026-10-25 window below is historical.
 
 The separate `ps5-application-control` candidate now assembles the real resource
 factory, protected store, persistent listener, fallible clock and Rust application
@@ -27,6 +29,25 @@ operation occurs. Startup unwinds partial resources and store leases observably;
 Stop, clock faults and execution budgets remain bounded. PS5 imports, entropy,
 filesystem/scheduling and controller coexistence are still Requires hardware.
 See [APPLICATION-STARTUP.md](docs/APPLICATION-STARTUP.md).
+
+Two additional application variants now reuse that startup: generated mode
+schedules/discards 750 real target-SBC blocks with observed clock pacing, while
+raw observation keeps format/time Unknown and admits at most 256 calls in an
+exclusive two-second interval (up to 190 scheduled polls with the selected 100 ms settle).
+They are separately selectable target candidates, not Bluetooth or playback
+acceptance. See [generated work](docs/APPLICATION-GENERATED.md) and
+[observation](docs/APPLICATION-OBSERVE.md).
+
+Scoped [native resource rebuilding](docs/NATIVE-RESOURCE-REBUILD.md) now closes
+and reopens actual store/listener resources on the same storage under one
+persistent recovery controller. Host tests preserve fault budgets, local epochs,
+Stop and cleanup uncertainty. Automatic main-loop reconnect and a separate
+rebuild console artifact are not implemented.
+
+The usable Bluetooth connection backend remains a critical blocker: native
+L2CAP returned errno 47 in the recorded probe, and there is no ready safe
+active-HCI artifact. Local application diagnostics cannot establish routing,
+credits, headset playback or XM4 compatibility.
 
 The Rust `ps5-app` candidate now constructs actual reviewed native resource
 owners in stages and unwinds them in reverse on startup failure. Control-only,
@@ -41,13 +62,18 @@ The control-only target now links that listener; PS5 import/permission behavior
 and any LAN/radio/audio activation remain separate gates.
 See [LISTENER-SERVICE.md](docs/LISTENER-SERVICE.md).
 
-Three Rust candidates—capture-stream, continuous SBC and application-control—
-now embed matching build identities.
+Five Rust candidates—capture-stream, continuous SBC and the three application
+variants—embed matching build identities.
 A bounded local collector records actual numeric outcomes, cleanup, interruption
 and explicit controller observations without copying private log text; host
-persistence does not prove PS5 durability. Seven independently selectable kit artifacts have matching source support;
+persistence does not prove PS5 durability. Nine independently selectable kit artifacts have matching source support;
 the codec selections additionally retain replacement/relink materials. See
 [DIAGNOSTIC-RESULTS.md](docs/DIAGNOSTIC-RESULTS.md).
+The new startup plan selects only application-control/generated/observe from
+that inventory. Its intended assembly directory is
+`build/ps5/next-window-kit-20261026`; identity exists only after clean-commit
+assembly succeeds. The read-only console helper defaults to dry-run and never
+creates slots/directories, uploads, launches or changes permissions.
 
 A separate fallible native clock/wait candidate now provides cached reviewed
 exports and a single <=1ms requested wait slice per step. Host fixtures and

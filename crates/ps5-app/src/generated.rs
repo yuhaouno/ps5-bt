@@ -48,7 +48,9 @@ pub struct GeneratedConfig {
     pub epoch_us: u64,
     pub duration_us: u64,
     pub max_blocks: u32,
-    /// Counts every active generate/encode/discard call, including Waiting/Busy.
+    /// Counts active generate/encode/discard calls (including Waiting/Busy) and
+    /// the one successful post-discard completion observation. Confirmed success
+    /// needs at least three calls per block plus one final observation.
     pub max_operations: u32,
     pub max_lateness_us: u64,
 }
@@ -79,6 +81,7 @@ pub enum GeneratedFailure {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GeneratedError {
     InvalidConfig,
+    NotComplete,
     Stopped,
     Failed(GeneratedFailure),
 }
@@ -106,6 +109,9 @@ pub struct GeneratedSnapshot {
     pub digest: u32,
     /// Pinned full 750-block profile only; None while partial or unpinned.
     pub summary_matches: Option<bool>,
+    /// A fresh post-discard host observation verified completion strictly before
+    /// the deadline. Complete frame counts alone never establish this evidence.
+    pub completion_observed: bool,
     pub scheduler: bt_audio::Snapshot,
 }
 
@@ -128,6 +134,7 @@ pub struct GeneratedWorkload<'storage> {
     stopped_staged_frames: u32,
     prefix: u32,
     digest: u32,
+    completion_observed: bool,
 }
 impl<'storage> GeneratedWorkload<'storage> {
     pub fn new(
@@ -201,6 +208,7 @@ impl<'storage> GeneratedWorkload<'storage> {
             stopped_staged_frames: 0,
             prefix: 0,
             digest: 0x811c9dc5,
+            completion_observed: false,
         })
     }
     pub fn snapshot(&self) -> GeneratedSnapshot {
@@ -224,6 +232,7 @@ impl<'storage> GeneratedWorkload<'storage> {
             } else {
                 None
             },
+            completion_observed: self.completion_observed,
             scheduler: self.audio.snapshot(),
         }
     }
@@ -413,6 +422,40 @@ impl<'storage> GeneratedWorkload<'storage> {
             self.reason = Some(StopReason::Completed);
         }
         Ok(self.progress(true, None))
+    }
+    /// Confirm completion using a fresh host observation taken AFTER final
+    /// discard/hash. The caller owns the fallible clock and must skip this step
+    /// when Stop is already pending. Complete/summary alone is not elapsed-time
+    /// evidence. This call never encodes, hashes, waits or finishes the encoder.
+    /// Successful repeats preserve the first confirmed timestamp and consume no
+    /// further budget; a rejected first confirmation is terminal and sticky.
+    pub fn confirm_completion(&mut self, now: u64) -> Result<(), GeneratedError> {
+        match self.phase {
+            Phase::Running => return Err(GeneratedError::NotComplete),
+            Phase::Stopped => return Err(GeneratedError::Stopped),
+            Phase::Failed => {
+                return Err(GeneratedError::Failed(
+                    self.error.unwrap_or(GeneratedFailure::Continuity),
+                ));
+            }
+            Phase::Complete => {}
+        }
+        if self.completion_observed {
+            return Ok(());
+        }
+        if now < self.last_now {
+            return self.fail(GeneratedFailure::ClockRegression);
+        }
+        self.last_now = now;
+        if now >= self.deadline {
+            return self.fail(GeneratedFailure::Deadline);
+        }
+        if self.operations == self.config.max_operations {
+            return self.fail(GeneratedFailure::OperationBudget);
+        }
+        self.operations += 1;
+        self.completion_observed = true;
+        Ok(())
     }
     /// Clock-independent, idempotent stop. Only this diagnostic's queued PCM,
     /// staged block and wholly unaccepted SBC offer are discarded. The caller

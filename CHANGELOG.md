@@ -14,6 +14,23 @@
 
 ## Unreleased
 
+- Integrate separate generated-SBC and raw-capture workloads into the actual
+  native application startup, protected store/listener, observed clock and Rust
+  loop. Generated mode schedules 750 blocks, validates the pinned joint-stereo
+  summary and discards output; observation retains unknown format/time and
+  bounded raw-byte results. No Bluetooth traffic or playback is enabled.
+
+- Add scoped concrete NativeFactory close/reopen on the same stable storage,
+  preserving one recovery episode, local epochs, partial-failure cleanup and
+  explicit live stable-success evidence. Unknown cleanup blocks reopening.
+  This does not install automatic application reconnect or a rebuild payload.
+
+- Extend the full source/kit inventory to nine candidates and add a three-item
+  startup-only plan for a fresh console window. Add default-dry-run read-only
+  slot/artifact preflight and bounded log/result collection; no automatic setup,
+  upload, launch or permission changes. Native private-directory and controller
+  observations remain explicit prerequisites/evidence.
+
 - Add a separate finite control-only application ELF assembling the actual Rust
   resource factory, protected store, persistent listener, fallible clock/wait,
   Application/Runner and startup owner. Use an existing private 0700 directory,

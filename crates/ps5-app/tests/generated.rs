@@ -336,9 +336,142 @@ fn persistent_real_codec_matches_independent_full_profile_for_joint_and_stereo()
         assert_eq!(snapshot.scheduler.statistics.concealed_frames, 0);
         assert_eq!(snapshot.summary_matches, Some(true));
         assert!(snapshot.elapsed_us < cfg.duration_us);
+        assert!(!snapshot.completion_observed);
+        let observed_done = cfg.epoch_us + snapshot.elapsed_us + 1;
+        work.confirm_completion(observed_done).unwrap();
+        let confirmed = work.snapshot();
+        assert!(confirmed.completion_observed);
+        assert_eq!(confirmed.operations, 2251);
+        assert_eq!(confirmed.elapsed_us, snapshot.elapsed_us + 1);
+        assert_eq!(confirmed.digest, snapshot.digest);
+        assert_eq!(confirmed.scheduler, snapshot.scheduler);
         work.stop();
         assert_eq!(work.snapshot().phase, Phase::Complete);
         encoder.finish().unwrap();
         reference.finish().unwrap();
     }
+}
+
+fn complete_one<'a>(
+    cfg: GeneratedConfig,
+    storage: &'a mut GeneratedStorage,
+    encoder: &mut Fake,
+) -> GeneratedWorkload<'a> {
+    let mut work = GeneratedWorkload::new(cfg, storage).unwrap();
+    work.generate(cfg.epoch_us).unwrap();
+    work.encode(cfg.epoch_us, encoder).unwrap();
+    assert!(work.discard(cfg.epoch_us).unwrap().finished);
+    assert_eq!(work.snapshot().phase, Phase::Complete);
+    assert!(!work.snapshot().completion_observed);
+    work
+}
+
+#[test]
+fn completion_requires_a_separate_post_discard_observation_without_reencoding() {
+    let mut cfg = config(1);
+    cfg.max_operations = 4;
+    let mut storage = GeneratedStorage::new();
+    let mut encoder = Fake::new();
+    let mut work = complete_one(cfg, &mut storage, &mut encoder);
+    let before = work.snapshot();
+    assert_eq!(before.operations, 3);
+    assert_eq!(before.elapsed_us, 0);
+    assert_eq!(encoder.calls, 1);
+    work.confirm_completion(cfg.epoch_us + 7).unwrap();
+    let confirmed = work.snapshot();
+    assert!(confirmed.completion_observed);
+    assert_eq!(confirmed.operations, 4);
+    assert_eq!(confirmed.elapsed_us, 7);
+    assert_eq!(confirmed.digest, before.digest);
+    assert_eq!(confirmed.prefix, before.prefix);
+    assert_eq!(confirmed.scheduler, before.scheduler);
+    // Already confirmed completion is an idempotent observation record. No
+    // second hash, codec call or budget use occurs when an outer owner repeats it.
+    work.confirm_completion(u64::MAX).unwrap();
+    work.stop();
+    work.stop();
+    assert_eq!(work.snapshot(), confirmed);
+    assert_eq!(encoder.calls, 1);
+    drop(work);
+    encoder.encode_stereo(&[[0; 2]; 128], &mut [0; 77]).unwrap();
+    assert_eq!(encoder.calls, 2); // Workload never consumes the external encoder.
+}
+
+#[test]
+fn post_discard_deadline_regression_and_operation_exhaustion_are_sticky() {
+    for fault in 0..4 {
+        let mut cfg = config(1);
+        if fault == 2 {
+            cfg.max_operations = 3;
+        }
+        let mut storage = GeneratedStorage::new();
+        let mut encoder = Fake::new();
+        let mut work = complete_one(cfg, &mut storage, &mut encoder);
+        let before = work.snapshot();
+        let now = match fault {
+            0 => cfg.epoch_us + cfg.duration_us, // exact exclusive deadline
+            1 => cfg.epoch_us - 1,
+            2 => cfg.epoch_us + 1,
+            _ => u64::MAX,
+        };
+        let expected = match fault {
+            0 | 3 => GeneratedFailure::Deadline,
+            1 => GeneratedFailure::ClockRegression,
+            _ => GeneratedFailure::OperationBudget,
+        };
+        let error = GeneratedError::Failed(expected);
+        assert_eq!(work.confirm_completion(now), Err(error));
+        assert_eq!(work.confirm_completion(cfg.epoch_us), Err(error));
+        let after = work.snapshot();
+        assert_eq!(after.phase, Phase::Failed);
+        assert!(!after.completion_observed);
+        assert_eq!(after.reason, Some(StopReason::Failure));
+        assert_eq!(after.operations, 3);
+        assert_eq!(after.digest, before.digest);
+        assert_eq!(after.discarded_blocks, 1);
+        assert_eq!(after.scheduler, before.scheduler);
+        assert_eq!(encoder.calls, 1);
+        work.stop();
+        assert_eq!(work.snapshot(), after);
+    }
+}
+
+#[test]
+fn completion_confirmation_rejects_unfinished_or_stopped_work_without_new_work() {
+    let cfg = config(1);
+    let mut storage = GeneratedStorage::new();
+    let mut work = GeneratedWorkload::new(cfg, &mut storage).unwrap();
+    assert_eq!(
+        work.confirm_completion(cfg.epoch_us),
+        Err(GeneratedError::NotComplete)
+    );
+    assert_eq!(work.snapshot().phase, Phase::Running);
+    assert_eq!(work.snapshot().operations, 0);
+    assert!(!work.snapshot().completion_observed);
+    work.stop();
+    assert_eq!(
+        work.confirm_completion(u64::MAX),
+        Err(GeneratedError::Stopped)
+    );
+    assert!(!work.snapshot().completion_observed);
+    assert_eq!(work.snapshot().operations, 0);
+}
+
+#[test]
+fn completion_observation_near_u64_max_uses_checked_admission_and_ordering() {
+    let mut cfg = config(1);
+    cfg.epoch_us = u64::MAX - cfg.duration_us;
+    let mut storage = GeneratedStorage::new();
+    let mut encoder = Fake::new();
+    let mut work = complete_one(cfg, &mut storage, &mut encoder);
+    work.confirm_completion(u64::MAX - 1).unwrap();
+    assert!(work.snapshot().completion_observed);
+    assert_eq!(work.snapshot().elapsed_us, cfg.duration_us - 1);
+    assert_eq!(encoder.calls, 1);
+    let mut overflowing = config(1);
+    overflowing.epoch_us = u64::MAX - overflowing.duration_us + 1;
+    assert!(matches!(
+        GeneratedWorkload::new(overflowing, &mut GeneratedStorage::new()),
+        Err(GeneratedError::InvalidConfig)
+    ));
 }

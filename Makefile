@@ -57,6 +57,7 @@ check-build-tools:
 	python3 tools/test_syscall_checked.py
 	python3 tools/build_ps5.py --self-test
 	python3 tests/tools/test_diagnostic_result.py
+	python3 tests/tools/test_console_window.py
 	python3 tools/package_source.py --self-test
 	python3 tools/mvp_test_kit.py --self-test
 
@@ -255,3 +256,10 @@ application-startup-test: resource-factory-test posix-imports-test
 	cargo check -p ps5-runtime --target x86_64-unknown-none --features application-control --locked
 	$(HOST_CC) -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined -fno-omit-frame-pointer -Iplatform/ps5/include tests/application/application_main_test.c -o build/host/app-target/main-test
 	build/host/app-target/main-test
+
+.PHONY: ps5-application-generated ps5-application-observe
+ps5-application-generated:
+	python3 tools/build_ps5.py --application-generated --loader-kernel-resolver
+
+ps5-application-observe:
+	python3 tools/build_ps5.py --application-observe --loader-kernel-resolver

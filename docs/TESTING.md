@@ -297,8 +297,8 @@ with no undefined imports or SIMD register use. This is no PS5 timing result.
 
 ## Identity and local-result checks
 
-`python3 tests/tools/test_diagnostic_result.py` exercises all three identity-bearing
-profiles—capture-stream, continuous SBC and application-control—including exact native read/status/flag combinations, malformed or
+`python3 tests/tools/test_diagnostic_result.py` exercises the five identity-bearing
+profiles—capture-stream, continuous SBC and the three application variants—including exact native read/status/flag combinations, malformed or
 missing identity/configuration/cleanup, dirty manifests, truncated/interrupted
 runs, numeric bounds and private atomic file/directory-fsync failure behavior.
 Main-entry C tests check begin/probe/experiment/finish ordering. Source-package
@@ -344,3 +344,54 @@ application candidate identity, exact header inventory and numeric operation/
 cleanup masks, rejecting missing or interrupted outcomes. Detailed test evidence
 belongs to the final committed handoff; these commands do not prove PS5 imports,
 entropy, protection, latency, durability, scheduler behavior or coexistence.
+
+
+## Integrated generated and raw-observation application checks
+
+```sh
+cargo test -p ps5-app --features host-candidate --test generated --test observe --test rebuild --locked
+cargo test -p ps5-runtime --features application-control-host --locked
+make ps5-application-generated
+make ps5-application-observe
+```
+
+Generated tests compare a persistent real encoder against an independent owner
+for 750 blocks, and check observed sample deadlines, retained-frame queue Busy,
+finite operations, clock/expiry/codec failures and Stop. The integrated joint
+profile requires 96,000 generated stereo frames, 57,750 encoded/discarded bytes,
+prefix `9cfd20cb` and FNV-1a `7784d1fb`; no frame is sent to Bluetooth. Runtime
+checks retain actual clock/store/listener acquisition and explicit codec finish
+around that workload, instead of substituting an isolated codec self-test.
+
+Observation tests preserve the existing CaptureOwner budget and exact raw
+Data/Empty/Zero/Overrun/Ended/Error results, no catch-up after late turns, Stop
+before another read, owner interleaving rejection and consume-once cleanup
+uncertainty. The selected 100 ms settle plus 10 ms interval gives up to 190 scheduled
+polls before an exclusive two-second deadline; 256 is a hard call ceiling. Actual
+Rust/C fixtures provide synthetic reviewed exports, not a verified PS5 format.
+A nonempty buffer, elapsed host observation or Empty result establishes no PCM,
+sample count, timestamp unit, codec input or audible continuity.
+
+The scoped NativeRebuild integration uses actual protected store locks and
+loopback listener open/close/reopen on the same stable storage. It checks partial
+bind failure, unchanged fault budgets, explicit working/stable evidence while
+owners remain live, Stop during wait/acquisition, incomplete scope poisoning,
+previous cleanup uncertainty and a real C capture Stop failure. A compile-fail
+case rejects a native-owner escape. No existing main loop automatically
+reconnects, and no rebuild hardware artifact is added by these tests.
+
+Target builds check distinct mode/feature selection, native imports, actual
+C/Rust linkage and ELF structure. Generated codec packaging must retain matching
+LGPL source/replacement/relink materials. Source/kit/result validation covers
+nine inventory entries and the separate three-item startup plan, missing or
+mismatched identities, bounded profile summaries, interrupted runs and uncertain
+cleanup. The console helper's preflight/collection tests use mocked transports;
+its default commands perform no network action and never create/upload/launch
+or change permissions. Actual native 0700 ownership/protection still needs the
+payload's own check. A read-only log fetch does not imply normal controller
+operation: explicit before/during/after observations remain required.
+
+The next proposed setup is the reported Slim/13.40, PayloadManager 0.6.3 and XM4.
+These offline checks authorize no current deployment or run. Native L2CAP errno 47
+and the absent safe active-HCI route remain critical blockers to pairing/playback
+acceptance; the three application diagnostics test local integration only.

@@ -80,6 +80,37 @@ def application_log(fields=None, preflight=None, status=2):
                       f"event=payload_return status={status}", ""])
 
 
+def application_mode_log(mode, fields=None, workload=None, preflight=None, status=2):
+    mask = 23 if mode == "generated" else 15
+    overrides = {"required_mask": mask, "cleanup_mask": mask, "cleanup_turns": 5, "stop_reason": 1}
+    if fields:
+        overrides.update(fields)
+    text = application_log(overrides, preflight=preflight, status=status)
+    text = text.replace("candidate=ps5-bt-application-control", "candidate=ps5-bt-application-" + mode)
+    text = text.replace(result.APPLICATION_CONFIG, result.GENERATED_CONFIG if mode == "generated" else result.OBSERVE_CONFIG)
+    if preflight is None:
+        if mode == "generated":
+            values = {"phase": 1, "error": 0, "blocks": 750, "discarded_blocks": 750, "bytes": 57750,
+                      "operations": 3000, "prefix": 0x9cfd20cb, "digest": 0x7784d1fb,
+                      "summary_matches": 2, "elapsed_hi": 0, "elapsed_lo": 1_999_000,
+                      "concealed": 0, "rebuffer": 0, "expired": 0, "stopped_frames": 0,
+                      "stopped_blocks": 0, "codec_bits": 0, "completion_observed": 1}
+        else:
+            values = {"reason": 2, "error": 0, "reads": 190, "data": 0, "empty": 190, "zero": 0,
+                      "overruns": 0, "ended": 0, "native_errors": 0, "owner_failures": 0,
+                      "gaps": 0, "bytes_hi": 0, "bytes_lo": 0, "max_bytes": 0,
+                      "last_raw_bits": 0x81950002, "last_kind": 3, "last_discontinuity": 0,
+                      "native_time_present": 0, "native_value_hi": 0, "native_value_lo": 0,
+                      "native_domain": 0, "host_hi": 0, "host_lo": 2_990_000,
+                      "started_hi": 0, "started_lo": 1_000_000, "elapsed_hi": 0, "elapsed_lo": 2_000_000,
+                      "max_reads": 256, "duration_us": 2_000_000, "first_settle_us": 100_000, "interval_us": 10_000}
+        if workload:
+            values.update(workload)
+        numeric = "".join(f"application_{mode}_{key}=0x{value:08x}\n" for key, value in values.items())
+        text = text.replace("event=application_complete", numeric + "event=application_complete")
+    return text
+
+
 class CollectorTest(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
@@ -335,6 +366,171 @@ class CollectorTest(unittest.TestCase):
         self.assertEqual(record["classification"], "incomplete_evidence")
         self.assertTrue(record["diagnostic"]["runtime_entered"])
         self.assertEqual(record["diagnostic"]["factory_cleanup"], "Unknown")
+
+    def test_application_generated_requires_full_real_clock_workload(self):
+        record = self.collect(application_mode_log("generated"), manifest("application-generated"))
+        self.assertEqual(record["classification"], "complete_success")
+        diagnostic = record["diagnostic"]
+        self.assertEqual(diagnostic["configuration"]["mode"], "generated-sbc")
+        self.assertEqual(diagnostic["configuration"]["capture"], "Unavailable")
+        self.assertEqual(diagnostic["workload"]["configuration"]["nominal_clock"], "host-monotonic")
+        self.assertTrue(diagnostic["workload"]["complete"])
+        self.assertEqual(record["audio_acceptance"], "Unknown")
+        for values in [{"blocks": 749}, {"discarded_blocks": 749}, {"bytes": 57749},
+                       {"prefix": 0x9cfd20ca}, {"digest": 0x7784d1fa}, {"summary_matches": 0},
+                       {"summary_matches": 1}, {"operations": 2249}, {"operations": 60001},
+                       {"elapsed_lo": 1_997_333}, {"elapsed_lo": 2_000_000}, {"elapsed_hi": 1},
+                       {"codec_bits": 0xffffffff}, {"concealed": 1}, {"rebuffer": 1},
+                       {"expired": 1}, {"stopped_frames": 1}, {"stopped_blocks": 1},
+                       {"error": 2}, {"phase": 3}, {"phase": 9},
+                       {"completion_observed": 2}, {"operations": 2250}]:
+            with self.subTest(values=values):
+                self.assertEqual(self.collect(application_mode_log("generated", workload=values),
+                                              manifest("application-generated"))["classification"], "complete_failure")
+
+    def test_application_generated_clean_partial_or_stopped_workload_is_incomplete(self):
+        partial = {"phase": 2, "blocks": 10, "discarded_blocks": 9, "bytes": 9 * 77,
+                   "operations": 40, "summary_matches": 0, "elapsed_lo": 100000,
+                   "stopped_frames": 128, "stopped_blocks": 1, "completion_observed": 0}
+        record = self.collect(application_mode_log("generated", workload=partial), manifest("application-generated"))
+        self.assertEqual(record["classification"], "incomplete_evidence")
+        self.assertFalse(record["diagnostic"]["workload"]["complete"])
+        self.assertIn("generated_workload_not_complete", record["issues"])
+        record = self.collect(application_mode_log("generated", workload={**partial, "phase": 0}), manifest("application-generated"))
+        self.assertEqual(record["classification"], "incomplete_evidence")
+
+    def test_application_generated_complete_frames_without_post_discard_clock_stay_incomplete(self):
+        text = application_mode_log("generated", workload={"completion_observed": 0})
+        record = self.collect(text, manifest("application-generated"))
+        self.assertEqual(record["classification"], "incomplete_evidence")
+        self.assertFalse(record["diagnostic"]["workload"]["complete"])
+        self.assertIn("generated_completion_not_observed", record["issues"])
+
+    def test_application_observe_empty_and_nonempty_remain_raw_unknown_pcm(self):
+        record = self.collect(application_mode_log("observe"), manifest("application-observe"))
+        self.assertEqual(record["classification"], "complete_success")
+        configuration = record["diagnostic"]["workload"]["configuration"]
+        self.assertFalse(configuration["nonempty_bytes_observed"])
+        for key in ("pcm_format_verified", "pcm_success", "sample_frames", "gap_sample_frames", "native_time_units"):
+            self.assertEqual(configuration[key], "Unknown")
+        self.assertTrue(configuration["bounded_raw_observation_completed"])
+        self.assertEqual(record["diagnostic"]["configuration"]["capture"], "raw-observe")
+        self.assertEqual(record["diagnostic"]["configuration"]["codec"], "Unavailable")
+        values = {"data": 1, "empty": 188, "overruns": 1, "gaps": 1, "bytes_lo": 7,
+                  "max_bytes": 7, "last_kind": 1, "last_raw_bits": 7}
+        record = self.collect(application_mode_log("observe", workload=values), manifest("application-observe"))
+        self.assertEqual(record["classification"], "complete_success")
+        self.assertTrue(record["diagnostic"]["workload"]["configuration"]["nonempty_bytes_observed"])
+        self.assertEqual(record["audio_acceptance"], "Unknown")
+        # Native scheduling overshoot is retained rather than rounded to a guessed1ms.
+        record = self.collect(application_mode_log("observe", workload={"elapsed_lo": 2_050_000}), manifest("application-observe"))
+        self.assertEqual(record["classification"], "complete_success")
+        self.assertEqual(record["diagnostic"]["workload"]["configuration"]["deadline_overshoot_us"], 50_000)
+
+    def test_application_observe_zero_overrun_and_unaligned_data_are_raw_lifecycle_results(self):
+        for values in [{"empty": 0, "zero": 190, "last_kind": 2, "last_raw_bits": 0},
+                       {"empty": 0, "overruns": 190, "gaps": 190, "last_kind": 4,
+                        "last_raw_bits": 0x81950004, "last_discontinuity": 1},
+                       {"empty": 0, "data": 190, "bytes_lo": 190 * 7, "max_bytes": 7,
+                        "last_kind": 1, "last_raw_bits": 7}]:
+            with self.subTest(values=values):
+                record = self.collect(application_mode_log("observe", workload=values), manifest("application-observe"))
+                self.assertEqual(record["classification"], "complete_success")
+                self.assertEqual(record["diagnostic"]["workload"]["configuration"]["sample_frames"], "Unknown")
+                self.assertEqual(record["audio_acceptance"], "Unknown")
+
+    def test_application_observe_counts_raw_status_time_and_config_are_coherent(self):
+        cases = [{"reads": 191, "empty": 191}, {"reads": 257}, {"data": 1}, {"bytes_lo": 1},
+                 {"max_bytes": 1}, {"bytes_hi": 1}, {"overruns": 1}, {"gaps": 1},
+                 {"last_kind": 3, "last_raw_bits": 0}, {"last_discontinuity": 1},
+                 {"last_kind": 9}, {"native_time_present": 1}, {"native_value_lo": 1},
+                 {"native_domain": 1}, {"host_lo": 1_000_001}, {"host_lo": 1_100_001}, {"host_lo": 3_000_001},
+                 {"elapsed_lo": 1_999_999}, {"elapsed_lo": 5_000_001}, {"elapsed_hi": 1},
+                 {"reason": 3}, {"reason": 5}, {"error": 7}, {"owner_failures": 1},
+                 {"native_errors": 1}, {"duration_us": 1}, {"max_reads": 257},
+                 {"interval_us": 1}, {"first_settle_us": 0},
+                 {"started_hi": 0xffffffff, "started_lo": 0xffffffff}]
+        for values in cases:
+            with self.subTest(values=values):
+                record = self.collect(application_mode_log("observe", workload=values), manifest("application-observe"))
+                self.assertEqual(record["classification"], "complete_failure")
+        # Last Data must be consistent with all aggregate byte/max counters.
+        for values in [{"data": 1, "empty": 189, "bytes_lo": 7, "max_bytes": 8,
+                        "last_kind": 1, "last_raw_bits": 7},
+                       {"data": 2, "empty": 188, "bytes_lo": 16, "max_bytes": 8,
+                        "last_kind": 1, "last_raw_bits": 1}]:
+            self.assertEqual(self.collect(application_mode_log("observe", workload=values), manifest("application-observe"))["classification"], "complete_failure")
+
+    def test_application_observe_uses_actual_count_below_derived_continuous_ceiling(self):
+        for count in [1, 20, 57, 189, 190]:
+            values = {"reads": count, "empty": count,
+                      "host_lo": 1_000_000 + 100_000 + (count - 1) * 10_000}
+            record = self.collect(application_mode_log("observe", workload=values), manifest("application-observe"))
+            self.assertEqual(record["classification"], "complete_success")
+            self.assertEqual(record["diagnostic"]["numeric"]["observe_reads"], [count])
+            self.assertEqual(record["diagnostic"]["workload"]["configuration"]["cadence_read_ceiling"], 190)
+        # Preserve the old helper/diagnostic profile elsewhere, but do not accept
+        # its 100 ms cadence or 20-read cap as this independently selected artifact.
+        for changed in [{"interval_us": 100_000}, {"max_reads": 20},
+                        {"reads": 191, "empty": 191}, {"max_reads": 0}]:
+            self.assertEqual(self.collect(application_mode_log("observe", workload=changed), manifest("application-observe"))["classification"], "complete_failure")
+
+    def test_application_observe_cancelled_ended_and_owner_failures_do_not_prove_sustained_run(self):
+        zero = {"reason": 1, "reads": 0, "empty": 0, "last_kind": 0, "last_raw_bits": 0,
+                "host_lo": 0, "elapsed_lo": 0}
+        ended = {"reason": 4, "reads": 1, "empty": 0, "ended": 1, "last_kind": 5,
+                 "last_raw_bits": 0x81950008, "host_lo": 1_100_000, "elapsed_lo": 100_000}
+        for values in [zero, ended]:
+            record = self.collect(application_mode_log("observe", workload=values), manifest("application-observe"))
+            self.assertEqual(record["classification"], "incomplete_evidence")
+            self.assertFalse(record["diagnostic"]["workload"]["complete"])
+        failure = {**zero, "reason": 5, "error": 6, "reads": 1, "owner_failures": 1}
+        record = self.collect(application_mode_log("observe", workload=failure), manifest("application-observe"))
+        self.assertEqual(record["classification"], "complete_failure")
+        native = {"reason": 5, "error": 7, "reads": 1, "empty": 0, "native_errors": 1,
+                  "last_kind": 6, "last_raw_bits": 0xffffff9d, "host_lo": 1_100_000,
+                  "elapsed_lo": 100_000}
+        self.assertEqual(self.collect(application_mode_log("observe", workload=native), manifest("application-observe"))["classification"], "complete_failure")
+
+    def test_application_workload_missing_duplicate_and_wrong_profile_evidence_never_passes(self):
+        for mode, keys in [("generated", result.GENERATED_KEYS), ("observe", result.OBSERVE_KEYS)]:
+            original = application_mode_log(mode)
+            for key in keys:
+                name = f"application_{mode}_{key}="
+                marker = next(line for line in original.splitlines(keepends=True) if line.startswith(name))
+                for changed in [original.replace(marker, ""), original.replace(marker, marker + marker),
+                                original.replace(marker, name + "invalid\n")]:
+                    with self.subTest(mode=mode, key=key):
+                        self.assertNotEqual(self.collect(changed, manifest("application-" + mode))["classification"], "complete_success")
+            for changed in [original.replace("application_required_mask=", "application_ignored_mask=", 1),
+                            original.replace("event=application_complete\n", "").replace(
+                                result.GENERATED_CONFIG if mode == "generated" else result.OBSERVE_CONFIG,
+                                (result.GENERATED_CONFIG if mode == "generated" else result.OBSERVE_CONFIG) + "\nevent=application_complete")]:
+                self.assertNotEqual(self.collect(changed, manifest("application-" + mode))["classification"], "complete_success")
+            for field in ["required_mask", "cleanup_mask"]:
+                marker = next(line for line in original.splitlines(keepends=True) if line.startswith(f"application_{field}="))
+                changed = original.replace(marker, f"application_{field}=0x00000007\n")
+                self.assertEqual(self.collect(changed, manifest("application-" + mode))["classification"], "complete_failure")
+            wrong = original.replace(result.GENERATED_CONFIG if mode == "generated" else result.OBSERVE_CONFIG,
+                                     result.APPLICATION_CONFIG)
+            self.assertEqual(self.collect(wrong, manifest("application-" + mode))["classification"], "complete_failure")
+
+    def test_new_application_variants_keep_manifest_exclusivity_preflight_and_redaction(self):
+        for mode in ("generated", "observe"):
+            original = application_mode_log(mode)
+            private = "private-pcm-and-native-metadata-0011223344556677"
+            changed = original.replace("event=application_complete", f"application_{mode}_raw_pcm={private}\napplication_{mode}_opaque_metadata={private}\napplication_token={private}\nevent=application_complete")
+            record = self.collect(changed, manifest("application-" + mode))
+            self.assertEqual(record["classification"], "complete_success")
+            self.assertNotIn(private, json.dumps(record))
+            source = {**manifest("application-" + mode), "application_control": True}
+            with self.assertRaises(ValueError):
+                self.collect(original, source)
+            cancelled = application_mode_log(mode, preflight="cancelled")
+            self.assertEqual(self.collect(cancelled, manifest("application-" + mode))["classification"], "incomplete_evidence")
+            failed = application_mode_log(mode, preflight="failed", status=1)
+            self.assertEqual(self.collect(failed, manifest("application-" + mode))["classification"], "complete_failure")
+            self.assertEqual(self.collect(original.replace("transport=Unavailable", "transport=Ready"), manifest("application-" + mode))["classification"], "complete_failure")
 
     def test_atomic_write_is_private_and_refuses_to_overwrite(self):
         record = self.collect()

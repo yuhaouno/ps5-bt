@@ -12,7 +12,7 @@ import subprocess
 import tarfile
 import tempfile
 
-from build_ps5 import SDK_FILES, SDK_REVISION, USB_SDK_HEADERS, APPLICATION_SDK_HEADERS
+from build_ps5 import SDK_FILES, SDK_REVISION, USB_SDK_HEADERS, APPLICATION_SDK_HEADERS, APPLICATION_VARIANTS
 from target_sbc import source_inventory as target_sbc_source_inventory
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -54,7 +54,8 @@ APPLICATION_SOURCES = {
     "platform/control/tcp_listener.c", "platform/control/tcp_listener.h",
     "platform/ps5/capture/capture_stream.c", "platform/ps5/capture/capture_stream.h",
 }
-CODEC_VARIANTS = ("sbc_selftest", "sbc_continuous")
+APP_VARIANTS = APPLICATION_VARIANTS
+CODEC_VARIANTS = ("sbc_selftest", "sbc_continuous", "application_generated")
 
 
 def relink_directory(manifest):
@@ -65,6 +66,8 @@ def relink_directory(manifest):
 
 VARIANTS = {
     "application_control": ("ps5-bt-application-control", APPLICATION_SOURCES, "--application-control"),
+    "application_generated": ("ps5-bt-application-generated", APPLICATION_SOURCES, "--application-generated"),
+    "application_observe": ("ps5-bt-application-observe", APPLICATION_SOURCES, "--application-observe"),
     "capture_stream": ("ps5-bt-capture-stream", CAPTURE_STREAM_SOURCES, "--capture-stream"),
     "native_l2cap_probe": ("ps5-bt-native-l2cap-probe", NATIVE_L2CAP_SOURCES, "--native-l2cap-probe"),
     "native_query": ("ps5-bt-native-query", NATIVE_SOURCES, "--native-query"),
@@ -352,15 +355,15 @@ def validate_manifest(root, head, files, manifest_path):
     variant = selected_variant(manifest)
     if type(manifest.get("loader_kernel_resolver", False)) is not bool:
         raise ValueError("manifest loader_kernel_resolver must be a boolean")
-    if variant in ("capture_preflight", "capture_once", "capture_observe", "capture_stream", "application_control") and not manifest.get("loader_kernel_resolver", False):
+    if variant in ("capture_preflight", "capture_once", "capture_observe", "capture_stream", *APP_VARIANTS) and not manifest.get("loader_kernel_resolver", False):
         raise ValueError("capture diagnostic requires the existing-loader kernel resolver")
-    expected_headers = APPLICATION_SDK_HEADERS if variant == "application_control" else USB_SDK_HEADERS if variant == "usb_metadata" else {}
+    expected_headers = APPLICATION_SDK_HEADERS if variant in APP_VARIANTS else USB_SDK_HEADERS if variant == "usb_metadata" else {}
     if manifest.get("sdk_headers", {}) != expected_headers:
         raise ValueError("manifest SDK header inventory differs from the selected pinned variant")
     stem = VARIANTS[variant][0] if variant else "ps5-bt"
     if manifest_path.name != stem + ".manifest.json":
         raise ValueError("manifest filename differs from its selected build variant")
-    if variant in ("sbc_continuous", "capture_stream", "application_control"):
+    if variant in ("sbc_continuous", "capture_stream", *APP_VARIANTS):
         if not valid_sha256(manifest.get("diagnostic_build_id")) or manifest.get("diagnostic_candidate") != stem:
             raise ValueError("missing or invalid embedded diagnostic identity")
     elif "diagnostic_build_id" in manifest or "diagnostic_candidate" in manifest:
@@ -407,7 +410,7 @@ def source_readme(manifest, manifest_name):
                      "Their file-specific BSD and other notices are retained verbatim; the project's\n"
                      "GPL text does not replace those individual terms. No headers are patched.\n"
                      if variant == "usb_metadata" else "")
-    if variant == "application_control":
+    if variant in APP_VARIANTS:
         header_notice = (f"The application diagnostic additionally includes {len(APPLICATION_SDK_HEADERS)} original pinned SDK headers.\n"
                          "Their file-specific BSD and other notices are retained verbatim, including advertising clauses.\n"
                          "No SDK header is patched; standalone errno/fcntl/stdint aliases retain target notice-bearing bytes.\n")
@@ -495,7 +498,7 @@ def package(root, source, destination, manifest_path=None):
     files = tracked_files(root)
     manifest, manifest_bytes, artifacts, relink_entries = validate_manifest(
         root, head, files, manifest_path)
-    sdk = sdk_files(source, manifest.get("usb_metadata", False), manifest.get("application_control", False))
+    sdk = sdk_files(source, manifest.get("usb_metadata", False), selected_variant(manifest) in APP_VARIANTS)
     entries = {PREFIX + "project/" + name: value for name, value in files.items()}
     entries.update({PREFIX + f"sdk/{SDK_REVISION}/" + name: (data, 0o644)
                     for name, data in sdk.items()})
@@ -696,12 +699,12 @@ def self_test():
                 variant_manifest = dict(manifest, **{key: True}, loader_kernel_resolver=True,
                                         sha256=sha256(variant_elf.read_bytes()),
                                         project_sources=variant_sources)
-                if key in ("sbc_continuous", "capture_stream", "application_control"):
+                if key in ("sbc_continuous", "capture_stream", *APP_VARIANTS):
                     variant_manifest["diagnostic_build_id"] = "a" * 64
                     variant_manifest["diagnostic_candidate"] = stem
                 if key == "usb_metadata":
                     variant_manifest["sdk_headers"] = USB_SDK_HEADERS.copy()
-                elif key == "application_control":
+                elif key in APP_VARIANTS:
                     variant_manifest["sdk_headers"] = APPLICATION_SDK_HEADERS.copy()
                 if key in CODEC_VARIANTS:
                     codec_sha256, relink_files, codec_sources = synthetic_relink_bundle(
@@ -725,15 +728,15 @@ def self_test():
                     assert "project/build/ps5/" + stem + ".manifest.json" in readme
                     assert variant_manifest["sha256"] in readme
                     assert json.load(archive.extractfile(PREFIX + "build-manifest.json")) == variant_manifest
-                    expected_sdk = SDK_FILES | (USB_SDK_HEADERS if key == "usb_metadata" else {}) | (APPLICATION_SDK_HEADERS if key == "application_control" else {})
+                    expected_sdk = SDK_FILES | (USB_SDK_HEADERS if key == "usb_metadata" else {}) | (APPLICATION_SDK_HEADERS if key in APP_VARIANTS else {})
                     sdk_prefix = PREFIX + f"sdk/{SDK_REVISION}/"
                     assert {item.name.removeprefix(sdk_prefix) for item in archive.getmembers()
                             if item.name.startswith(sdk_prefix)} == expected_sdk.keys()
                     for name in expected_sdk:
                         assert archive.extractfile(sdk_prefix + name).read() == (source / name).read_bytes()
-                    if key in ("usb_metadata", "application_control"):
+                    if key in ("usb_metadata", *APP_VARIANTS):
                         assert "file-specific BSD and other notices" in readme
-                    elif key in CODEC_VARIANTS:
+                    if key in CODEC_VARIANTS:
                         assert "--codec /absolute/path/to/rebuilt/libps5_bt_sbc.a" in readme
                         relink_prefix = PREFIX + "relink/"
                         assert {
@@ -745,7 +748,7 @@ def self_test():
                                 directory_relative).as_posix()
                             for name in relink_files
                         }
-                    else:
+                    if key not in ("usb_metadata", *APP_VARIANTS):
                         assert "original pinned SDK headers" not in readme
                 assert destination.read_bytes() == first, "variant replaced default bundle"
 
@@ -759,7 +762,7 @@ def self_test():
                     else:
                         raise AssertionError(label + " accepted")
 
-                if key in ("sbc_continuous", "capture_stream", "application_control"):
+                if key in ("sbc_continuous", "capture_stream", *APP_VARIANTS):
                     for bad_identity in (None, "invalid", "A" * 64):
                         reject_variant(dict(variant_manifest, diagnostic_build_id=bad_identity), "invalid embedded build identity")
                     reject_variant(dict(variant_manifest, diagnostic_candidate="ps5-bt-other"), "wrong embedded candidate")
@@ -771,9 +774,9 @@ def self_test():
                 reject_variant(dict(variant_manifest, **{other_key: True}), "mixed variants")
                 escaped_sources = dict(variant_sources, **{"../outside-secret": "0" * 64})
                 reject_variant(dict(variant_manifest, project_sources=escaped_sources), "project path escape")
-                if key in ("capture_preflight", "capture_once", "capture_observe", "capture_stream", "application_control"):
+                if key in ("capture_preflight", "capture_once", "capture_observe", "capture_stream", *APP_VARIANTS):
                     reject_variant(dict(variant_manifest, loader_kernel_resolver=False), "capture without resolver")
-                if key in ("usb_metadata", "application_control"):
+                if key in ("usb_metadata", *APP_VARIANTS):
                     selected_headers = USB_SDK_HEADERS if key == "usb_metadata" else APPLICATION_SDK_HEADERS
                     for invalid_headers in ({}, {"../outside-secret": "0" * 64},
                                             {"/private/tmp/outside-secret": "0" * 64}):
@@ -791,6 +794,14 @@ def self_test():
                     header_path.unlink()
                     reject_variant(variant_manifest, "missing header bytes")
                     header_path.write_bytes(original)
+                if key == "application_generated":
+                    for field in ("codec_sources", "codec_archive_sha256", "relink_files"):
+                        missing_material = dict(variant_manifest)
+                        missing_material.pop(field)
+                        reject_variant(missing_material, "application-generated missing " + field)
+                    missing_material = dict(variant_manifest)
+                    missing_material.pop("sdk_headers")
+                    reject_variant(missing_material, "application-generated missing SDK headers")
                 if key in CODEC_VARIANTS:
                     missing_codec_sources = dict(codec_sources)
                     missing_codec_sources.pop(next(iter(missing_codec_sources)))
@@ -864,7 +875,7 @@ def self_test():
         USB_SDK_HEADERS.update(original_headers)
         APPLICATION_SDK_HEADERS.clear()
         APPLICATION_SDK_HEADERS.update(original_application_headers)
-    print("PASS source bundle content/determinism/default/query/USB/capture/SBC variants; pinned original SDK headers/notices and codec relink inputs; dirty tree, invalid variant, path escape and manifest/source/ELF/archive/relink/SDK mismatch rejection; no stale output (synthetic fixtures, no hardware)")
+    print("PASS source bundle content/determinism/default/query/USB/capture/SBC/application-control/generated/observe variants; pinned original SDK headers/notices and codec relink inputs; dirty tree, invalid variant, path escape and manifest/source/ELF/archive/relink/SDK mismatch rejection; no stale output (synthetic fixtures, no hardware)")
 
 
 if __name__ == "__main__":

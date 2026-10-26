@@ -30,7 +30,10 @@ The configuration is explicit:
 | max_lateness_us | 1..100,000 |
 
 The suggested profile uses 750 blocks, duration 2,000,000 microseconds,
-60,000 operations and maximum lateness 100,000 microseconds. Checked deadline
+60,000 operations and maximum lateness 100,000 microseconds. Confirming elapsed
+completion needs one additional operation after the three calls per block;
+a custom budget admitting exactly three per block can settle frames but cannot
+certify their completion observation. Checked deadline
 addition and scheduler/sample-clock construction reject overflow. A configuration
 is a generated diagnostic contract, not a negotiated headset capability or native
 capture format. The native application owner still applies its separate global
@@ -45,6 +48,7 @@ GeneratedWorkload::new(GeneratedConfig, &mut GeneratedStorage)
 generate(now_us) -> Result<Progress, GeneratedError>
 encode(now_us, &mut impl BlockEncoder) -> Result<Progress, GeneratedError>
 discard(now_us) -> Result<Progress, GeneratedError>
+confirm_completion(fresh_post_discard_now_us) -> Result<(), GeneratedError>
 stop()
 snapshot() -> GeneratedSnapshot
 ```
@@ -52,7 +56,10 @@ snapshot() -> GeneratedSnapshot
 Progress contains `progressed`, `wake_at_us` and `finished`; it maps directly to
 the enclosing owner's bounded Capture/Encode/Send lane scheduling. Those lane
 names do not imply native capture or transport in this diagnostic. The owner
-supplies actual clock observations at runtime; the workload does not fabricate
+supplies fresh actual clock observations immediately before each active workload
+quantum, checking Stop again after a fallible clock call. Discard therefore sees
+clock progress across a real Encode call instead of reusing an older outer-turn
+timestamp. The workload does not fabricate
 future times, perform waits or claim a physical-time result from host simulation.
 It returns the earliest relevant sample deadline or its finite run deadline.
 The reviewed platform wait adapter remains an enclosing-owner operation.
@@ -72,8 +79,9 @@ idle work. An expired offer is a visible terminal fault and is never hashed as
 a successful frame or accepted late. Only this workload's own unsent data may
 be discarded; it owns no fragmented media PDU.
 
-Every active call, including waiting and Busy, consumes one finite operation
-budget entry. A frozen host clock therefore cannot create an invisible endless
+Every active generate/encode/discard call, including waiting and Busy, consumes
+one finite operation budget entry. The first successful post-discard confirmation
+also consumes one entry; a failed confirmation never resets or extends the budget. A frozen host clock therefore cannot create an invisible endless
 poll loop. Regression, exclusive deadline expiry, exhausted operations, encoder
 configuration/error/frame failure or arithmetic failure terminates the workload.
 The scheduler's existing pacing, queue ownership and retained-frame semantics
@@ -84,9 +92,18 @@ This strict diagnostic does not claim recovery or audible continuity.
 
 ## Completion, stop and evidence
 
-Successful completion requires every configured input block to have been queued,
+Frame completion requires every configured input block to have been queued,
 encoded and accepted by the discard sink, with exact frame byte totals and no
-continuity loss. The full 750-block profiles additionally require these pinned
+continuity loss. Phase Complete records that settled data; it initially leaves
+`completion_observed=false`. Elapsed completion evidence additionally requires
+`confirm_completion(now)` using a fresh host clock observation taken after final
+Discard/hash. The first confirmation rejects regression, an observation at or
+beyond the exclusive workload deadline, or an exhausted operation budget. It
+updates elapsed/operations and sets the flag only on success. Failure is sticky
+and performs no codec call, hash or native cleanup. A successful repeated
+confirmation is idempotent and preserves that first confirmed timestamp/counter.
+Running returns NotComplete without changing work; Stopped and Failed preserve
+their original terminal result. The full 750-block profiles additionally require these pinned
 host results:
 
 | Mode | PCM frames | Encoded bytes | First prefix | Whole-run FNV-1a |
@@ -102,7 +119,8 @@ ABI and replacement/relink obligations remain unchanged.
 
 Snapshot is a copy of numeric/state evidence: phase, stop reason, original error,
 operation count, generated/discarded counts and bytes, generation backpressure,
-staged/stopped staging, prefix/digest, observed elapsed host microseconds and
+staged/stopped staging, prefix/digest, `completion_observed`, observed elapsed
+host microseconds and
 AudioScheduler's complete snapshot. `summary_matches` is None while partial or
 for an unpinned custom block count; it is Some(true/false) only after all 750
 blocks in a pinned profile have been discarded. A partial run is never a matching
@@ -112,12 +130,18 @@ this API's snapshot contains no PCM or encoded bytes.
 Stop is clock-independent and idempotent. It prevents new generation/encoding,
 scrubs staging and stops the scheduler, counting its queued/retained diagnostic
 input and offer drops. A prior error stays visible. A completed workload remains
-Complete when the enclosing application later stops. Drop invokes the same local
+Complete when the enclosing application later stops. If Stop is already pending
+before or during the final fallible clock call, the owner skips confirmation:
+settled frame counts keep `completion_observed=false` and are incomplete timing
+evidence, never a full elapsed-time success. Drop invokes the same local
 stop only. Neither path finishes or drops the separately owned encoder, cancels
 HTTP, closes native resources or reports their cleanup success; the native owner
 must still explicitly finish and record those results.
 
-Elapsed host observation is neither encode duration nor acoustic latency. The
+Before post-discard confirmation, elapsed is only the last pre-operation host
+observation and excludes any later Encode/hash work. It must not certify final
+completion time. A confirmed elapsed includes that final work up to the new
+observation, but is still neither isolated encode duration nor acoustic latency. The
 full profile covers two seconds of nominal sample positions, and native observed
 pacing/timing still needs the actual console run. No captured-audio format,
 headset compatibility, playable audio, PS5 timing or DualSense coexistence claim
@@ -132,12 +156,15 @@ cargo clippy --locked -p ps5-app --features host-candidate --test generated -- -
 cargo check --locked -p ps5-app --target x86_64-unknown-none
 ```
 
-Nine host-candidate checks cover observed sample deadline gates, queue Busy and
+Host-candidate checks cover observed sample deadline gates, queue Busy and
 retained frames without reencoding, clock/deadline/operation/expiry failures,
 counted scheduler catch-up, raw codec/configuration/frame errors, independent
 Stop/encoder ownership, configuration rejection and mandatory full-profile
 summary comparison. The real-codec case runs both joint and stereo 750-block
 workloads and compares their whole output digests/lengths with separate
-persistent encoders. Test clock observations are scripted, with no sleeps or
+persistent encoders, then performs a separate completion observation. Additional
+tests cover exact exclusive deadline, clock regression, exhausted post-frame
+operation budget, near-u64::MAX checked admission, required phase, skipped/unverified
+completion and idempotence without another codec/hash/cleanup call. Test clock observations are scripted, with no sleeps or
 physical-time claim. Native factory/application integration and the executable
 artifact remain separately checked by the enclosing runtime/build workflow.

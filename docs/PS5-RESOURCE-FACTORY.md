@@ -143,6 +143,31 @@ routing/ownership/credits continue to gate all radio operations, independent of
 control-only service readiness. No timer credit refill, competing reader, system
 mutation, new privilege mechanism or guessed native layout is introduced.
 
+## Integrated workload modes and scoped rebuilding
+
+The native application variants now invoke these actual staged constructors:
+`ps5-application-control` for local control, `ps5-application-generated` for
+observed-clock generated PCM through persistent Rust/target SBC scheduling and
+discard, and `ps5-application-observe` for bounded raw capture. All share protected
+store/listener/clock setup and observable cleanup; none creates Bluetooth traffic
+or verifies native PCM. The generated profile has 750 blocks over two seconds of
+nominal sample positions and pinned joint-stereo summaries. Observation keeps
+format/time Unknown, uses 100 ms settle and 10 ms interval and a two-second exclusive
+boundary, with up to 190 scheduled polls and maximum 256. The standalone diagnostics remain
+independent. See APPLICATION-STARTUP.md and its workload-specific contracts.
+
+`NativeRebuild` adds scoped actual old-factory consumption and new-factory
+construction on the same caller-owned NativeStorage. A higher-ranked callback
+prevents owner lifetimes escaping; the persistent Recovery is borrowed
+structurally, retaining attempts, deadlines, Stop and cleanup uncertainty.
+Explicit stable success is observed while actual resources remain acquired.
+Host checks reopen real FileStore/Listener resources after close, fail an actual
+occupied bind, and gate uncertain capture/client cleanup. No self-reference or
+unsafe lifetime extension is used. Local resource epochs grant no Bluetooth
+connection epoch/credits. This library is not installed as automatic application
+reconnect and creates no additional hardware payload; see
+NATIVE-RESOURCE-REBUILD.md.
+
 ## Existing source, layout and licensing review
 
 No new upstream source or native API is imported by this Rust crate. It calls the
@@ -195,9 +220,12 @@ release of earlier resources, including reopening the protected store lock.
 Clock/capture fixtures do not execute native PS5 code and generated SBC does not
 establish captured audio.
 
-The next target candidate must initialize its reviewed native imports, entropy,
-authentication, private path and finite startup/HTTP/run budgets, record artifact
-identity and durable outcome/cleanup, and retain unavailable radio capabilities.
+The separately selected application candidates initialize reviewed native imports,
+entropy, authentication, the supplied private path and finite startup/HTTP/work
+budgets, recording artifact identity and cleanup while retaining unavailable
+radio capabilities. Building them is distinct from successful native execution.
+The existing private 0700 directory and matching native owner remain manual
+prerequisites; no kit or console helper creates or relaxes them.
 Native export behavior, filesystem protection/durability, clock/wait behavior,
 listener permissions and controller coexistence require a current authorized
 bounded PS5 window. No console was contacted, and no playback or continuity

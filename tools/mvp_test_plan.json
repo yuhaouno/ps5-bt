@@ -162,6 +162,60 @@
         "native imports, entropy, private store, clock/wait, HTTP or cleanup fails",
         "more than 5 seconds observed runtime, 20000 turns or 10000 waits; no final return within external timeout"
       ]
+    },
+    {
+      "id": "application-generated",
+      "order": 8,
+      "artifact": "build/ps5/ps5-bt-application-generated.elf",
+      "build_manifest": "build/ps5/ps5-bt-application-generated.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-application-generated-source.tar.gz",
+      "slot": "ps5-bt-application-generated",
+      "remote_filename": "ps5-bt-application-generated.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=application_begin schema=1 mode=generated-sbc",
+        "application_generated_phase=0x00000001",
+        "application_generated_completion_observed=0x00000001",
+        "application_generated_discarded_blocks=0x000002ee",
+        "application_generated_bytes=0x0000e196",
+        "application_generated_summary_matches=0x00000002",
+        "application_cleanup_uncertain=0x00000000",
+        "event=application_complete",
+        "event=application_preflight_cleanup_complete",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "clock, pacing, codec, retained frame, bitstream summary or cleanup fails",
+        "no final return within external timeout; save the incomplete log and stop"
+      ]
+    },
+    {
+      "id": "application-observe",
+      "order": 9,
+      "artifact": "build/ps5/ps5-bt-application-observe.elf",
+      "build_manifest": "build/ps5/ps5-bt-application-observe.manifest.json",
+      "source_bundle": "build/ps5/ps5-bt-application-observe-source.tar.gz",
+      "slot": "ps5-bt-application-observe",
+      "remote_filename": "ps5-bt-application-observe.elf",
+      "timeout_seconds": 15,
+      "expected_markers": [
+        "event=application_begin schema=1 mode=capture-observe",
+        "application_observe_max_reads=0x00000100",
+        "application_observe_interval_us=0x00002710",
+        "application_observe_reason=0x00000002",
+        "application_observe_error=0x00000000",
+        "application_observe_native_time_present=0x00000000",
+        "application_cleanup_uncertain=0x00000000",
+        "event=application_complete",
+        "event=application_preflight_cleanup_complete",
+        "event=payload_return status=2"
+      ],
+      "stop_conditions": [
+        "wireless controller input changes",
+        "clock, raw read, overrun/unknown gap or cleanup fails; Empty/Zero are not PCM success",
+        "no final return within external timeout; save the incomplete log and stop"
+      ]
     }
   ]
 }

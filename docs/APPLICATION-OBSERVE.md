@@ -12,7 +12,7 @@ This is raw-byte observation, not PCM, normalization, SBC or playback acceptance
 `CaptureOwner<B>` and caller-owned raw byte buffer for one step at a time:
 
 ```rust
-let mut observation = ObserveWorkload::new(ObserveConfig::BOUNDED, started_us)?;
+let mut observation = ObserveWorkload::new(ObserveConfig::CONTINUOUS, started_us)?;
 let progress = observation.step(capture, raw_bytes, now_us, stop_requested)?;
 // progress: progressed, wake_at_us, finished
 let report = observation.snapshot();
@@ -38,27 +38,36 @@ error, not permission to refresh the workload or continue invisibly.
 
 ## Finite reads and pacing
 
-`ObserveConfig` admits at most 20 read invocations and at most 2,000,000 host
+`ObserveConfig` admits at most 256 read invocations and at most 2,000,000 host
 microseconds, with an exclusive deadline. First settle is either zero or
-100,000 us; the fixed interval is 100,000 us. The bounded default selects the
-100 ms settle. With exact regular scheduling that gives 19 possible reads before
-the exclusive two-second deadline; 20 is a maximum, not a promised count.
-Choosing immediate first read can consume 20 reads at 0..1,900,000 us. Smaller
-configured read/time bounds stop earlier. Invalid/overflowing configuration fails
-before a read. These are independent candidate operation bounds, not audio-rate
-capture scheduling or a measured latency policy.
+100,000 us; interval must be exactly 10,000 or 100,000 us. Zero/unsupported
+intervals and invalid/overflowing bounds fail before a read. The named profiles
+both select the 100 ms first settle:
 
-The 100 ms scheduling request is grounded in the separately reviewed settle and
-observation diagnostics: CAPTURE-PROBE.md/CAPTURE-OBSERVE.md record the explicit
-wait interval and observed immediate Empty followed by a later nonempty read.
-No waiting implementation is copied here and no native API is added. This module
-returns only an absolute suggested wake. The application's reviewed clock/wait
-adapter may approach it using finite <=1 ms wait requests, checking Stop between
-caller steps; there is no sleep, retry loop, thread or hidden catch-up inside this
-workload. A delayed caller reads once at the current instant and schedules its
-next interval from that instant; it never issues a burst to catch up old deadlines.
-The existing C-only first-data observation and one-read Rust diagnostic retain
-their original separate bounds.
+| Profile | Read budget | Interval | Regular polls before exclusive two-second deadline |
+| --- | --- | --- | --- |
+| `BOUNDED` | 20 | 100 ms | At most 19 |
+| `CONTINUOUS` | 256 | 10 ms | At most 190 |
+
+The separately selected application-observe candidate uses `CONTINUOUS` and an
+existing capture owner budget of 256 reads. The window's cadence ceiling is
+`min(256, 1 + (2,000,000 - 100,000 - 1) / 10,000) = 190`, using integer division.
+This is a ceiling, never a required observed count: scheduling and native calls
+can reduce the actual count. Smaller configured bounds stop earlier. The helper
+also retains the older `BOUNDED` profile; this does not alter the historical C
+first-data diagnostic or one-read Rust diagnostic bounds. Neither profile
+establishes PCM rate, audio continuity or measured latency.
+
+The initial 100 ms settle request is grounded in the separately reviewed
+CAPTURE-PROBE.md/CAPTURE-OBSERVE.md diagnostics, which record immediate Empty
+followed by a later nonempty read. The selected 10 ms interval requests more
+frequent reads through the same reviewed NOWAIT API; it adds no native API,
+format assumption or wait implementation. This module returns only an absolute
+suggested wake. The application's reviewed clock/wait adapter may approach it
+using finite <=1 ms wait requests, checking Stop between caller steps. There is
+no sleep, retry loop, thread or hidden catch-up inside this workload. A delayed
+caller reads once at the current instant and schedules its next interval from
+that instant; it never issues a burst to catch up old deadlines.
 
 A step first clears caller raw storage, checks existing terminal state, then
 honors Stop before clock/buffer validation or any new owner call. Stop finishes
@@ -120,13 +129,15 @@ cargo check -p ps5-app --target x86_64-unknown-none --locked
 
 Portable fixtures test exact Data/Empty/Zero/Overrun/Ended sequencing, byte counts
 without frame assumptions, distinct host/native time domains, first-settle/wake
-boundaries, read/time exhaustion, no late catch-up, Stop priority, pre-consumed
+boundaries, the 190-read continuous cadence ceiling, retained 20-read profile,
+read/time exhaustion, no late catch-up, Stop priority, pre-consumed
 owner budgets, interleaved-owner rejection, malformed configuration/buffers,
 regressing/near-overflow clocks, unknown errors and consume-once terminal cleanup.
 A host-feature test calls the actual C capture adapter with reviewed synthetic
 exports, observes a seven-byte Data read (with no PCM interpretation), an Overrun
-and Empty, checks cleared raw storage and verifies only caller cleanup consumes
-Stop/Close/Terminate. These fixtures perform no native PS5 capture or OS wait.
+and Empty, then separately drains 190 seven-byte reads at the continuous cadence.
+It checks cleared raw storage and verifies only caller cleanup consumes
+Stop/Close/Terminate for each profile. These fixtures perform no native PS5 capture or OS wait.
 
 A runtime integration must select its own artifact/feature, start the workload
 only after source-reviewed acquisition, preserve the baseline diagnostics,

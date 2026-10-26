@@ -346,7 +346,7 @@ fn config_clock_buffer_and_owner_interleaving_fail_before_an_extra_native_read()
             ..config(20)
         },
         ObserveConfig {
-            max_reads: 21,
+            max_reads: MAX_OBSERVE_READS + 1,
             ..config(20)
         },
         ObserveConfig {
@@ -455,6 +455,53 @@ fn actual_existing_c_capture_fixture_produces_only_redacted_raw_observations() {
         for phase in [5, 6, 7] {
             assert_eq!(ps5_capture_test_calls(phase), 1);
         }
+        // Reuse this single fixture-owning test for the faster profile, avoiding
+        // parallel access to the C fixture's process-global synthetic exports.
+        ps5_capture_test_reset();
+        let backend = Avcap2Backend::new(
+            &mut storage,
+            ResolverOps {
+                abi_version: bt_capture::ABI_VERSION,
+                struct_bytes: core::mem::size_of::<ResolverOps>() as u32,
+                lookup_current: ps5_capture_test_current,
+                lookup_module: ps5_capture_test_module,
+            },
+        )
+        .unwrap();
+        let mut owner = CaptureOwner::open(
+            backend,
+            Budget {
+                max_reads: 256,
+                deadline_us: 3_000_000,
+            },
+            0,
+        )
+        .unwrap();
+        owner.start().unwrap();
+        let mut work = ObserveWorkload::new(ObserveConfig::CONTINUOUS, 0).unwrap();
+        ps5_capture_test_read(7);
+        for index in 0..190 {
+            work.step(&mut owner, &mut raw, 100_000 + index * 10_000, false)
+                .unwrap();
+            assert_eq!(raw, [0; 64]);
+        }
+        assert_eq!(work.snapshot().statistics.native_reads, 190);
+        assert_eq!(work.snapshot().statistics.data, 190);
+        assert_eq!(work.snapshot().statistics.total_bytes, 190 * 7);
+        assert!(work.snapshot().last_read.unwrap().native_time.is_none());
+        assert!(
+            work.step(&mut owner, &mut raw, 2_000_000, false)
+                .unwrap()
+                .finished
+        );
+        assert_eq!(work.snapshot().stop_reason, Some(ObserveStop::Deadline));
+        assert_eq!(ps5_capture_test_calls(4), 190);
+        assert_eq!(ps5_capture_test_calls(5), 0);
+        owner.close();
+        drop(owner);
+        for phase in [5, 6, 7] {
+            assert_eq!(ps5_capture_test_calls(phase), 1);
+        }
     }
 }
 
@@ -473,4 +520,126 @@ fn valid_deadline_near_u64_max_clamps_next_wake_without_overflow() {
     assert!(progress.finished);
     assert_eq!(work.snapshot().stop_reason, Some(ObserveStop::Deadline));
     assert_eq!(calls.borrow().read, 1);
+}
+
+#[test]
+fn continuous_profile_drains_every_10ms_with_256_budget_and_190_window_ceiling() {
+    assert_eq!(ObserveConfig::BOUNDED.max_reads, 20);
+    assert_eq!(ObserveConfig::BOUNDED.interval_us, 100_000);
+    assert_eq!(ObserveConfig::CONTINUOUS.max_reads, 256);
+    assert_eq!(ObserveConfig::CONTINUOUS.interval_us, 10_000);
+    let (mut owner, calls) = make_owner(vec![], 256, 3_000_000, false);
+    let mut work = ObserveWorkload::new(ObserveConfig::CONTINUOUS, 0).unwrap();
+    let mut raw = [9; 32];
+    assert_eq!(
+        work.step(&mut owner, &mut raw, 99_999, false)
+            .unwrap()
+            .wake_at_us,
+        Some(100_000)
+    );
+    assert_eq!(calls.borrow().read, 0);
+    assert_eq!(raw, [0; 32]);
+    for index in 0..190 {
+        let now = 100_000 + index * 10_000;
+        let progress = work.step(&mut owner, &mut raw, now, false).unwrap();
+        assert!(progress.progressed);
+        assert!(!progress.finished);
+        assert_eq!(progress.wake_at_us, Some(now + 10_000));
+        assert_eq!(raw, [0; 32]);
+    }
+    assert_eq!(calls.borrow().read, 190);
+    assert_eq!(work.snapshot().statistics.native_reads, 190);
+    assert_eq!(work.snapshot().owner_reads_final, Some(190));
+    assert!(
+        work.step(&mut owner, &mut raw, 2_000_000, false)
+            .unwrap()
+            .finished
+    );
+    assert_eq!(work.snapshot().stop_reason, Some(ObserveStop::Deadline));
+    assert_eq!(calls.borrow().read, 190);
+    assert_eq!(calls.borrow().stop, 0);
+    owner.close();
+    drop(owner);
+    assert_eq!(calls.borrow().stop, 1);
+    assert_eq!(calls.borrow().close, 1);
+}
+
+#[test]
+fn continuous_late_poll_and_stop_do_not_burst_or_reset_budget() {
+    let (mut owner, calls) = make_owner(vec![], 256, 3_000_000, false);
+    let mut work = ObserveWorkload::new(ObserveConfig::CONTINUOUS, 0).unwrap();
+    let progress = work
+        .step(&mut owner, &mut [0; 32], 1_000_000, false)
+        .unwrap();
+    assert_eq!(progress.wake_at_us, Some(1_010_000));
+    assert_eq!(calls.borrow().read, 1);
+    for _ in 0..32 {
+        assert!(
+            !work
+                .step(&mut owner, &mut [0; 32], 1_009_999, false)
+                .unwrap()
+                .progressed
+        );
+    }
+    assert_eq!(calls.borrow().read, 1);
+    work.step(&mut owner, &mut [0; 32], 1_010_000, false)
+        .unwrap();
+    assert_eq!(calls.borrow().read, 2);
+    assert!(
+        work.step(&mut owner, &mut [], 1_010_000, true)
+            .unwrap()
+            .finished
+    );
+    assert_eq!(work.snapshot().stop_reason, Some(ObserveStop::Cancelled));
+    assert_eq!(work.snapshot().statistics.native_reads, 2);
+    assert_eq!(owner.reads(), 2);
+    assert_eq!(calls.borrow().stop, 0);
+    owner.close();
+    assert_eq!(calls.borrow().stop, 1);
+}
+
+#[test]
+fn continuous_custom_tighter_read_limit_still_stops_once_and_invalid_cadences_fail() {
+    let (mut owner, calls) = make_owner(vec![], 256, 3_000_000, false);
+    let mut work = ObserveWorkload::new(
+        ObserveConfig {
+            max_reads: 3,
+            ..ObserveConfig::CONTINUOUS
+        },
+        0,
+    )
+    .unwrap();
+    for now in [100_000, 110_000, 120_000] {
+        work.step(&mut owner, &mut [0; 32], now, false).unwrap();
+    }
+    assert_eq!(work.snapshot().stop_reason, Some(ObserveStop::ReadBudget));
+    assert_eq!(calls.borrow().read, 3);
+    assert!(
+        work.step(&mut owner, &mut [0; 32], 130_000, false)
+            .unwrap()
+            .finished
+    );
+    assert_eq!(calls.borrow().read, 3);
+    for interval_us in [0, 1, 9999, 10001, 99999, 100001] {
+        assert!(matches!(
+            ObserveWorkload::new(
+                ObserveConfig {
+                    interval_us,
+                    ..ObserveConfig::CONTINUOUS
+                },
+                0
+            ),
+            Err(ObserveError::InvalidConfig)
+        ));
+    }
+    assert!(matches!(
+        ObserveWorkload::new(
+            ObserveConfig {
+                max_reads: 257,
+                ..ObserveConfig::CONTINUOUS
+            },
+            0
+        ),
+        Err(ObserveError::InvalidConfig)
+    ));
 }

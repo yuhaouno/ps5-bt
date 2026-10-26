@@ -8,9 +8,9 @@ an operator-held input; the JSON never embeds arbitrary log text or file paths.
 
 ## Artifact and run correlation
 
-The independently selected Rust `sbc-continuous`, `capture-stream` and
-`application-control` artifacts embed the build identity recorded by their
-manifest:
+The independently selected Rust `sbc-continuous`, `capture-stream`,
+`application-control`, `application-generated` and `application-observe` artifacts
+embed the build identity recorded by their manifest:
 
 ```text
 event=run_begin build_id=<64 lowercase hex digits> candidate=<artifact stem>
@@ -187,6 +187,130 @@ Unknown; this profile establishes no Bluetooth/audio activation. All headset
 audio acceptance and PS5 log persistence remain Unknown even after a complete
 control-only result.
 
+## Generated and raw-observation application profiles
+
+The additional manifest flags `application_generated` and `application_observe`
+select exactly `ps5-bt-application-generated` and `ps5-bt-application-observe`.
+They retain the existing unique outer identity/termination, redaction, 23-export
+preflight/entropy/shutdown and global budget checks. The unchanged preflight begin
+marker describes the imports stage before a workload is admitted; the runtime
+begin event distinguishes the actual mode. A manifest with multiple variant
+flags or a mismatched candidate is rejected. The control-only profile remains
+bound to its original begin event and resource mask; these additions do not
+allow it to claim a codec/capture operation.
+
+The new exact runtime begin events are:
+
+```text
+event=application_begin schema=1 mode=generated-sbc transport=Unavailable capture=Unavailable native_format=Unknown codec=diagnostic
+event=application_begin schema=1 mode=capture-observe transport=Unavailable capture=raw-observe native_format=Unknown codec=Unavailable
+```
+
+All application profiles require the actual global configuration of 5,000,000
+observed microseconds, 20,000 turns, 10,000 waits, 64 clients and 100,000 us normal
+stop policy, with the same bounded counter checks. The generated profile requires
+native resource/cleanup masks 23 (Clock/Store/Listener/Encoder); the observation
+profile requires masks 15 (Clock/Store/Listener/Capture). Full success requires
+active/failed masks zero, complete cleanup, no uncertainty and no native/HTTP
+failure. Partial startup/cancellation cannot inherit the control-only mask 7 as
+proof that its additional resource was acquired or cleaned. Workload metrics
+must each occur once, between the correct runtime begin and completion. Missing,
+duplicated, malformed, out-of-order or cross-profile evidence cannot complete
+that workload successfully. All earlier import, HTTP and factory failure rules
+continue to apply.
+
+### Generated PCM through the native application loop
+
+`application_generated_*` fields retain phase, error, generated/discarded blocks,
+discarded bytes, operation count, prefix, digest, summary match, observed elapsed
+microseconds (two u32 words), conceal/rebuffer/expiry counters, stopped frames/
+blocks, raw codec status bits and the required `completion_observed` flag. Phase values are Running 0, Complete 1,
+Stopped 2 and Failed 3; summary is absent 0, mismatch 1 or match 2. These numeric
+categories are versioned with the source-defined candidate, not guessed from
+arbitrary log text.
+
+A completed workload requires phase 1/error 0, exactly 750 generated and discarded
+blocks, 57,750 bytes, prefix `9cfd20cb`, digest `7784d1fb` and summary match 2.
+Operations must be 2,251..60,000, including the separate final completion
+observation; `application_generated_completion_observed` must be exactly 1. Concealment, rebuffer, expiry, stopped frames,
+stopped blocks and codec error bits must all be zero. Its pacing uses the actual
+host-monotonic observations, unlike the earlier separately selected SBC
+candidate's synthetic nominal clock. The earliest last-block deadline is
+`ceil(749 * 128 * 1,000,000 / 48,000) = 1,997,334` us; successful elapsed evidence
+must be at least that value and strictly below the exclusive 2,000,000 us budget.
+The confirming observation is sampled after final codec/discard/hash work; a
+stale pre-operation timestamp cannot certify the completed duration. A summary
+at exactly two seconds cannot satisfy this profile.
+
+A coherent clean partial/Stopped workload is `incomplete_evidence`, even if the
+outer application returned cleanly. Settled Complete frame counts with
+`completion_observed=0` are also incomplete: Stop may have preempted the final
+clock check. They cannot inherit the last pre-operation timestamp as final elapsed
+evidence. Missing/duplicated flags remain incomplete and a flag outside 0/1 fails. Running state, missing summary or an early
+Stop cannot be promoted to the full 750-block result. A Failed phase, nonzero
+error/codec status, impossible count/byte relation, continuity fault or full
+summary/digest/timing mismatch is a failure. The sink deliberately discards the
+encoded blocks; no network/ACL submission, capture, headset output or audio
+acceptance is inferred.
+
+### Continuous bounded raw capture observation
+
+`application_observe_*` fields retain finish/error category; reads, Data, Empty,
+Zero, Overrun, Ended, native/owner errors and unknown-gap events; total byte count
+as two u32 words; maximum read bytes; the final read kind/raw status/discontinuity;
+and separate host/native-time metadata. Actual configured maximum reads, duration,
+first settle and interval are required numeric evidence, as are workload start
+and observed elapsed microseconds. The selected `CONTINUOUS` profile must report
+256 reads, 2,000,000 us, 100,000 us and 10,000 us respectively. The collector derives
+`cadence_read_ceiling = min(max_reads, 1 + (duration_us - first_settle_us - 1) /
+interval_us) = 190` with integer division. Actual reads can be fewer; the collector
+never substitutes 190 for observed counts or requires that exact count. A 191st
+read cannot fit this exclusive window and fails. The reusable helper's retained
+`BOUNDED` 20-read/100 ms profile and historical C diagnostic keep their own bounds;
+they do not match this artifact's selected configuration.
+
+Observation reason values are none 0, Cancelled 1, Deadline 2, ReadBudget 3,
+Ended 4 and Failed 5. A completed bounded observation requires Deadline, at least
+one read, coherent counters and clean factory/native cleanup. Elapsed must reach
+two seconds and remain within the five-second global application bound. Native
+calls/waits may overshoot their requested duration, so the JSON retains
+`deadline_overshoot_us`; it does not invent a 1 ms native-latency guarantee or
+round away that observation. Cancelled or Ended with clean cleanup remains
+incomplete for the continuous observation target, preserving its actual reason.
+Native/owner errors or uncertain cleanup are failures.
+
+Successful read counters sum exactly to actual owner read advances. Errors may
+retain an additional owner advance, without rewriting the original owner budget.
+Total/max byte counts must fit the number of Data reads and 8,192-byte read bound.
+The final kind/raw/discontinuity must match the current native ABI: Data is a
+positive 1..8,192-byte raw return; Zero is 0; Empty/Overrun/Ended use
+`81950002`/`81950004`/`81950008`; only Overrun is discontinuous. Gap events equal
+observed overruns for this specific adapter. The last host read observation must
+be at least `started + first_settle + (reads - 1) * interval` and no later than
+the workload's final observation, with checked absolute arithmetic. This minimum
+also rejects catch-up bursts reported as regularly paced reads. No-read final summaries must remain all zero;
+they never imply data or a native timestamp.
+
+The current Avcap2 adapter supplies no typed native timestamp: the native-time
+present flag, value words and domain must all be zero. This is absence of a
+known timestamp, not verification of zero-valued native time. The sixteen opaque
+native metadata bytes are never retained by this collector. No native unit
+conversion, PCM frame division or lost-sample estimate occurs. Even a seven-byte
+Data read is only a byte-length observation.
+
+Empty-only, Zero-only or Overrun observations can complete the bounded raw
+procedure with clean cleanup; they are not PCM success. Data sets only
+`nonempty_bytes_observed`. PCM format/success, sample-frame counts, sample gaps,
+native time units, headset audio and PS5 persistence all remain Unknown. The
+JSON's `bounded_raw_observation_completed` certifies the checked reported
+procedure, not playable audio, verified continuous PCM or stable capture timing.
+
+These new profiles still copy only whitelisted numeric counters/statuses and
+fixed configuration strings. Raw PCM/SBC, opaque metadata, addresses, secrets,
+paths, request text and arbitrary `application_generated_*` or
+`application_observe_*` keys are excluded. Hash correlation remains a property
+of saved local inputs; it does not authenticate execution on PS5.
+
 ## Resource and persistence bounds
 
 Each input must be a regular local file of at most 1 MiB. Logs have at most
@@ -220,7 +344,13 @@ Tests cover complete profiles, interrupted and truncated logs, identity reuse,
 fake/early completion, failed status and digest/count/timing mismatches, missing
 cleanup, controller Unknown/changed, dirty source, duplicate keys, input bounds,
 private atomic no-clobber output and both file/directory fsync failures. The
-application profile additionally covers preflight failure/cancellation, native
+application profiles additionally cover preflight failure/cancellation, native
 factory faults, unavailable gates, actual budget limits, missing/duplicate masks,
-import-group integrity/order and secret/path/address exclusion. These
+import-group integrity/order and secret/path/address exclusion. Generated tests
+pin full workload versus clean partial Stop, bitstream/count/operation/real-clock
+bounds and faults. Observation tests cover exact counters/raw statuses, zero/data/
+overrun outcomes without PCM claims, actual counts below the 190-read cadence
+ceiling, forged excess polls/old profile configuration, exclusive cadence, explicit native-time
+absence, duration/overshoot, early Ended/Cancel and every missing/duplicate numeric
+field. These
 are collection tests against synthetic logs, not hardware evidence.

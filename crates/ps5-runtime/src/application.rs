@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Explicit finite control-only startup; Bluetooth/capture/codec stay unavailable.
+//! Finite factory/HTTP startup with separately selected local diagnostic workloads.
+#[cfg(all(feature = "application-generated", feature = "application-observe"))]
+compile_error!("select one application diagnostic mode");
 use bt_app::Application;
 use bt_audio::{BlockEncoder, FinishEncoder};
 use bt_capture::{Avcap2Backend, ResolverOps};
@@ -20,8 +22,10 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
 };
 use ps5_app::{
-    Config, FactoryReport, NativeFactory, NativeListener, NativeStorage, NativeStore, Resolvers,
-    ResourceError, ResourceKind,
+    CaptureConfig, Config, EncoderConfig, FactoryReport, Mode, NativeFactory, NativeListener,
+    NativeStorage, NativeStore, Resolvers, ResourceError, ResourceKind,
+    generated::{GeneratedConfig, GeneratedSnapshot, GeneratedStorage, GeneratedWorkload},
+    observe::{ObserveConfig, ObserveSnapshot, ObserveWorkload},
 };
 
 const DEVICES: usize = 4;
@@ -72,6 +76,8 @@ struct Buffers {
     rust: ControlStorage<DEVICES>,
     request: [u8; 1024],
     response: [u8; HTTP_RESPONSE],
+    generated: GeneratedStorage,
+    capture_raw: [u8; bt_capture::MAX_READ_BYTES],
 }
 impl Buffers {
     const fn new() -> Self {
@@ -80,6 +86,8 @@ impl Buffers {
             rust: ControlStorage::new(),
             request: [0; 1024],
             response: [0; HTTP_RESPONSE],
+            generated: GeneratedStorage::new(),
+            capture_raw: [0; bt_capture::MAX_READ_BYTES],
         }
     }
 }
@@ -250,6 +258,13 @@ struct ControlResources<'a, 'native, 'config> {
     endpoint: Option<EndpointPolicy>,
     token: &'a [u8; 32],
     stop: &'a AtomicBool,
+    mode: Mode,
+    generated_storage: Option<&'a mut GeneratedStorage>,
+    generated: Option<GeneratedWorkload<'a>>,
+    observe: Option<ObserveWorkload>,
+    capture_raw: &'a mut [u8; bt_capture::MAX_READ_BYTES],
+    workload_finished: bool,
+    last_work_us: Option<u64>,
     last_port_error: Option<ResourceError>,
     app_error: Option<bt_runner::ApplicationLoopError>,
 }
@@ -288,6 +303,32 @@ impl<'a, 'native> ControlResources<'a, 'native, '_> {
         .map_err(|_| -404)
     }
     fn initialize_rust(&mut self, now: u64) -> Result<(), i32> {
+        if self.mode != Mode::ControlOnly {
+            let work_now = self.native.now_us().map_err(|error| {
+                self.last_port_error = Some(error);
+                error.code
+            })?;
+            if self.mode == Mode::GeneratedSbc {
+                self.generated = Some(
+                    GeneratedWorkload::new(
+                        GeneratedConfig {
+                            parameters: diagnostic_parameters(),
+                            epoch_us: work_now,
+                            duration_us: ps5_app::generated::DEFAULT_DURATION_US,
+                            max_blocks: ps5_app::generated::DEFAULT_BLOCKS,
+                            max_operations: ps5_app::generated::DEFAULT_OPERATIONS,
+                            max_lateness_us: ps5_app::generated::DEFAULT_LATENESS_US,
+                        },
+                        self.generated_storage.take().ok_or(-430)?,
+                    )
+                    .map_err(|_| -431)?,
+                );
+            } else if self.mode == Mode::CaptureObserve {
+                self.observe = Some(
+                    ObserveWorkload::new(ObserveConfig::CONTINUOUS, work_now).map_err(|_| -432)?,
+                );
+            }
+        }
         let store = self.native.take_store().ok_or(-405)?;
         if let Err(store) = self.store.install(store) {
             let _ = self.native.restore_store(store);
@@ -364,17 +405,116 @@ impl LoopResources for ControlResources<'_, '_, '_> {
             #[cfg(all(test, feature = "application-control-host"))]
             tests::listener_bound(port);
         }
-        if resource == Resource::Encoder {
-            self.initialize_rust(now)?;
+        if resource == Resource::Encoder
+            && let Err(primary) = self.initialize_rust(now)
+        {
+            // The outer loop records this slot only after acquire returns Ok.
+            // Release its successful native acquisition before earlier slots.
+            if let Some(work) = self.generated.as_mut() {
+                work.stop();
+            }
+            if let Err(cleanup) = self.native.cleanup(ResourceKind::Encoder) {
+                self.last_port_error.get_or_insert(cleanup);
+            }
+            return Err(primary);
         }
         Ok(())
     }
+    fn latest_observed_us(&self) -> Option<u64> {
+        self.last_work_us
+    }
     fn take_stop(&mut self) -> bool {
-        self.stop.load(Ordering::Acquire)
+        self.stop.load(Ordering::Acquire) || self.workload_finished
     }
     fn quantum(&mut self, lane: Lane, now: u64) -> Result<Quantum, i32> {
-        // No transport/owned routing exists. Never call even the unavailable
-        // input adapter or bind pumps/credits merely to populate a loop slot.
+        // Diagnostic lanes have no connection, packetization or radio sink.
+        // Network/control continue through the actual Rust application owner.
+        if self.mode == Mode::GeneratedSbc
+            && matches!(lane, Lane::Capture | Lane::Encode | Lane::Send)
+        {
+            if self.stop.load(Ordering::Acquire) {
+                return Ok(Quantum::default());
+            }
+            let observed = self.native.now_us().map_err(|error| {
+                self.last_port_error = Some(error);
+                error.code
+            })?;
+            self.last_work_us = Some(observed);
+            if self.stop.load(Ordering::Acquire) {
+                return Ok(Quantum::default());
+            }
+            let work = self.generated.as_mut().ok_or(-433)?;
+            let progress = match lane {
+                Lane::Capture => work.generate(observed),
+                Lane::Encode => {
+                    #[cfg(any(
+                        feature = "application-generated-target",
+                        feature = "application-control-host"
+                    ))]
+                    {
+                        work.encode(observed, self.native.parts_mut().encoder.ok_or(-434)?)
+                    }
+                    #[cfg(not(any(
+                        feature = "application-generated-target",
+                        feature = "application-control-host"
+                    )))]
+                    {
+                        return Err(-435);
+                    }
+                }
+                Lane::Send => work.discard(observed),
+                _ => unreachable!(),
+            }
+            .map_err(|_| -436)?;
+            if lane == Lane::Send && progress.finished && !self.stop.load(Ordering::Acquire) {
+                // Observe after the real codec and discard/hash work. A stale
+                // turn timestamp cannot certify elapsed completion.
+                let completed = self.native.now_us().map_err(|error| {
+                    self.last_port_error = Some(error);
+                    error.code
+                })?;
+                self.last_work_us = Some(completed);
+                if !self.stop.load(Ordering::Acquire) {
+                    work.confirm_completion(completed).map_err(|_| -441)?;
+                }
+            }
+            self.workload_finished |= progress.finished;
+            return Ok(Quantum {
+                progressed: progress.progressed,
+                wake_at_us: progress.wake_at_us,
+                ..Quantum::default()
+            });
+        }
+        if self.mode == Mode::CaptureObserve && lane == Lane::Capture {
+            if self.stop.load(Ordering::Acquire) {
+                return Ok(Quantum::default());
+            }
+            let observed = self.native.now_us().map_err(|error| {
+                self.last_port_error = Some(error);
+                error.code
+            })?;
+            self.last_work_us = Some(observed);
+            if self.stop.load(Ordering::Acquire) {
+                return Ok(Quantum::default());
+            }
+            let progress = self
+                .observe
+                .as_mut()
+                .ok_or(-437)?
+                .step(
+                    self.native.parts_mut().capture.ok_or(-438)?,
+                    self.capture_raw,
+                    observed,
+                    self.stop.load(Ordering::Acquire),
+                )
+                .map_err(|_| -439)?;
+            self.workload_finished |= progress.finished;
+            return Ok(Quantum {
+                progressed: progress.progressed,
+                wake_at_us: progress.wake_at_us,
+                ..Quantum::default()
+            });
+        }
         if matches!(
             lane,
             Lane::Input | Lane::Capture | Lane::Encode | Lane::Send
@@ -388,6 +528,15 @@ impl LoopResources for ControlResources<'_, '_, '_> {
         self.remember(result)
     }
     fn request_stop(&mut self, now: u64) -> Result<(), i32> {
+        if let Some(work) = self.generated.as_mut() {
+            work.stop();
+        }
+        if let Some(work) = self.observe.as_mut()
+            && let Some(capture) = self.native.parts_mut().capture
+        {
+            work.step(capture, self.capture_raw, now, true)
+                .map_err(|_| -440)?;
+        }
         self.cancel_service()?;
         if self.app.is_some() && self.runner.is_some() {
             let result = {
@@ -409,6 +558,10 @@ impl LoopResources for ControlResources<'_, '_, '_> {
         self.remember(result)
     }
     fn abort_stop(&mut self) {
+        if let Some(work) = self.generated.as_mut() {
+            work.stop();
+        }
+        self.capture_raw.fill(0);
         let _ = self.cancel_service();
         if self.app.is_some()
             && self.runner.is_some()
@@ -456,6 +609,7 @@ impl DriveResources for ControlResources<'_, '_, '_> {
 }
 #[derive(Clone, Copy)]
 struct RunConfig {
+    mode: Mode,
     duration_us: u64,
     stop_timeout_us: u64,
     budget: DriveBudget,
@@ -463,6 +617,7 @@ struct RunConfig {
 }
 impl RunConfig {
     const DEFAULT: Self = Self {
+        mode: Mode::ControlOnly,
         duration_us: 5_000_000,
         stop_timeout_us: 100_000,
         budget: DriveBudget {
@@ -479,6 +634,8 @@ struct Outcome {
     application: Option<ApplicationLoopSnapshot>,
     service: Option<bt_listener::ServiceSnapshot>,
     port_error: Option<ResourceError>,
+    generated: Option<GeneratedSnapshot>,
+    observe: Option<ObserveSnapshot>,
 }
 fn uncertain_http(error: HttpFailure) -> bool {
     error.cleanup.is_some() || matches!(error.cause, bt_control::pump::Cause::Close(_))
@@ -487,8 +644,11 @@ impl Outcome {
     /// Retain prior cleanup uncertainty even if the final listener/factory close
     /// subsequently succeeds. No later cleanup attests an earlier client close.
     fn cleanup_uncertain(&self) -> bool {
-        self.factory
-            .is_some_and(|factory| factory.cleanup_uncertain())
+        self.observe
+            .is_some_and(|work| work.owner_cleanup.uncertain())
+            || self
+                .factory
+                .is_some_and(|factory| factory.cleanup_uncertain())
             || self.service.is_some_and(|service| {
                 service.last_failure.is_some_and(uncertain_http)
                     || service
@@ -530,10 +690,51 @@ impl Outcome {
             application: None,
             service: None,
             port_error: None,
+            generated: None,
+            observe: None,
         }
     }
 }
 
+fn diagnostic_parameters() -> bt_core::SbcParameters {
+    bt_core::SbcParameters::new(
+        bt_core::SbcSampleRate::Hz48000,
+        bt_core::SbcChannelMode::JointStereo,
+        bt_core::SbcBlocks::Sixteen,
+        bt_core::SbcSubbands::Eight,
+        bt_core::SbcAllocation::Loudness,
+        32,
+    )
+    .expect("fixed conservative diagnostic SBC")
+}
+fn native_config(directory: &[u8], mode: Mode) -> Config<'_> {
+    let mut config = Config::control_only(
+        directory,
+        BindConfig {
+            address: [127, 0, 0, 1],
+            port: 0,
+        },
+    );
+    config.mode = mode;
+    if mode == Mode::GeneratedSbc {
+        config.encoder = Some(EncoderConfig {
+            parameters: diagnostic_parameters(),
+            negotiated_bitpool: bt_core::SbcBitpoolRange::new(2, 53).expect("fixed SBC range"),
+        });
+    }
+    if mode == Mode::CaptureObserve {
+        config.capture = Some(CaptureConfig {
+            // Pending only: rebound to the first actual owned-clock observation
+            // before any capture acquisition. No read uses this placeholder.
+            budget: bt_capture::Budget {
+                max_reads: 256,
+                deadline_us: u64::MAX,
+            },
+            format: bt_capture::Format::UNKNOWN,
+        });
+    }
+    config
+}
 #[allow(clippy::too_many_arguments)]
 fn exercise(
     buffers: &mut Buffers,
@@ -554,13 +755,7 @@ fn exercise(
     let mut native = match unsafe {
         NativeFactory::create(
             &mut buffers.native,
-            Config::control_only(
-                directory,
-                BindConfig {
-                    address: [127, 0, 0, 1],
-                    port: 0,
-                },
-            ),
+            native_config(directory, config.mode),
             resolvers,
         )
     } {
@@ -600,6 +795,21 @@ fn exercise(
         out.factory = Some(native.shutdown());
         return out.settled();
     };
+    if config.mode == Mode::CaptureObserve
+        && native
+            .set_capture_budget_before_start(
+                bt_capture::Budget {
+                    max_reads: 256,
+                    deadline_us: deadline,
+                },
+                now,
+            )
+            .is_err()
+    {
+        let mut out = Outcome::early(1);
+        out.factory = Some(native.shutdown());
+        return out.settled();
+    }
     let store = StoreSlot::new();
     let mut recovery = match bt_core::recovery::Recovery::new(control_recovery_policy()) {
         Ok(recovery) => recovery,
@@ -643,6 +853,13 @@ fn exercise(
         endpoint: None,
         token: &secret.0,
         stop,
+        mode: config.mode,
+        generated_storage: Some(&mut buffers.generated),
+        generated: None,
+        observe: None,
+        capture_raw: &mut buffers.capture_raw,
+        workload_finished: false,
+        last_work_us: None,
         last_port_error: None,
         app_error: None,
     };
@@ -668,6 +885,8 @@ fn exercise(
     let application = resources.state.snapshot();
     let service = resources.service.snapshot();
     let port_error = resources.last_port_error;
+    let generated = resources.generated.as_ref().map(|work| work.snapshot());
+    let observe = resources.observe.as_ref().map(|work| work.snapshot());
     let factory = resources.native.shutdown();
     let okay = drive.failure.is_none()
         && drive.outcome.phase == LoopPhase::Finished
@@ -691,6 +910,8 @@ fn exercise(
         application: Some(application),
         service: Some(service),
         port_error,
+        generated,
+        observe,
     }
     .settled()
 }
@@ -796,6 +1017,10 @@ fn report(out: &Outcome) {
         );
         super::field(b"application_clock_calls=0x", drive.clock_calls);
         super::field(b"application_turns=0x", drive.turns);
+        super::field(
+            b"application_cleanup_turns=0x",
+            u32::from(drive.cleanup_turns),
+        );
         super::field(b"application_waits=0x", drive.waits);
         super::field(b"application_forced=0x", u32::from(drive.outcome.forced));
         super::field(
@@ -867,6 +1092,251 @@ fn report(out: &Outcome) {
             u32::from(application.protocols_closed),
         );
     }
+    if let Some(work) = out.generated {
+        use ps5_app::generated::{GeneratedFailure, Phase};
+        super::field(
+            b"application_generated_phase=0x",
+            match work.phase {
+                Phase::Running => 0,
+                Phase::Complete => 1,
+                Phase::Stopped => 2,
+                Phase::Failed => 3,
+            },
+        );
+        super::field(
+            b"application_generated_completion_observed=0x",
+            u32::from(work.completion_observed),
+        );
+        super::field(
+            b"application_generated_error=0x",
+            match work.error {
+                None => 0,
+                Some(GeneratedFailure::ClockRegression) => 1,
+                Some(GeneratedFailure::Deadline) => 2,
+                Some(GeneratedFailure::OperationBudget) => 3,
+                Some(GeneratedFailure::Overflow) => 4,
+                Some(GeneratedFailure::Continuity) => 5,
+                Some(GeneratedFailure::ExpiredOffer) => 6,
+                Some(GeneratedFailure::SummaryMismatch) => 7,
+                Some(GeneratedFailure::Audio(_)) => 8,
+            },
+        );
+        for (name, value) in [
+            (
+                b"application_generated_blocks=0x".as_slice(),
+                work.generated_blocks,
+            ),
+            (
+                b"application_generated_discarded_blocks=0x",
+                work.discarded_blocks,
+            ),
+            (b"application_generated_bytes=0x", work.discarded_bytes),
+            (b"application_generated_operations=0x", work.operations),
+            (b"application_generated_prefix=0x", work.prefix),
+            (b"application_generated_digest=0x", work.digest),
+            (
+                b"application_generated_summary_matches=0x",
+                match work.summary_matches {
+                    None => 0,
+                    Some(false) => 1,
+                    Some(true) => 2,
+                },
+            ),
+            (
+                b"application_generated_elapsed_hi=0x",
+                (work.elapsed_us >> 32) as u32,
+            ),
+            (
+                b"application_generated_elapsed_lo=0x",
+                work.elapsed_us as u32,
+            ),
+            (
+                b"application_generated_concealed=0x",
+                work.scheduler.statistics.concealed_frames as u32,
+            ),
+            (
+                b"application_generated_rebuffer=0x",
+                work.scheduler.statistics.rebuffer_episodes as u32,
+            ),
+            (
+                b"application_generated_expired=0x",
+                work.scheduler.statistics.expired_encoded_blocks as u32,
+            ),
+            (
+                b"application_generated_stopped_frames=0x",
+                work.scheduler.statistics.stopped_pcm_frames as u32 + work.stopped_staged_frames,
+            ),
+            (
+                b"application_generated_stopped_blocks=0x",
+                work.scheduler.statistics.stopped_encoded_blocks as u32,
+            ),
+        ] {
+            super::field(name, value);
+        }
+        let raw = match work.scheduler.failure {
+            Some(bt_audio::Failure::Encoder(error) | bt_audio::Failure::Consumer(error)) => {
+                match error {
+                    bt_core::Error::Backend(raw) => raw,
+                    bt_core::Error::Unsupported => -1,
+                    bt_core::Error::Invalid => -2,
+                    bt_core::Error::Busy => -3,
+                    bt_core::Error::BufferTooSmall => -4,
+                    bt_core::Error::Io => -5,
+                    bt_core::Error::Disconnected => -6,
+                    bt_core::Error::IntegrityLost => -7,
+                    bt_core::Error::Timeout => -8,
+                    bt_core::Error::AbiMismatch => -9,
+                }
+            }
+            _ => 0,
+        };
+        super::field(b"application_generated_codec_bits=0x", raw as u32);
+    }
+    if let Some(work) = out.observe {
+        use ps5_app::observe::{ObserveError, ObserveStop};
+        let stats = work.statistics;
+        for (name, value) in [
+            (
+                b"application_observe_started_hi=0x".as_slice(),
+                (work.started_us >> 32) as u32,
+            ),
+            (b"application_observe_started_lo=0x", work.started_us as u32),
+            (
+                b"application_observe_elapsed_hi=0x",
+                (work.last_observed_us.saturating_sub(work.started_us) >> 32) as u32,
+            ),
+            (
+                b"application_observe_elapsed_lo=0x",
+                work.last_observed_us.saturating_sub(work.started_us) as u32,
+            ),
+            (b"application_observe_max_reads=0x", work.config.max_reads),
+            (
+                b"application_observe_duration_us=0x",
+                work.config.duration_us as u32,
+            ),
+            (
+                b"application_observe_first_settle_us=0x",
+                work.config.first_settle_us as u32,
+            ),
+            (
+                b"application_observe_interval_us=0x",
+                work.config.interval_us as u32,
+            ),
+        ] {
+            super::field(name, value);
+        }
+
+        super::field(
+            b"application_observe_reason=0x",
+            match work.stop_reason {
+                None => 0,
+                Some(ObserveStop::Cancelled) => 1,
+                Some(ObserveStop::Deadline) => 2,
+                Some(ObserveStop::ReadBudget) => 3,
+                Some(ObserveStop::Ended) => 4,
+                Some(ObserveStop::Failed) => 5,
+            },
+        );
+        super::field(
+            b"application_observe_error=0x",
+            match work.error {
+                None => 0,
+                Some(ObserveError::InvalidConfig) => 1,
+                Some(ObserveError::InvalidBuffer) => 2,
+                Some(ObserveError::ClockRegressed) => 3,
+                Some(ObserveError::ClockOverflow) => 4,
+                Some(ObserveError::OwnerProgressChanged) => 5,
+                Some(ObserveError::Owner(_)) => 6,
+                Some(ObserveError::NativeRead { .. }) => 7,
+                Some(ObserveError::Cleanup(_)) => 8,
+            },
+        );
+        for (name, value) in [
+            (
+                b"application_observe_reads=0x".as_slice(),
+                stats.native_reads,
+            ),
+            (b"application_observe_data=0x", stats.data),
+            (b"application_observe_empty=0x", stats.empty),
+            (b"application_observe_zero=0x", stats.zero),
+            (b"application_observe_overruns=0x", stats.overruns),
+            (b"application_observe_ended=0x", stats.ended),
+            (b"application_observe_native_errors=0x", stats.native_errors),
+            (
+                b"application_observe_owner_failures=0x",
+                stats.owner_failures,
+            ),
+            (b"application_observe_gaps=0x", stats.unknown_gap_events),
+            (
+                b"application_observe_bytes_hi=0x",
+                (stats.total_bytes >> 32) as u32,
+            ),
+            (b"application_observe_bytes_lo=0x", stats.total_bytes as u32),
+            (b"application_observe_max_bytes=0x", stats.max_read_bytes),
+        ] {
+            super::field(name, value);
+        }
+        let last = work.last_read;
+        super::field(
+            b"application_observe_last_raw_bits=0x",
+            last.map_or(0, |r| r.raw_status as u32),
+        );
+        super::field(
+            b"application_observe_last_kind=0x",
+            last.map_or(0, |r| match r.kind {
+                bt_capture::ReadKind::Data => 1,
+                bt_capture::ReadKind::Zero => 2,
+                bt_capture::ReadKind::Empty => 3,
+                bt_capture::ReadKind::Overrun => 4,
+                bt_capture::ReadKind::Ended => 5,
+                bt_capture::ReadKind::Error => 6,
+            }),
+        );
+        super::field(
+            b"application_observe_last_discontinuity=0x",
+            u32::from(last.is_some_and(|r| r.discontinuity)),
+        );
+        let time = last.and_then(|r| r.native_time);
+        super::field(
+            b"application_observe_native_time_present=0x",
+            u32::from(time.is_some()),
+        );
+        super::field(
+            b"application_observe_native_value_hi=0x",
+            time.map_or(0, |t| (t.value >> 32) as u32),
+        );
+        super::field(
+            b"application_observe_native_value_lo=0x",
+            time.map_or(0, |t| t.value as u32),
+        );
+        super::field(
+            b"application_observe_native_domain=0x",
+            time.map_or(0, |t| t.domain),
+        );
+        super::field(
+            b"application_observe_host_hi=0x",
+            last.map_or(0, |r| (r.host_observed_us >> 32) as u32),
+        );
+        super::field(
+            b"application_observe_host_lo=0x",
+            last.map_or(0, |r| r.host_observed_us as u32),
+        );
+        if let Some(ObserveError::Owner(bt_capture::OwnerFailure {
+            error: bt_capture::CaptureError::Backend(d),
+            ..
+        })) = work.error
+        {
+            report_native(ResourceError {
+                code: d.status,
+                stage: d.stage,
+                raw_status: d.raw_status,
+                raw_lookup: d.raw_lookup,
+                flags: d.cleanup_flags,
+                cleanup: [d.raw_stop, d.raw_close, d.raw_terminate],
+                ..ResourceError::default()
+            });
+        }
+    }
     if let Some(error) = out.port_error {
         report_native(error);
     }
@@ -900,8 +1370,22 @@ pub unsafe extern "C" fn ps5_rust_application_probe(
     let Some(secret) = Secret::copy(unsafe { core::slice::from_raw_parts(secret, 32) }) else {
         return 1;
     };
-    ps5_platform::log(b"event=application_begin schema=1 mode=control-only transport=Unavailable capture=Unavailable native_format=Unknown codec=Unavailable\n");
-    let config = RunConfig::DEFAULT;
+    let mode = if cfg!(feature = "application-generated") {
+        Mode::GeneratedSbc
+    } else if cfg!(feature = "application-observe") {
+        Mode::CaptureObserve
+    } else {
+        Mode::ControlOnly
+    };
+    ps5_platform::log(match mode {
+        Mode::GeneratedSbc => b"event=application_begin schema=1 mode=generated-sbc transport=Unavailable capture=Unavailable native_format=Unknown codec=diagnostic\n",
+        Mode::CaptureObserve => b"event=application_begin schema=1 mode=capture-observe transport=Unavailable capture=raw-observe native_format=Unknown codec=Unavailable\n",
+        _ => b"event=application_begin schema=1 mode=control-only transport=Unavailable capture=Unavailable native_format=Unknown codec=Unavailable\n",
+    });
+    let config = RunConfig {
+        mode,
+        ..RunConfig::DEFAULT
+    };
     super::field(b"application_duration_us=0x", config.duration_us as u32);
     super::field(
         b"application_stop_timeout_us=0x",
@@ -1011,6 +1495,7 @@ mod tests {
     static TICKS: AtomicU64 = AtomicU64::new(0);
     static STOP_CLOCK: AtomicU32 = AtomicU32::new(0);
     static FAIL_CLOCK: AtomicU32 = AtomicU32::new(0);
+    static JUMP_CLOCK: AtomicU32 = AtomicU32::new(0);
     static FAIL_WAIT: AtomicI32 = AtomicI32::new(0);
     static STOP_LOOKUP: AtomicBool = AtomicBool::new(false);
     #[repr(C)]
@@ -1027,6 +1512,9 @@ mod tests {
         if call == FAIL_CLOCK.load(Ordering::Relaxed) {
             return -99;
         }
+        if call == JUMP_CLOCK.load(Ordering::Relaxed) {
+            TICKS.fetch_add(2_000_000, Ordering::Relaxed);
+        }
         let us = TICKS.fetch_add(100, Ordering::Relaxed) + 100;
         // SAFETY: the actual C clock owner supplies one live reviewed timespec
         // output exclusively for this synchronous test callback.
@@ -1042,6 +1530,7 @@ mod tests {
         assert!(us > 0 && us <= 1000);
         WAITS.fetch_add(1, Ordering::Relaxed);
         if FAIL_WAIT.load(Ordering::Relaxed) == 0 {
+            TICKS.fetch_add(u64::from(us), Ordering::Relaxed);
             client_step();
         }
         FAIL_WAIT.load(Ordering::Relaxed)
@@ -1085,6 +1574,7 @@ mod tests {
         TICKS.store(0, Ordering::Relaxed);
         STOP_CLOCK.store(0, Ordering::Relaxed);
         FAIL_CLOCK.store(0, Ordering::Relaxed);
+        JUMP_CLOCK.store(0, Ordering::Relaxed);
         FAIL_WAIT.store(0, Ordering::Relaxed);
         STOP_LOOKUP.store(false, Ordering::Relaxed);
         let mut clients = CLIENTS.lock().unwrap();
@@ -1118,6 +1608,7 @@ mod tests {
             &secret,
             &TEST_STOP,
             RunConfig {
+                mode: Mode::ControlOnly,
                 duration_us: if CLIENTS.lock().unwrap().enabled {
                     30_000
                 } else {
@@ -1216,6 +1707,203 @@ mod tests {
         ));
         assert!(out.factory.unwrap().cleanup[ResourceKind::Listener as usize].is_none());
         fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+        fs::remove_dir_all(path).unwrap();
+    }
+    unsafe extern "C" {
+        fn ps5_capture_test_reset();
+        fn ps5_capture_test_read(raw: i32);
+        fn ps5_capture_test_calls(phase: u32) -> u32;
+        fn ps5_capture_test_current(name: *const c_char, out: *mut *mut c_void) -> i64;
+        fn ps5_capture_test_module(module: i32, name: *const c_char, out: *mut *mut c_void) -> i64;
+    }
+    #[test]
+    fn actual_generated_and_raw_observe_share_finite_native_startup() {
+        let _serial = SERIAL.lock().unwrap();
+        let path = directory();
+        for mode in [Mode::GeneratedSbc, Mode::CaptureObserve] {
+            reset();
+            // SAFETY: SERIAL exclusively owns the process-global synthetic C
+            // capture fixture, with exact reviewed export signatures and no PS5.
+            unsafe {
+                ps5_capture_test_reset();
+                ps5_capture_test_read(8);
+            }
+            let mut buffers = Buffers::new();
+            let secret = Secret::copy(b"00112233445566778899aabbccddeeff").unwrap();
+            let mut ports = resolvers();
+            ports.capture.lookup_current = ps5_capture_test_current;
+            ports.capture.lookup_module = ps5_capture_test_module;
+            let out = exercise(
+                &mut buffers,
+                path.to_str().unwrap().as_bytes(),
+                ports,
+                &secret,
+                &TEST_STOP,
+                RunConfig {
+                    mode,
+                    ..RunConfig::DEFAULT
+                },
+            );
+            assert_eq!(out.code, 0, "mode={mode:?}");
+            assert!(!out.cleanup_uncertain());
+            assert!(!out.drive.unwrap().outcome.forced);
+            let factory = out.factory.unwrap();
+            assert_eq!(factory.acquired, [false; 5]);
+            if mode == Mode::GeneratedSbc {
+                let work = out.generated.unwrap();
+                assert_eq!(work.phase, ps5_app::generated::Phase::Complete);
+                assert_eq!(work.discarded_blocks, 750);
+                assert_eq!(work.discarded_bytes, 57750);
+                assert_eq!(work.summary_matches, Some(true));
+                assert!(work.completion_observed);
+                assert!(work.elapsed_us < 2_000_000);
+                assert!(out.observe.is_none());
+                assert!(!factory.required[ResourceKind::Capture as usize]);
+                // SAFETY: fixture counter read under the same SERIAL guard.
+                assert_eq!(unsafe { ps5_capture_test_calls(1) }, 0);
+            } else {
+                let work = out.observe.unwrap();
+                assert_eq!(
+                    work.stop_reason,
+                    Some(ps5_app::observe::ObserveStop::Deadline)
+                );
+                assert!((20..=190).contains(&work.statistics.data));
+                assert_eq!(
+                    work.statistics.total_bytes,
+                    u64::from(work.statistics.data) * 8
+                );
+                assert_eq!(work.statistics.unknown_gap_events, 0);
+                assert!(work.error.is_none());
+                assert!(out.generated.is_none());
+                assert!(!factory.required[ResourceKind::Encoder as usize]);
+                for stage in [5, 6, 7] {
+                    // SAFETY: same exclusively held fixture, no native handles.
+                    assert_eq!(unsafe { ps5_capture_test_calls(stage) }, 1);
+                }
+                assert!(buffers.capture_raw.iter().all(|byte| *byte == 0));
+            }
+        }
+        // Priority Stop while each workload is active must retire local audio
+        // before native factory cleanup, without running to its normal deadline.
+        for mode in [Mode::GeneratedSbc, Mode::CaptureObserve] {
+            reset();
+            STOP_CLOCK.store(500, Ordering::Relaxed);
+            // SAFETY: same SERIAL fixture owner as the full-profile runs above.
+            unsafe {
+                ps5_capture_test_reset();
+                ps5_capture_test_read(8);
+            }
+            let mut buffers = Buffers::new();
+            let secret = Secret::copy(b"00112233445566778899aabbccddeeff").unwrap();
+            let mut ports = resolvers();
+            ports.capture.lookup_current = ps5_capture_test_current;
+            ports.capture.lookup_module = ps5_capture_test_module;
+            let out = exercise(
+                &mut buffers,
+                path.to_str().unwrap().as_bytes(),
+                ports,
+                &secret,
+                &TEST_STOP,
+                RunConfig {
+                    mode,
+                    ..RunConfig::DEFAULT
+                },
+            );
+            assert_eq!(out.code, 0);
+            assert!(!out.cleanup_uncertain());
+            // One bounded stopping clock may follow the priority observation.
+            assert!((500..=501).contains(&CLOCKS.load(Ordering::Relaxed)));
+            if mode == Mode::GeneratedSbc {
+                let work = out.generated.unwrap();
+                assert_eq!(work.phase, ps5_app::generated::Phase::Stopped);
+                assert!(work.discarded_blocks > 0 && work.discarded_blocks < 750);
+            } else {
+                let work = out.observe.unwrap();
+                assert_eq!(
+                    work.stop_reason,
+                    Some(ps5_app::observe::ObserveStop::Cancelled)
+                );
+                assert!(work.statistics.data > 0 && work.statistics.data < 190);
+            }
+        }
+        fs::remove_dir_all(path).unwrap();
+    }
+    #[test]
+    fn failed_final_acquisition_and_fresh_lane_deadlines_preserve_evidence() {
+        let _serial = SERIAL.lock().unwrap();
+        let path = directory();
+        for scenario in 0..3 {
+            reset();
+            // SAFETY: one SERIAL guard owns the host capture/export fixture.
+            unsafe {
+                ps5_capture_test_reset();
+                ps5_capture_test_read(8);
+            }
+            let mode = if scenario == 2 {
+                Mode::CaptureObserve
+            } else {
+                Mode::GeneratedSbc
+            };
+            if scenario == 0 {
+                FAIL_CLOCK.store(7, Ordering::Relaxed);
+            } else {
+                JUMP_CLOCK.store(if scenario == 1 { 11 } else { 9 }, Ordering::Relaxed);
+            }
+            let mut buffers = Buffers::new();
+            let secret = Secret::copy(b"00112233445566778899aabbccddeeff").unwrap();
+            let mut ports = resolvers();
+            ports.capture.lookup_current = ps5_capture_test_current;
+            ports.capture.lookup_module = ps5_capture_test_module;
+            let out = exercise(
+                &mut buffers,
+                path.to_str().unwrap().as_bytes(),
+                ports,
+                &secret,
+                &TEST_STOP,
+                RunConfig {
+                    mode,
+                    ..RunConfig::DEFAULT
+                },
+            );
+            assert!(!out.cleanup_uncertain(), "scenario={scenario}");
+            if scenario == 0 {
+                assert_eq!(out.code, 1);
+                assert_eq!(out.port_error.unwrap().raw_status, -99);
+                assert!(
+                    out.factory.unwrap().cleanup[ResourceKind::Encoder as usize]
+                        .unwrap()
+                        .is_ok()
+                );
+                assert!(
+                    out.drive
+                        .unwrap()
+                        .outcome
+                        .cleanup
+                        .iter()
+                        .all(|result| !matches!(result, Some(Err(_))))
+                );
+            } else if scenario == 1 {
+                assert_eq!(out.code, 1);
+                let work = out.generated.unwrap();
+                assert_eq!(work.scheduler.statistics.encoded_blocks, 1);
+                assert_eq!(work.discarded_blocks, 0);
+                assert_eq!(
+                    work.error,
+                    Some(ps5_app::generated::GeneratedFailure::Deadline)
+                );
+                assert!(!work.completion_observed);
+            } else {
+                assert_eq!(out.code, 0);
+                let work = out.observe.unwrap();
+                assert_eq!(
+                    work.stop_reason,
+                    Some(ps5_app::observe::ObserveStop::Deadline)
+                );
+                assert_eq!(work.statistics.native_reads, 0);
+                // SAFETY: counter read under the same exclusive fixture guard.
+                assert_eq!(unsafe { ps5_capture_test_calls(4) }, 0);
+            }
+        }
         fs::remove_dir_all(path).unwrap();
     }
     #[test]

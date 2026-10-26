@@ -4,9 +4,11 @@ use bt_capture::{
     Backend, CaptureOwner, Cleanup, MAX_READ_BYTES, NativeTime, OwnerFailure, ReadKind,
 };
 
-pub const MAX_OBSERVE_READS: u32 = 20;
+pub const MAX_OBSERVE_READS: u32 = 256;
+pub const BOUNDED_OBSERVE_READS: u32 = 20;
 pub const MAX_OBSERVE_DURATION_US: u64 = 2_000_000;
 pub const OBSERVE_INTERVAL_US: u64 = 100_000;
+pub const CONTINUOUS_INTERVAL_US: u64 = 10_000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ObserveConfig {
@@ -15,15 +17,25 @@ pub struct ObserveConfig {
     pub duration_us: u64,
     /// Zero for an immediate first read, or the reviewed 100 ms settle request.
     pub first_settle_us: u64,
-    /// Exactly 100 ms. This workload suggests deadlines; it never sleeps.
+    /// Either 10 ms continuous drain or the retained 100 ms observation cadence.
+    /// This workload suggests deadlines; it never sleeps.
     pub interval_us: u64,
 }
 impl ObserveConfig {
     pub const BOUNDED: Self = Self {
-        max_reads: MAX_OBSERVE_READS,
+        max_reads: BOUNDED_OBSERVE_READS,
         duration_us: MAX_OBSERVE_DURATION_US,
         first_settle_us: OBSERVE_INTERVAL_US,
         interval_us: OBSERVE_INTERVAL_US,
+    };
+    /// Independently selected continuous raw drain; no PCM format/rate inference.
+    /// At most 256 calls, with at most 190 regular polls before the exclusive
+    /// two-second deadline after the 100 ms first-settle request.
+    pub const CONTINUOUS: Self = Self {
+        max_reads: MAX_OBSERVE_READS,
+        duration_us: MAX_OBSERVE_DURATION_US,
+        first_settle_us: OBSERVE_INTERVAL_US,
+        interval_us: CONTINUOUS_INTERVAL_US,
     };
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -122,7 +134,10 @@ impl ObserveWorkload {
             || config.duration_us > MAX_OBSERVE_DURATION_US
             || !matches!(config.first_settle_us, 0 | OBSERVE_INTERVAL_US)
             || config.first_settle_us >= config.duration_us
-            || config.interval_us != OBSERVE_INTERVAL_US
+            || !matches!(
+                config.interval_us,
+                OBSERVE_INTERVAL_US | CONTINUOUS_INTERVAL_US
+            )
         {
             return Err(ObserveError::InvalidConfig);
         }

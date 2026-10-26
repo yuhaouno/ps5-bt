@@ -11,7 +11,7 @@ with future Linux and FreeBSD backends.
 **Status: diagnostic ELF bring-up. No playable audio or
 verified PS5 support yet.** The workspace contains portable contracts and packet
 parsers, Rust/C capture and codec candidates, and a separately selected
-control-only native application assembly. The production Bluetooth adapter
+native application assembly with separate control, generated-SBC and raw-observation modes. The production Bluetooth adapter
 explicitly returns `Unsupported`. It is an independent project, not a translation or fork of an
 existing payload. The final public name is undecided; repository and package
 collision checks must precede naming. All Cargo packages are `publish = false`.
@@ -58,9 +58,9 @@ The earlier second-machine build reproduction remains in
 | Bounded capture observation | Executed on one Slim/13.40 environment | immediate Empty then 8,192 bytes after one wait; checked clock call and clean cleanup; native PCM format/timestamp still unknown |
 | SBC-over-RTP/A2DP packetization | Implemented on host | fixed negotiated MTU/frame boundaries, atomic backpressure, sequence/sample timestamps and wrap tests; no AVDTP/live stream |
 | Media send orchestration | Implemented on host | SBC/RTP/L2CAP/ACL submission now uses an external credit owner; Busy/credit stops retain the PDU and terminal errors report cancellation counts; no clock or live transport |
-| PS5 control-only application assembly | Target-linked candidate | actual factory, protected store, persistent listener, fallible clock and bounded Rust loop; ephemeral loopback only, no radio/capture/codec operation; PS5 execution pending |
+| PS5 application startup/workloads | Target candidates | actual factory, protected store/listener/clock and Rust loop; separate control-only, 750-block generated SBC discard and bounded raw-capture observation; no radio/playback; PS5 execution pending |
 | PS5 resource factory | Rust candidate | concrete fixed-storage clock/store/listener/capture/SBC constructors, staged acquisition and reverse cleanup; native imports/behavior require validation, unknown format and radio authority remain gated |
-| Bounded application loop and resource rebuild | Portable candidate | typed HTTP/control/input/capture/encode/send lanes, work quotas, observable global stop and consume-once resources; factory reopen preserves fault tickets/epochs; native acquisition and readiness remain pending |
+| Bounded application loop and native resource rebuild | Host-tested candidates | typed bounded lanes and global stop; scoped actual store/listener close/reopen on the same storage preserves fault tickets and local resource epochs; automatic application reconnect is not installed |
 | Management/ACL runner | Portable candidate | discovery-to-device/SSP bridge, actual capability gates, retained input and shared-credit control/media ordering; no production PS5 acquisition or ownership authority |
 | Single-owner application driver | Implemented on host | device security, SDP/channel scheduling, explicit start/stop/restart, continuous audio handoff and finite media/recovery budgets; typed loop/listener candidates, no activated PS5 backend |
 | A2DP source session binding | Implemented on host | Classic Ready/context gate, automatic bounded SBC negotiation, explicit sample-gap timestamps, media-channel binding, partial-PDU-aware stop and clean restart; no capture/encoder/pacing, LAN owner loop or PS5 activation |
@@ -108,7 +108,9 @@ make ps5-native-query # separate opt-in query ELF; run only after baseline entry
 make ps5-native-l2cap-probe # create/close two unconnected sockets; no radio traffic requested
 make ps5-sbc-selftest # generated-signal codec test; no Bluetooth/capture operation
 make ps5-capture-observe # first data/deadline/error, at most 20 reads/two seconds
-make ps5-application-control # separate finite loopback/control-only candidate; PS5 unverified
+make ps5-application-control # finite native startup/loopback; no radio
+make ps5-application-generated # same startup + generated PCM/Rust SBC discard
+make ps5-application-observe # same startup + bounded raw capture; format Unknown
 python3 tools/mvp_test_kit.py # dry-run next-window plan; no network/deployment
 ```
 
@@ -181,11 +183,30 @@ The separate [control-only application](docs/APPLICATION-STARTUP.md) assembles
 owner loop. It binds an ephemeral loopback port and uses a fresh unlogged bearer
 secret. It requires an existing private `/data/ps5-bt/control` directory with mode
 0700; it creates no directory. No radio, capture or codec operation is enabled.
+The separate generated mode uses that same startup and observed clock to process
+750 generated 128-frame blocks through Rust scheduling and the real target SBC
+encoder, then hashes/discards them. The raw-observation mode uses the same owner
+loop for at most 256 calls within an exclusive two-second budget, with a 100 ms
+settle and 10 ms interval (up to 190 polls under exact regular scheduling). Neither sends
+Bluetooth or infers native PCM. See [generated workload](docs/APPLICATION-GENERATED.md)
+and [raw observation](docs/APPLICATION-OBSERVE.md).
 PS5 imports, entropy, filesystem protection and scheduling remain Requires
 hardware. The default diagnostic and existing capture/SBC bounds stay unchanged.
+[Scoped native rebuilding](docs/NATIVE-RESOURCE-REBUILD.md) now tests actual local
+resource close/reopen on the same storage while retaining one recovery episode.
+It is not installed as automatic reconnect in the existing main loop and adds no
+rebuild hardware artifact.
 The [portable management/ACL runner](docs/APPLICATION-RUNNER.md) supplies bounded
 loop steps and explicit retained-packet/ticket ownership for a platform scheduler.
 See [next-session work and hardware run order](docs/MVP-NEXT-RUN.md).
+
+There is still no usable PS5 Bluetooth connection backend. The recorded native
+L2CAP probe returned errno 47, and no safe active-HCI test artifact is ready.
+These local startup/workload candidates cannot connect the reported XM4 headset
+or establish playback/coexistence. The full kit inventory has nine candidates;
+`tools/startup_test_plan.json` selects only the three application candidates for
+a newly authorized window. Assembly and read-only preflight default to no network
+execution; see [kit and collection workflow](docs/BUILDING.md).
 
 For the optional discovery, management, native store/listener and page development
 checks, run `make application-candidates-test` on a Unix host with Node.js.
