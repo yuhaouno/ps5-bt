@@ -15,8 +15,11 @@ authority remain unresolved. The next bounded step is the separate
 normal calls, two consume-once closes and a dedicated log. Its PS5 run stopped
 at root-dot fstatat (-1/errno 1) with clean close and reported normal controller
 input. No data observation was reached. The new independently selected
-[relative/absolute open comparison](docs/OPEN-COMPARE.md) is prepared separately;
-EPERM does not identify a permission repair.
+[relative/absolute open comparison](docs/OPEN-COMPARE.md) observed relative open
+EPERM and successful absolute open/fstat, with clean cleanup and normal reported
+controller input. Both root/data retain rejection mask 4 under the SDK view.
+Source-backed target descriptor-relative API/syscall and filesystem-protection
+evidence is required next; EPERM does not identify a permission repair.
 No PCM-format, real-time pacing, Bluetooth or playback milestone is cleared.
 
 Development policy, 2026-10-26: unavailable PS5 access does not block coherent

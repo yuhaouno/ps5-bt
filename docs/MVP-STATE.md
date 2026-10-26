@@ -25,8 +25,13 @@ found; native permission/API cause remains Unknown. Next is an independently
 selected [relative-vs-absolute open comparison](OPEN-COMPARE.md), now implemented
 without fstatat retries or store protection changes. Clean `8639164` is now built,
 packaged and uploaded with matching remote hash; only its open-compare slot
-remains after completed namespace-slot cleanup. Manual execution and controller
-observations are pending. Do not reload blocked application tests.
+remains after completed namespace-slot cleanup. Its manual run is now collected:
+relative open returned EPERM; absolute open/fstat succeeded. Root/data rejection
+masks are both 4 under the SDK view; close/import shutdown were clean and the
+operator reported no abnormality. Classification is complete_failure, with no
+manual run pending. Source-backed target descriptor-relative syscall/export and
+filesystem-protection evidence is the next prerequisite; do not substitute
+absolute paths or reload blocked application tests.
 
 ## New-machine test preparation, 2026-10-26
 

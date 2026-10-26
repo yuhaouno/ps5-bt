@@ -37,7 +37,10 @@ root/data consistency observation. Its PS5 run failed at root-dot fstatat
 reported controller input. No data observation was reached; its separate log
 is retained and store protection remains gated. The next independently selected
 [open comparison](docs/OPEN-COMPARE.md) distinguishes relative and absolute
-directory access while preserving that gate.
+directory access while preserving that gate. Its retained 2026-10-27 run found
+relative open EPERM and successful absolute open/fstat, with clean cleanup and
+normal reported controller input. Both observed paths still failed the compiled
+protection predicate; absolute access does not establish a safe store.
 
 **HW-1 now executes on the recorded Slim / firmware 13.40 environment.**
 The explicit `make ps5-hw1` build uses the existing loader's kernel-R/W

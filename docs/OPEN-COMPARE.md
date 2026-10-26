@@ -1,7 +1,9 @@
 # Fixed directory open comparison diagnostic
 
-Status: independently selected experimental candidate; native results **Require
-hardware**. It follows the retained [root-dot fstatat failure](NAMESPACE-PROBE.md#observed-root-dot-fstatat-failure-2026-10-26).
+Status: independently selected experimental candidate; one retained PS5 run
+observed relative-open failure and absolute-open/stat success. Native ABI and
+protected-store acceptance remain **Unknown**. It follows the retained
+[root-dot fstatat failure](NAMESPACE-PROBE.md#observed-root-dot-fstatat-failure-2026-10-26).
 The operator authorized autonomous preparation/upload and subsequent manual
 execution. This admission does not grant a future console window or clear any
 application, PCM or Bluetooth gate.
@@ -172,8 +174,8 @@ repeat. Original setup and namespace strict/sanitized suites still pass.
 The collector has 60 passing tests, console helper 20, preparer 15 and portable
 handoff 19; builder/source/kit self-tests pass. Target compile/link, pinned header
 dependency closure, runtime synthetic log/error tests and final ELF inspection
-pass. Native comparison outcome remains untested. Full `make check` was not run;
-the previously documented ARM-host x86 syscall-fixture limitation remains.
+pass. The later native comparison outcome is recorded below. Full `make check`
+was not run; the documented ARM-host x86 syscall-fixture limitation remains.
 
 ## Uploaded manual-run checkpoint, 2026-10-27
 
@@ -198,7 +200,9 @@ route. Final inventory contains only **`local/ps5-bt-application-open-compare`**
 among PS5-BT slots; all unrelated slot records are unchanged. Original kits and
 logs remain intact, including the remote dedicated namespace log.
 
-**No agent launch or new comparison hardware result.** The operator should
+At this upload checkpoint there was **no agent launch or comparison hardware
+result**. The subsequent manual result below supersedes this pending instruction.
+The operator was instructed to
 refresh and manually run `ps5-bt-application-open-compare` once, observe the
 wireless controller before/during/after and stop if return is missing at 15 seconds
 or input changes. When completion is reported, immediately collect the dedicated
@@ -206,3 +210,67 @@ or input changes. When completion is reported, immediately collect the dedicated
 `--kit build/ps5/open-compare-window-kit-8639164`. Do not treat this preparation
 record as authority for a future session or as permission to clear any store,
 format, Bluetooth ownership or credit gate.
+
+## Observed access-route asymmetry, 2026-10-27
+
+The operator reported no abnormality after the requested manual launch; in that
+context this records execution and normal controller behavior before/during/after.
+Immediate read-only collection against the exact uploaded `8639164` kit retained:
+
+- Raw log: `build/ps5/console-window/application-open-compare-0cot7z22.log`.
+- Correlated result: `build/ps5/console-window/application-open-compare-0cot7z22.json`.
+- Log SHA-256: `d085615fe80800aed2217ab313c900c81f6e5397ae7eec9f554bbed98924d980`.
+- ELF/build/manifest identity matches the uploaded checkpoint above.
+
+The collector returned **complete_failure**, not a transfer failure. Stage 8
+means the independent sequence exhausted; the first error remains stage 4,
+raw -1 / errno 1 (EPERM). There were six actual normal calls, attempted mask
+`0x6f`: `openat(root, "data", flags)` failed, so its dependent fstat was skipped.
+The independent `open("/data", flags)` returned descriptor 17 and its fstat
+returned zero. Root open/fstat had also succeeded. Opened, observed and closed
+masks are all 5 (root and absolute); cleanup failure, errno and prior uncertainty
+are zero. All 23 imports resolved, shutdown was clean, and matching run begin,
+finish, exit and return markers are present; outer exit/return are 1. The stream
+log was unavailable; the complete persistent log was retained. Host collection
+completed, but helper freshness and console persistence guarantees remain Unknown.
+
+Root and absolute-data rejection masks are both 4 (`PARENT_WRITE`) under the
+compiled SDK view. Absolute-data same-device is 1 (different from root), not a
+mount identity or protection guarantee. Relative rejection/stat/match fields are
+unobserved zeros, not passing checks. No relative-vs-absolute metadata comparison
+was possible. No private store, capture, codec, listener or Bluetooth was opened.
+
+This establishes an access-route asymmetry for the exact imports, paths and flags.
+It does not identify why descriptor-relative operations fail, verify the native
+stat layout, or authorize replacing protected traversal with an absolute path.
+Do not repeat this test or the blocked application sequence. The next prerequisite
+is source-backed evidence for the target's descriptor-relative syscall/export
+behavior and filesystem protection semantics; a repair must preserve held-parent,
+no-follow and native-owner guarantees, with its own reviewed finite experiment.
+An EPERM result alone cannot select a credential or syscall-origin patch. PCM
+format, Bluetooth ownership and actual allowance remain gated.
+
+
+### Follow-up source check
+
+Read-only review of immutable SDK revision
+`a7685ce8e97ce1f8a4f38253a41d54241c9124f1` found original GPL-3.0-or-later
+`libc/syscalls.c` wrappers selecting syscall 493 for fstatat and 499 for openat.
+Its SHA-256 is `82bb957e859b7fcba00f6d777fe753a7e6fce7bac864f42f730b130fda187a77`.
+These wrappers are **not linked** into the executed candidate. Its bridge calls
+resolved native exports, using target-declared function types; the checked
+forwarding and immediate current-thread errno handling showed no mismatch.
+`platform/ps5/bootstrap/runtime.c` resolves fixed libkernel handles, with the
+existing loader-backed name/NID fallback; successful resolution establishes an
+address, not functional compatibility. SDK export inventories likewise do not
+prove native implementations or an EPERM stub. No proprietary implementation
+was inspected, and no source component was imported by this review.
+
+The existing checked syscall bridge has a different return contract (negative
+errno, with its documented mmap exception) from imported POSIX functions
+(-1 plus errno). Any future export-versus-syscall experiment must keep those
+contracts separate, review the pinned mapping as an experimental hypothesis,
+and retain finite read-only operations and owned cleanup. The SDK mapping alone
+is not firmware-13.40 compatibility or authority to replace the store backend.
+No new syscall, credential patch, alternate export or experiment was executed
+as part of this evidence update.

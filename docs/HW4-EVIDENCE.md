@@ -270,5 +270,33 @@ On 2026-10-27, the continuing session prepared and uploaded clean `8639164`'s
 separate [open comparison](OPEN-COMPARE.md#uploaded-manual-run-checkpoint-2026-10-27),
 with full remote hash verification. Completed namespace-slot cleanup leaves only
 the new open-compare entry; unrelated slots and retained logs are unchanged.
-Manual execution and controller observations are pending; there is no new
-comparison hardware result in this record.
+Manual execution and controller observations were pending at that upload
+checkpoint; the subsequent result below supersedes that state.
+
+## Directory-open comparison result, 2026-10-27
+
+The operator subsequently reported no abnormality after the requested manual run.
+Immediate collection against clean `8639164` retained
+`build/ps5/console-window/application-open-compare-0cot7z22.log` and its JSON.
+Log SHA-256: `d085615fe80800aed2217ab313c900c81f6e5397ae7eec9f554bbed98924d980`.
+Exact ELF/build/manifest identity and complete accounting are in the
+[observed comparison](OPEN-COMPARE.md#observed-access-route-asymmetry-2026-10-27).
+
+Relative `openat(root, "data")` returned -1/errno 1; the independent absolute
+`open("/data")` and fstat succeeded. Six normal calls reached sequence-end stage
+8, retaining first failed stage 4 and skipping relative fstat. Root/absolute
+opened/observed/closed masks were 5, cleanup and import shutdown were clean,
+and the complete outer lifecycle returned 1. Classification is complete_failure.
+Controller behavior was recorded normal before/during/after from the operator's
+contextual report; helper freshness remains Unknown. Root and data protection
+rejection stayed mask 4 under the compiled SDK view; native layout and underlying
+cause remain unresolved. Absolute-data device differs from root only under that
+view. No private-store or audio acceptance follows.
+
+No further run is pending. The completed open-compare slot remains the sole
+PS5-BT entry in the last verified inventory; no remote mutation was needed to
+collect this result. Do not repeat either failed probe or blocked application
+profiles. Next work requires target descriptor-relative syscall/export and
+filesystem-protection evidence to justify a concrete repair or new experiment,
+without weakening safe traversal or guessing a permission patch. Unknown PCM,
+Bluetooth ownership and actual allowance remain gated.

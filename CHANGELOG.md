@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Retain the 2026-10-27 directory-open comparison: root-relative open returned
+  EPERM while absolute data open/fstat succeeded. Preserve independent skipped
+  and observed fields, root/data protection rejection, complete owned cleanup,
+  normal reported controller input and exact log/artifact identity. Keep store,
+  native ABI, PCM and Bluetooth gates closed; no repeat launch is pending.
+
 - Add a separate fixed-directory relative/absolute open comparison with exact
   per-case failure/skipped-stat accounting, seven-call/three-close bounds,
   cancellation and sticky cleanup uncertainty. Preserve the earlier fstatat

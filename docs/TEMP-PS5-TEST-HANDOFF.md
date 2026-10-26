@@ -5,27 +5,24 @@ reviewed outcome. English is canonical. Read `AGENTS.md` before changing code.
 
 Window update, 2026-10-27: read [HW4-EVIDENCE.md](HW4-EVIDENCE.md) first.
 
-Current pending manual entry: **`ps5-bt-application-open-compare`**. Clean
-`8639164` completed doctor/build/package/assembly and full remote hash readback.
-One PS5-BT slot remains; the completed namespace entry was removed after evidence
-was saved, and unrelated slots are unchanged. The kit is
-`build/ps5/open-compare-window-kit-8639164`; collect its independent
-`/data/ps5-bt-open-compare.log` immediately after the operator reports execution.
-Run once, keep the 15-second ceiling and truthful before/during/after controller
-observations. The agent has not launched it. Exact identities are in the
-[uploaded checkpoint](OPEN-COMPARE.md#uploaded-manual-run-checkpoint-2026-10-27).
+Latest retained result: **`ps5-bt-application-open-compare`** from clean
+`8639164` completed its independent cases: relative `openat(root, "data")` failed
+with -1/errno 1, while absolute `open("/data")` and fstat succeeded. Both observed
+paths still reported `PARENT_WRITE` (mask 4) under the compiled SDK view. Owned
+close/import shutdown were clean; the operator reported no abnormality. The
+immediate log/result and exact identity are in the
+[observed result](OPEN-COMPARE.md#observed-access-route-asymmetry-2026-10-27).
+Classification is complete_failure; no store, native ABI, PCM or Bluetooth gate
+is cleared. No manual run is pending. The previously verified remote inventory
+contains only the completed open-compare PS5-BT slot; no replacement was uploaded.
+Keep `build/ps5/open-compare-window-kit-8639164` and its independent log.
 
-Latest retained result: **`ps5-bt-application-namespace`** from clean `e219c8d`
-failed at root-dot fstatat (stage 4, return -1, errno 1), after successful root
-open/fstat. Root rejection remained mask 4; owned close/import shutdown were
-clean and the operator reported normal controller input before/during/after.
-No `/data` observation was reached. Both immediate and controller-confirmed
-collections are retained; see the [result](NAMESPACE-PROBE.md#observed-root-dot-fstatat-failure-2026-10-26).
-Do not repeat it or reload blocked application profiles. The next proposed
-independent [comparison candidate](OPEN-COMPARE.md) is now implemented for
-relative-vs-absolute directory open with separate
-case results and no protection relaxation. The current pending entry above
-supersedes the completed namespace slot.
+The preceding namespace probe failed at root-dot fstatat (-1/errno 1), after
+successful root open/fstat; cleanup and controller observations were normal.
+Both collections remain retained. Do not repeat either probe or reload blocked
+application profiles. Next work needs source-backed target descriptor-relative
+API/syscall and filesystem-protection evidence before selecting a repair or a
+new bounded experiment; absolute-open success does not make a safe store.
 
 The clean `20a5d66` six-item kit was built, uploaded and fully read back. The
 retained generated-application run failed Store directory acquisition (errno 1).

@@ -24,8 +24,13 @@ root rejection remained mask 4, cleanup was clean and controller input was
 reported normal. No data observation was reached. Do not repeat this candidate;
 the next separately selected [comparison](OPEN-COMPARE.md) tests relative and
 absolute fixed directory opens with separate case accounting and no storage-policy
-change. Its single-item plan is `tools/open_compare_test_plan.json`; hardware
-results remain pending.
+change. Its single-item plan is `tools/open_compare_test_plan.json`. Its retained
+2026-10-27 run found relative open EPERM but successful absolute open/fstat,
+with root/data rejection masks 4, clean owned cleanup and normal reported
+controller behavior. Classification remains complete_failure. No run is pending;
+source-backed descriptor-relative API/syscall and filesystem-protection evidence
+is needed before another experiment or repair. Absolute access cannot replace
+protected traversal.
 A rejection bit does not verify native layout or authorize permission changes;
 legacy schema-1 logs have no predicate detail. Do not repeat the blocked application
 sequence or an Empty read without a new reviewed hypothesis.
