@@ -55,6 +55,7 @@ The earlier second-machine build reproduction remains in
 | Bounded capture observation | Executed on one Slim/13.40 environment | immediate Empty then 8,192 bytes after one wait; checked clock call and clean cleanup; native PCM format/timestamp still unknown |
 | SBC-over-RTP/A2DP packetization | Implemented on host | fixed negotiated MTU/frame boundaries, atomic backpressure, sequence/sample timestamps and wrap tests; no AVDTP/live stream |
 | Media send orchestration | Implemented on host | SBC/RTP/L2CAP/ACL submission now uses an external credit owner; Busy/credit stops retain the PDU and terminal errors report cancellation counts; no clock or live transport |
+| Single-owner application driver | Implemented on host | device security, SDP/channel scheduling, explicit start/stop/restart, continuous audio handoff and finite media/recovery budgets; no live PS5 loop, listener or backend |
 | A2DP source session binding | Implemented on host | Classic Ready/context gate, automatic bounded SBC negotiation, explicit sample-gap timestamps, media-channel binding, partial-PDU-aware stop and clean restart; no capture/encoder/pacing, LAN owner loop or PS5 activation |
 | LAN control/status contract | Implemented on host | bounded authenticated request parser, single-owner command queue and identity-free status JSON; no listener/page or PS5 integration |
 | Continuous PCM-to-SBC scheduling | Implemented on host | sample-clock block pacing, retained encoded offers, bounded concealment/rebuffer/expiry and persistent real host codec adapter; normalized input only, no native PS5 capture or target encoder loop |
@@ -128,7 +129,7 @@ variant and preserve SDK notices.
 
 ```text
 Application / payload
-    -> Rust audio engine (planned)
+    -> Rust audio scheduling (host-tested candidate)
     -> Rust A2DP / AVDTP / RTP (bounded packetization and initiator session host-tested)
     -> Rust SDP / L2CAP framing (discovery and initiator signaling host-tested)
     -> Rust HCI representation and state
@@ -142,19 +143,24 @@ scoped C protocol or connection modules may serve as transitional implementation
 behind a versioned ABI; preserve provenance and explicit state/resource ownership.
 This policy does not import an upstream stack or transfer its hardware claims. See
 [architecture decisions](docs/ARCHITECTURE.md) and [ABI contract](docs/ABI.md).
-The workspace contains `bt-a2dp`, `bt-avdtp`, `bt-control`, `bt-core`,
+The workspace contains `bt-a2dp`, `bt-app`, `bt-audio`, `bt-avdtp`, `bt-channel`,
+`bt-control`, `bt-core`, `bt-device`,
 `bt-codec`, `bt-hci`, `bt-l2cap`, `bt-link`, `bt-media-session`, `bt-sdp`,
 `bt-session`, `ps5-sys`,
 `ps5-platform`, and `ps5-runtime`. The first initiator-side L2CAP Basic-mode channel machine, SDP
 Audio Sink discovery client, bounded AVDTP initiator session and SBC-over-RTP
 packetizer are host-tested. The media send cursor binds encoded frames through
 RTP/L2CAP/ACL with explicit acceptance and cancellation accounting. AVDTP
-receive signaling reassembly is host-tested; clock/credit pacing and every live channel remain absent.
+receive signaling reassembly and sample-clock scheduling are host-tested; hardware
+credit authority and every live channel remain absent.
 The new source-session binding joins Classic Ready, SBC negotiation, separate
 media-channel binding and the existing credit-aware sender on the host; it has
 no PS5 activation. See [the application binding contract](docs/SOURCE-SESSION.md).
 The bounded LAN request/state contract is host-tested, but has no socket listener
-or page; a live owner loop, capture/encoder integration and pacing remain absent.
+or page. The [portable application driver](docs/APPLICATION-OWNER.md) now owns
+selected-device security, channel/SDP progression, source negotiation, normalized
+PCM encoding/pacing handoff and bounded stop/recovery. Native capture/target
+encoder integration, a live PS5 owner loop and LAN listener remain absent.
 See [next-session work and hardware run order](docs/MVP-NEXT-RUN.md).
 
 ## Roadmap and contribution

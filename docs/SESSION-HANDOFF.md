@@ -1,6 +1,6 @@
 # Active hardware window and durable handoff
 
-Updated: 2026-10-25. Read AGENTS.md and docs/MVP-STATE.md first.
+Updated: 2026-10-26. Read AGENTS.md and docs/MVP-STATE.md first.
 
 ## Current authority, 2026-10-26
 
@@ -15,6 +15,52 @@ fault-episode recovery are permitted. Isolated source-backed transport
 experiments may measure unresolved facts under their documented admission
 plan, without implying production support or a competing-reader/timer-credit
 exception. This documentation change adds no live backend or hardware result.
+
+## Application integration continuation, 2026-10-26
+
+This supersedes older software omissions; hardware facts and diagnostic artifacts
+are unchanged. Root owns integration/commits. Workers completed device, channel
+and continuous audio, cross-reviewed one another, and made no staging/deployment.
+Do not assume workers or any console window are still active in a later session.
+
+Completed commits: `233a451` sample gaps/clean restart, `4f64aa3` device/bonds,
+`3d90ef2` channel/SDP scheduling, `50f7a5f` continuous PCM/SBC. Application owner
+integration and this handoff follow together. Read APPLICATION-OWNER.md,
+DEVICE-MANAGEMENT.md, CHANNEL-SCHEDULER.md and CONTINUOUS-AUDIO.md for boundaries.
+
+- The single portable driver now progresses selected-peer security, SDP cleanup,
+  signaling, explicit Start, separate media, SBC handoff, bounded Stop/restart
+  and disconnect. A peer/security binding loss gates media immediately.
+- The source carries full-width sample positions across RTP wrap, and reuses
+  stopped media storage only after actual cleanup and a fresh local CID. Peer
+  remote CID reuse is legal. No old completion credit is refunded.
+- Device clock failure revokes Ready/approval/provisional authority while retaining
+  cleanup errors; late channel acceptance retains radio-visible cleanup evidence.
+- Audio has 16 default checks plus two real host-codec checks. The long case uses
+  750 blocks/96,000 generated normalized frames and 2,250 completion-accounted
+  synthetic ACL fragments. This is not native capture, PS5 timing or audio proof.
+- Application recovery retains accepted attempt tickets, polls episode deadlines,
+  requires external working-playback attestation (not Start ack) before stable
+  success, and cannot bypass safety/backoff/exhaustion with a new driver. Finite
+  queue-to-last-fragment budgets prevent endless Busy/zero-credit media stalls.
+
+Verification: 289 ordinary Rust tests plus one compile-fail check; fmt/workspace
+check/Clippy/freestanding checks and the two audio feature checks pass. Independently
+validated staged snapshots ensure untracked later modules cannot mask dependencies.
+Full `make check` was attempted again and stops at the unchanged x86 syscall
+execution test with macOS errno86 on this ARM host. It is not a full pass.
+`make check-c-sanitize rust-archive` and build/source-package/test-kit self-tests
+pass independently; existing codec vectors and C/Rust seam checks passed before
+that Make stop. No new PS5 ELF was linked or run in this continuation wave.
+
+Still absent: a concrete PS5 protected store, inquiry/device search, native PCM
+format/timing validation and target encoder wiring, system-coordinated transport,
+live platform owner loop and LAN listener/page/management binding. The PS5 runtime
+still uses the established diagnostic/stub; no hardware milestone is promoted.
+Next: platform store/capture/codec seams and minimum control integration can
+advance offline; source-backed transport experiments need a concrete mechanism
+and a fresh hardware window. Functional/audio/coexistence/stability acceptance
+remains on PS5. No unverified old deployment window authorizes a new run.
 
 ## Implemented continuation wave, 2026-10-26
 

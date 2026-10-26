@@ -14,6 +14,13 @@
 
 ## Unreleased
 
+- Join selected-device security, SDP/channel scheduling and SBC source/audio
+  handoff in a caller-driven single Rust application owner. Gate traffic on
+  security/binding loss, require explicit Start, support clean Stop/Start, retain
+  total media/disconnect budgets and connect live retry/stable-success policy.
+  Platform ownership, protected filesystem, native capture and PS5 acceptance
+  remain pending; the diagnostic backend is unchanged.
+
 - Add bounded continuous normalized stereo PCM-to-SBC scheduling, complete-block
   ticketed handoff, sample-clock pacing, retained backpressure and observable
   expiry/concealment/rebuffer. Exercise the real host codec across 750 blocks and

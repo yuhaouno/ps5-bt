@@ -19,11 +19,21 @@ Source-backed isolated transport experiments use AGENTS.md's admission rules;
 production ownership/credit guarantees still gate support. No console window
 is currently available from this chat; the 2026-10-25 window below is historical.
 
-The 2026-10-26 implementation wave adds bounded selected-peer Classic security,
+The continuation wave on 2026-10-26 joins selected-device pairing/bond management,
+channel/SDP scheduling, continuous normalized PCM-to-SBC pacing and a portable
+single-owner application driver. Clean Stop/Start uses fresh local media CIDs;
+finite media/disconnect/recovery budgets remain observable. All 289 ordinary
+workspace Rust tests and one compile-fail check pass, plus two feature-enabled
+real-codec pipeline checks. These candidates do not promote M2/M3: the live PS5
+transport, protected filesystem store, inquiry, native capture/target encoder
+integration, LAN listener/page and hardware acceptance remain pending.
+
+The earlier 2026-10-26 implementation wave added bounded selected-peer Classic security,
 AVDTP receive reassembly, source negotiation/media binding and per-fault recovery.
-These are host-checked candidates, not completed M2/M3 audio milestones. Inquiry,
-persistent bonds, actual channel scheduling, capture/encode/pacing and the LAN
-owner loop remain. All 214 workspace Rust tests and freestanding checks pass;
+Those were host-checked candidates, not completed M2/M3 audio milestones. At
+that snapshot, inquiry, persistent bonds, channel scheduling, capture/encode/
+pacing and the LAN owner loop remained. All 214 workspace Rust tests and
+freestanding checks passed;
 full `make check` is blocked by this ARM host's unavailable x86 syscall-test
 execution (errno 86), separately from PS5 verification.
 
@@ -95,7 +105,8 @@ the runtime is reviewed. Do not open artificial issues for each empty crate.
 
 Initial host validation: four Rust parser tests, 15 C/Rust seam scenarios, C stub
 contract checks, fmt/check/Clippy and the freestanding archive build/inspection.
-Current local checks: 214 ordinary Rust tests plus eight host codec checks,
+Current local checks: 289 ordinary Rust tests, one compile-fail check and eight
+host codec checks,
 208 encoder reference vectors, 12 decoder checks, replacement-archive linking,
 four host PCM recovery scenarios,
 descriptor/native-query C tests with ASan/UBSan, 15 ABI

@@ -6,6 +6,23 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
 ## Current automated checks
 
+- Application owner: 19 checks cover selected-peer security through SDP/channel
+  progression and Start/Stop/restart, normalized audio handoff and partial drain,
+  foreign/stale traffic, security/binding revocation, failed initialization,
+  forget, clock failures, total media/disconnect budgets and live retry/stability.
+- Device manager: 19 checks plus one secret-record compile-fail check cover
+  protected record validation, matching Ready-gated persistence, approval tokens,
+  load/save/delete failures, forgotten-bond revocation and fail-closed clocks.
+- Channel scheduler: 16 checks cover SDP and separate signaling/media channels,
+  complete-PDU acceptance, continuation and epoch/ID/MTU bounds, clean reopen,
+  cancellation, late callbacks and bounded peer-close replies.
+- Continuous audio: 16 default checks cover sample pacing, bounded concealment,
+  rebuffer/expiry and retained ownership. Two additional real-codec checks run
+  with `cargo test -p bt-audio --features host-libsbc --locked`; the continuous
+  case byte-compares 750 blocks/96,000 generated PCM frames with an independent
+  persistent encoder and accounts for 2,250 synthetic ACL fragments. This does
+  not establish PS5 capture, encode timing, audible playback or coexistence.
+
 - Source-session binding: 22 checks join Classic Ready/context, SBC negotiation,
   media binding and the existing media sender, including fragmented responses,
   Start acceptance, Busy/credit stops, healthy partial-PDU drain, total stop
@@ -169,8 +186,9 @@ meaningful. Do not commit Sony firmware, library files, game data or PCM capture
 
 ## Current host limitation, 2026-10-26
 
-The ARM macOS development host passes the workspace's 214 Rust checks,
-formatting/Clippy/freestanding checks, C sanitizers, host codec checks and Rust
+The ARM macOS development host passes the workspace's 289 ordinary Rust checks,
+one compile-fail check, formatting/Clippy/freestanding checks, C sanitizers,
+host codec checks and Rust
 archive inspection. `make check` stops at unchanged
 `tools/test_syscall_checked.py` because the host cannot execute its generated
 x86 binary (errno 86, Bad CPU type). This is an unavailable host execution check,

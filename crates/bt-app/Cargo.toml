@@ -1,0 +1,26 @@
+[package]
+name = "bt-app"
+description = "Caller-driven single-owner Bluetooth audio application"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+bt-audio = { path = "../bt-audio" }
+bt-avdtp = { path = "../bt-avdtp" }
+bt-channel = { path = "../bt-channel" }
+bt-core = { path = "../bt-core" }
+bt-device = { path = "../bt-device" }
+bt-hci = { path = "../bt-hci" }
+bt-l2cap = { path = "../bt-l2cap" }
+bt-link = { path = "../bt-link" }
+bt-media-session = { path = "../bt-media-session" }
+bt-session = { path = "../bt-session" }
+
+[dev-dependencies]
+bt-sdp = { path = "../bt-sdp" }
+
+[lints]
+workspace = true

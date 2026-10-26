@@ -21,6 +21,36 @@ transport experiments have separate admission from production support; no
 competing-reader, timer-credit or system-driver exception is implied. Existing
 tests, implementations and hardware facts below are unchanged by this policy.
 
+## Application continuation wave, 2026-10-26
+
+The new portable application driver owns device/security, channel/SDP scheduling
+and source signaling, and drives normalized PCM-to-SBC handoff through the owned
+media sender. Three disjoint workers completed device, channel and continuous
+audio modules; lead integration and independent reviews covered their boundaries.
+
+- `233a451`: explicit sample gaps/RTP wrap and clean source restart after actual
+  media cleanup; retained submissions, fresh local CID and unchanged credit owner.
+- `4f64aa3`: selected-device approval and protected bond store/record lifecycle,
+  matching Ready-gated save, forget revocation and clock-failure cleanup.
+- `3d90ef2`: SDP/channel scheduling, acceptance-gated publication, bounded cleanup
+  and fresh media reopen; late acceptance cannot hide cleanup responsibility.
+- `50f7a5f`: continuous normalized PCM scheduling and optional real host encoder;
+  complete-block handoff, bounded conceal/rebuffer/expiry and retained backpressure.
+- `bt-app`: explicit Connect/Start/Stop/restart/disconnect progression, security
+  and channel-loss gates, finite media/cleanup budgets and live recovery policy.
+
+Current verification: 289 ordinary workspace Rust tests plus one compile-fail
+check, two additional audio real-codec checks, fmt/check/Clippy and freestanding
+checking pass. Each feature was validated from its staged snapshot. Full Make
+check availability remains separately recorded in the latest handoff.
+
+No PS5 activation or playback result is added. Remaining: concrete preserved
+transport/dispatcher authority, inquiry, PS5 protected filesystem, native capture
+format/timestamp and target encoder adaptation, platform event loop, LAN listener/
+page/control integration and real pairing/audio/coexistence/stability tests.
+See [the application contract](APPLICATION-OWNER.md). Older software omissions
+below describe their recorded snapshot; hardware facts remain unchanged.
+
 ## Implementation wave, 2026-10-26
 
 The lead integrated three disjoint workers and the source-session binding:

@@ -10,6 +10,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "bt-app"
+version = "0.0.1"
+dependencies = [
+ "bt-audio",
+ "bt-avdtp",
+ "bt-channel",
+ "bt-core",
+ "bt-device",
+ "bt-hci",
+ "bt-l2cap",
+ "bt-link",
+ "bt-media-session",
+ "bt-sdp",
+ "bt-session",
+]
+
+[[package]]
 name = "bt-audio"
 version = "0.0.1"
 dependencies = [

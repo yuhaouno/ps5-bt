@@ -63,6 +63,10 @@ on any PS5 crate; they are not a prerequisite for PS5 development or acceptance.
 
 | Crate | Initial responsibility | Dependency direction |
 | --- | --- | --- |
+| `bt-app` | `no_std` single-owner selected-connection application driver, channel/source/audio handoff and finite stop/retry budgets | device/channel/source/audio and existing framing crates; no native loop/ownership proof or listener |
+| `bt-audio` | `no_std` normalized PCM block pacing, persistent encoder boundary and ticketed complete-SBC handoff | `bt-core`, optional existing host `bt-codec`; no capture ABI or transport |
+| `bt-channel` | `no_std` SDP/channel scheduling, acceptance-gated publication and bounded cleanup/reopen | L2CAP/SDP/core/HCI; no native transport/credits |
+| `bt-device` | `no_std` selected-peer approval, protected bond-record/store lifecycle and forget revocation | link/core/HCI; no platform filesystem or inquiry |
 | `bt-a2dp` | `no_std` bounded complete-frame SBC-over-RTP packetization | `bt-core`; no session or transport dependency |
 | `bt-avdtp` | `no_std` bounded initiator signaling and conservative SBC capability/session state | `bt-core`; bounded receive reassembly; no transport owner or media binding |
 | `bt-core` | `no_std` contracts, SBC parameters, PCM staging and nominal sample timeline | no dependencies |
@@ -84,9 +88,12 @@ SBC-over-RTP packetizer and RTP/L2CAP/ACL media send cursor are host-tested;
 SDP discovery is also host-tested.
 AVDTP receive signaling reassembly and a bounded selected-peer Classic link
 security candidate are host-tested. `bt-session` now binds Classic Ready and
-explicit channels to negotiation/media submission on the host. Actual channel
-establishment, inquiry, persistent bond storage, capture/encode/pacing and a
-PS5 owner loop remain work; no connection backend is active. Split
+explicit channels to negotiation/media submission on the host. `bt-app` now
+owns selected-device security and protocol channel/SDP scheduling, and drives the
+normalized PCM scheduler into Source media submission. Protected store semantics
+are implemented; a concrete PS5 store, inquiry, native capture/target encoder
+integration and live PS5 owner loop remain work. No connection backend is active.
+See [the application contract](APPLICATION-OWNER.md). Split
 them when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
 `no_std` on the freestanding target. Portable crates remain `no_std` everywhere.
