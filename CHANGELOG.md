@@ -14,6 +14,12 @@
 
 ## Unreleased
 
+- Add a caller-driven fault-episode recovery controller with bounded attempts,
+  monotonic deadlines, capped backoff and stable-success budget reset. Correlate
+  cleanup/reconciliation and attempt tickets, retain uncertainty after timeout
+  or stop, and reject stale results. No automatic native reopen, credit refill
+  or PS5 recovery result is introduced.
+
 - Align project-wide development policy with PS5-only functional acceptance:
   allow coherent unverified candidates and scoped transitional C protocol reuse,
   separate source-backed transport experiment admission from production proof,

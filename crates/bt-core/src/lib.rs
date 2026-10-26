@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 
 pub mod media;
+pub mod recovery;
 pub mod sbc;
 pub use sbc::{
     SbcAllocation, SbcBitpoolRange, SbcBlocks, SbcChannelMode, SbcParameters, SbcSampleRate,

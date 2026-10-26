@@ -59,6 +59,14 @@ behavior. No superiority claim follows from implementation language or tests.
 
 ## Implemented offline foundation
 
+`bt_core::recovery::Recovery` now implements the fault-episode budget separately
+from PCM rendering. Its safety tickets distinguish cleanup from integrity/credit
+reconciliation, attempt acceptance spends budget exactly once, and stable success
+is required before automatic reset. Exhaustion/stop retain outstanding safety
+requirements; no method opens resources, sleeps, resets the controller or grants
+credits. See [the controller contract](RECOVERY-CONTROLLER.md) for API, 13
+development tests and PS5 evidence limits.
+
 `bt_core::media` is safe `no_std` Rust without an allocator or transport access:
 
 - `SampleClock` derives absolute microsecond deadlines from nominal sample
