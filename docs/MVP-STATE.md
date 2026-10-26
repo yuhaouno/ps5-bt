@@ -21,6 +21,57 @@ transport experiments have separate admission from production support; no
 competing-reader, timer-credit or system-driver exception is implied. Existing
 tests, implementations and hardware facts below are unchanged by this policy.
 
+## Discovery and management continuation, 2026-10-26
+
+This supersedes software omissions in older snapshots below. No new PS5 window,
+ELF execution, pairing, playback or coexistence evidence is added. Rust remains
+the mainline; C is limited to reviewed opaque filesystem/socket adaptation.
+
+- `a772eb9`: bounded Inquiry/Cancel, validated EIR names and stable device IDs.
+- `83e04c9`: concrete protected POSIX bond files, exact ownership and atomic
+  durability boundaries; external target linking is separate from host builds.
+- `20e424d`: typed v2 LAN device/pairing service, static page and finite socket
+  pump; actual-state actions, protected requests and urgent/primary ownership.
+- `e8ce47f`: portable management/application runner and shared-credit ACL pumps.
+  Covers real wire discovery-to-connect, exact SSP decision mapping, retained
+  input, healthy partial-PDU ordering, aggregate deadlines and sticky clock loss.
+- `306256f`: the optional POSIX listener supplies a single exclusively borrowed client,
+  exact descriptor cleanup and native loopback-to-service integration. It is
+  not wired into the PS5 runtime or advertised as an active console capability.
+
+Read DEVICE-DISCOVERY.md, BOND-FILE-STORE.md, LAN-MANAGEMENT.md,
+CONTROL-LISTENER.md and APPLICATION-RUNNER.md. Root owns integration/commits;
+three reused workers implemented/reviewed disjoint modules without staging or
+running console operations. Do not presume these workers remain active later.
+
+Verification: 348 ordinary workspace Rust tests plus one compile-fail check
+pass, with fmt, strict Clippy and whole-workspace freestanding checks. The new
+`make application-candidates-test` passes discovery/control/runner suites,
+separate native and external store/listener suites, both native-feature Clippy
+variants, external freestanding checks, C ASan/UBSan fault harnesses and three
+mock DOM/fetch page scenarios. Native store has five filesystem checks; native
+listener has four real loopback checks. Additional owner compile-fail checks
+and fake ABI fault cases run only with their explicit features. The two real
+host-codec pipeline checks also pass (18 audio tests with feature enabled).
+Each implementation commit was validated from its independent staged snapshot.
+
+Full `make check` is not a pass: it reaches the unchanged x86 syscall execution
+check and stops with macOS errno 86 on this ARM host. C sanitizers, freestanding
+runtime archive inspection and build/source-package/test-kit self-tests pass
+independently. No new target ELF was linked or deployed. These are development
+checks, not console acceptance or a measured stability improvement.
+
+Remaining development: source-reviewed native capture format/timestamp adapter,
+target SBC owner wiring, concrete platform scheduler/readiness integration,
+durable per-run diagnostic outcomes and independently selectable PS5 test
+candidates. The portable runner is a loop body, not a complete native runtime.
+Filesystem calls are synchronous and must stay out of the per-frame audio path.
+Native transport/dispatcher ownership, real command allowance/ACL reservation,
+private capture ABI, target imports and real headset/controller acceptance remain
+unresolved hardware gates. Next advance the capture/encoder seams and executable
+bounded candidates; do not switch to competing reads or timed credit refill.
+No PS5 deployment or new push is authorized by this continuation.
+
 ## Application continuation wave, 2026-10-26
 
 The new portable application driver owns device/security, channel/SDP scheduling

@@ -14,6 +14,10 @@
 
 ## Unreleased
 
+- Record the discovery/management integration milestone and add one optional
+  host candidate-check target covering native/external adapters, fault harnesses
+  and page state. PS5 hardware gates and the diagnostic remain unchanged.
+
 - Add a separately selectable nonblocking POSIX control listener with an opaque
   versioned ABI, one borrowed client, scoped SIGPIPE protection and consume-once
   cleanup. Exercise real loopback HTTP and idle-client timeout; target native

@@ -63,6 +63,10 @@ on any PS5 crate; they are not a prerequisite for PS5 development or acceptance.
 
 | Crate | Initial responsibility | Dependency direction |
 | --- | --- | --- |
+| `bt-runner` | `no_std` discovery/device/management bridge and noninterleaving connection ACL pumps | application, discovery, control and framing; no ownership discovery or native waits |
+| `bt-discovery` | `no_std` bounded Classic Inquiry/Cancel and stable device observations | core/HCI/link types; no native transport or automatic pairing |
+| `bt-store` | protected fixed-record filesystem owner through opaque versioned C ABI | device/link; optional native POSIX or separately linked external adapter |
+| `bt-listener` | one nonblocking listener/client owner through opaque versioned C ABI | control socket trait; optional native POSIX or separately linked external adapter |
 | `bt-app` | `no_std` single-owner selected-connection application driver, channel/source/audio handoff and finite stop/retry budgets | device/channel/source/audio and existing framing crates; no native loop/ownership proof or listener |
 | `bt-audio` | `no_std` normalized PCM block pacing, persistent encoder boundary and ticketed complete-SBC handoff | `bt-core`, optional existing host `bt-codec`; no capture ABI or transport |
 | `bt-channel` | `no_std` SDP/channel scheduling, acceptance-gated publication and bounded cleanup/reopen | L2CAP/SDP/core/HCI; no native transport/credits |
@@ -71,7 +75,7 @@ on any PS5 crate; they are not a prerequisite for PS5 development or acceptance.
 | `bt-avdtp` | `no_std` bounded initiator signaling and conservative SBC capability/session state | `bt-core`; bounded receive reassembly; no transport owner or media binding |
 | `bt-core` | `no_std` contracts, SBC parameters, PCM staging and nominal sample timeline | no dependencies |
 | `bt-codec` | `no_std` caller-storage encoder owner; real generic libsbc behind host-only feature | `bt-core`; C static archive only with `host-libsbc` |
-| `bt-control` | `no_std` bounded authenticated request parsing, serialized command tickets and redacted status | no dependencies; no listener or transport owner |
+| `bt-control` | `no_std` authenticated v1/v2 management, static page service and bounded socket pump | no dependencies; no listener or transport owner |
 | `bt-hci` | `no_std` typed command/event/ACL framing, capability decoding and externally owned ACL reservation accounting | `bt-core`; no platform dependency or ownership discovery |
 | `bt-l2cap` | `no_std` basic framing, bounded handle/epoch ACL fragmentation/reassembly and initiator-side Classic Basic-mode signaling | `bt-core`, `bt-hci`; no live transport, credit ledger or responder allocator |
 | `bt-link` | `no_std` selected-peer Classic connection/security lifecycle, exact HCI command acceptance, stored-key/SSP decisions and authenticated encrypted Ready gate | `bt-core`, `bt-hci`; no transport ownership, inquiry or persistent key store |
@@ -91,8 +95,10 @@ security candidate are host-tested. `bt-session` now binds Classic Ready and
 explicit channels to negotiation/media submission on the host. `bt-app` now
 owns selected-device security and protocol channel/SDP scheduling, and drives the
 normalized PCM scheduler into Source media submission. Protected store semantics
-are implemented; a concrete PS5 store, inquiry, native capture/target encoder
-integration and live PS5 owner loop remain work. No connection backend is active.
+are implemented; a concrete PS5 store, native capture/target encoder
+integration and live PS5 owner loop remain work. Portable inquiry, an optional
+POSIX store/listener, static LAN page and management/ACL runner are implemented
+separately; see APPLICATION-RUNNER.md. No connection backend is active.
 See [the application contract](APPLICATION-OWNER.md). Split
 them when code and dependencies justify it. Do not create empty protocol crates.
 The runtime uses the host standard library only for host linking/tests and is
@@ -100,8 +106,9 @@ The runtime uses the host standard library only for host linking/tests and is
 No async executor, allocator, GUI framework, or configuration framework is needed
 for the minimal bootstrap. This does not prohibit bounded engine initialization
 or the thin LAN page. Its portable request/state contract is implemented without
-a listener; socket/static-page integration remains pending. The optional offline codec is separate
-from the diagnostic runtime:
+a native PS5 listener; the static-page service and optional host POSIX listener
+are independently selectable candidates, not activated runtime capabilities.
+The optional offline codec is separate from the diagnostic runtime:
 `host-libsbc` requires TARGET == HOST and fails before invoking a host C compiler
 for a cross target. Its C-private state lives in caller-owned aligned storage,
 queried through integer/pointer ABI calls and borrowed exclusively by Rust.

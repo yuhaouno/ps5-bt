@@ -19,7 +19,17 @@ Source-backed isolated transport experiments use AGENTS.md's admission rules;
 production ownership/credit guarantees still gate support. No console window
 is currently available from this chat; the 2026-10-25 window below is historical.
 
-The continuation wave on 2026-10-26 joins selected-device pairing/bond management,
+The latest discovery/management wave implements bounded Inquiry/Cancel, concrete
+optional POSIX bond files, the minimal LAN device/pairing service/page, a
+single-client native listener candidate and the portable management/ACL runner.
+Commands remain capability-gated; no native PS5 backend is activated. Native
+capture/target encoder adaptation, platform scheduling, durable run orchestration
+and executable hardware candidates can still advance before console access.
+M2/M3 acceptance remains unchanged. Details and current verification are in
+[the durable handoff](docs/SESSION-HANDOFF.md).
+
+Prior snapshot: the earlier continuation wave on 2026-10-26 joins
+selected-device pairing/bond management,
 channel/SDP scheduling, continuous normalized PCM-to-SBC pacing and a portable
 single-owner application driver. Clean Stop/Start uses fresh local media CIDs;
 finite media/disconnect/recovery budgets remain observable. All 289 ordinary

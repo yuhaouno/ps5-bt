@@ -6,6 +6,19 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
 
 ## Current automated checks
 
+The discovery/management continuation adds bounded Inquiry fixtures, protected
+file-store native and fake-ABI cases, HTTP service/page/pump checks, actual
+loopback listener checks and application runner/ACL boundary regressions.
+See DEVICE-DISCOVERY.md, BOND-FILE-STORE.md, LAN-MANAGEMENT.md,
+CONTROL-LISTENER.md and APPLICATION-RUNNER.md for their individual commands,
+source baselines and hardware obligations. Run `make application-candidates-test`
+on a Unix development host with the pinned Rust/C tools and Node.js for the
+combined optional suites. This target never contacts a console. Explicit native
+features use host headers only; external adapter features are checked freestanding without linking
+or assuming PS5 imports. C fault harnesses cover ASan/UBSan; mock DOM/fetch
+checks cover page state and full-width IDs. Neither process-crash checkpoints
+nor loopback I/O establishes PS5 durability, scheduling or coexistence.
+
 - Application owner: 19 checks cover selected-peer security through SDP/channel
   progression and Start/Stop/restart, normalized audio handoff and partial drain,
   foreign/stale traffic, security/binding revocation, failed initialization,
@@ -56,7 +69,8 @@ a hardware claim. Run `make check`; see [BUILDING.md](BUILDING.md) for setup.
   ceilings, bearer/Host/Origin/custom-header enforcement, duplicate/smuggling/
   body rejection, single pending command ownership, stale completion rejection,
   failure/cancel state and atomic redacted status JSON. These are host tests of a
-  protocol model; there is no listener, browser page or PS5 command execution.
+  protocol model; the v2 service/page and optional native listener have additional
+  checks documented above. There is no PS5 command execution.
 - Real host-only PCM -> Rust/C -> libsbc: eight Rust checks, including
   compile-fail !Send/!Sync; exact lengths/storage, rejected-no-state-change,
   raw backend errors and poisoning; 208 byte-identical encoder vectors and 12

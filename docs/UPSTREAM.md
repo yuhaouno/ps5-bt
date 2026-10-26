@@ -238,6 +238,18 @@ that lineage's per-file license questions by guessing from GitHub's badge.
 Our root license does not replace third-party licenses. No Sony library file
 will be stored, fetched from a console, or redistributed by these build scripts.
 
+## Discovery and native management adapters, 2026-10-26
+
+The discovery, protected file store, LAN service/page, runner and TCP listener
+are original project code; no new external crate, protocol stack or web framework
+is imported. DEVICE-DISCOVERY.md records the exact Core/Assigned Numbers baseline
+and reference-only Linux revision used to corroborate event layouts.
+BOND-FILE-STORE.md and CONTROL-LISTENER.md record POSIX, pinned SDK/header and BSD
+source reviews. Native structs/constants stay inside C translation units built
+against the selected target's own reviewed headers. Host feature success does
+not establish target import/layout or runtime availability. Static web assets
+are embedded source and must remain in corresponding-source distributions.
+
 ## Update procedure
 
 1. Fetch a candidate into an external research checkout; never overwrite the

@@ -171,6 +171,10 @@ The [portable management/ACL runner](docs/APPLICATION-RUNNER.md) supplies bounde
 loop steps and explicit retained-packet/ticket ownership for a platform scheduler.
 See [next-session work and hardware run order](docs/MVP-NEXT-RUN.md).
 
+For the optional discovery, management, native store/listener and page development
+checks, run `make application-candidates-test` on a Unix host with Node.js.
+It uses synthetic records and loopback sockets and never contacts a PS5.
+
 ## Roadmap and contribution
 
 [Milestones](ROADMAP.md): research/bootstrap -> Rust/C hardware diagnostics ->

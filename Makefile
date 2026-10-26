@@ -34,6 +34,20 @@ check:
 	$(MAKE) check-build-tools
 	$(MAKE) rust-archive
 
+.PHONY: application-candidates-test
+# Optional host development checks; never contacts a PS5. Requires Unix C and Node.
+application-candidates-test:
+	cargo test --locked -p bt-discovery -p bt-control -p bt-runner
+	cargo test --locked -p bt-store -p bt-listener --features bt-store/native-posix,bt-listener/native-posix
+	cargo test --locked -p bt-store -p bt-listener --features bt-store/external-posix,bt-listener/external-posix
+	cargo clippy --locked -p bt-store -p bt-listener --all-targets --features bt-store/native-posix,bt-listener/native-posix -- -D warnings
+	cargo clippy --locked -p bt-store -p bt-listener --all-targets --features bt-store/external-posix,bt-listener/external-posix -- -D warnings
+	cargo check --locked -p bt-store -p bt-listener --target x86_64-unknown-none --features bt-store/external-posix,bt-listener/external-posix
+	python3 tests/store/run.py --cc "$(HOST_CC)" --sanitize
+	python3 tests/control/run.py --cc "$(HOST_CC)" --sanitize
+	node --check web/control/control.js
+	node web/control/control.test.cjs
+
 check-build-tools:
 	python3 tools/test_syscall_checked.py
 	python3 tools/build_ps5.py --self-test
